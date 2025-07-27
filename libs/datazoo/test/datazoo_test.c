@@ -20,9 +20,9 @@
 
 int main(int argc, char **argv) {
 
-    printf("STARTING DATAZOO TESTS\n");
+  printf("STARTING DATAZOO TESTS\n");
 
-    honeycomb_tests();
+  honeycomb_tests();
 
-    return 0;
+  return 0;
 }

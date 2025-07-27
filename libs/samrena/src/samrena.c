@@ -21,51 +21,51 @@
 
 uint8_t *samrena_basic_malloc(uint64_t page_count) {
 
-    uint64_t size = page_count * PAGE_SIZE;
-    uint8_t *allocated_bytes = malloc(size * sizeof(uint8_t));
+  uint64_t size = page_count * PAGE_SIZE;
+  uint8_t *allocated_bytes = malloc(size * sizeof(uint8_t));
 
-    return allocated_bytes;
+  return allocated_bytes;
 }
 
 void samrena_basic_free(uint8_t *bytes) { free(bytes); }
 
 Samrena *samrena_allocate(uint64_t page_count) {
 
-    // replace later with OS dependent code
-    uint8_t *bytes = samrena_basic_malloc(page_count);
-    uint64_t samrena_size = sizeof(Samrena);
+  // replace later with OS dependent code
+  uint8_t *bytes = samrena_basic_malloc(page_count);
+  uint64_t samrena_size = sizeof(Samrena);
 
-    Samrena *samrena = (Samrena *)bytes;
+  Samrena *samrena = (Samrena *)bytes;
 
-    samrena->bytes = bytes;
-    samrena->allocated = samrena_size;
-    samrena->capacity = PAGE_SIZE * page_count;
+  samrena->bytes = bytes;
+  samrena->allocated = samrena_size;
+  samrena->capacity = PAGE_SIZE * page_count;
 
-    return samrena;
+  return samrena;
 }
 
 void *samrena_push(Samrena *samrena, uint64_t size) {
 
-    // In future, expand memory
-    if (samrena->allocated + size > samrena->capacity) {
-        return 0;
-    }
+  // In future, expand memory
+  if (samrena->allocated + size > samrena->capacity) {
+    return 0;
+  }
 
-    void *pointer = (void *)&samrena->bytes + samrena->allocated;
-    samrena->allocated += size;
+  void *pointer = (void *)&samrena->bytes + samrena->allocated;
+  samrena->allocated += size;
 
-    return pointer;
+  return pointer;
 }
 
 void *samrena_push_zero(Samrena *samrena, uint64_t size) {
 
-    uint8_t *pointer = samrena_push(samrena, size);
+  uint8_t *pointer = samrena_push(samrena, size);
 
-    for (int i = 0; i < size; i++) {
-        pointer[i] = 0;
-    }
+  for (int i = 0; i < size; i++) {
+    pointer[i] = 0;
+  }
 
-    return pointer;
+  return pointer;
 }
 
 uint64_t samrena_allocated(Samrena *samrena) { return samrena->allocated; }
@@ -73,14 +73,14 @@ uint64_t samrena_allocated(Samrena *samrena) { return samrena->allocated; }
 uint64_t samrena_capacity(Samrena *samrena) { return samrena->capacity; }
 
 void samrena_deallocate(Samrena *samrena) {
-    // Replace later with OS dependent code
-    samrena_basic_free(samrena->bytes);
+  // Replace later with OS dependent code
+  samrena_basic_free(samrena->bytes);
 }
 
 void *samrena_resize_array(Samrena *samrena, void *original_array, uint64_t original_size,
                            uint64_t new_size) {
 
-    void *new_data = samrena_push(samrena, new_size);
+  void *new_data = samrena_push(samrena, new_size);
 
-    // memcpy the original data over
+  // memcpy the original data over
 }

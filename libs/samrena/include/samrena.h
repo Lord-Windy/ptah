@@ -23,16 +23,16 @@
 #define NEAT_INITIAL_PAGE_SIZE 1024
 
 typedef struct {
-    uint8_t *bytes;
-    uint64_t allocated;
-    uint64_t capacity;
+  uint8_t *bytes;
+  uint64_t allocated;
+  uint64_t capacity;
 } Samrena;
 
 typedef struct {
-    uint64_t size;
-    uint64_t element_size;
-    uint64_t capacity;
-    void *data;
+  uint64_t size;
+  uint64_t element_size;
+  uint64_t capacity;
+  void *data;
 } SamrenaVector;
 
 Samrena *samrena_allocate(uint64_t page_count);

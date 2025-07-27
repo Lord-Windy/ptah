@@ -26,18 +26,18 @@
 // HONEYCOMB
 //  Define the structure for each key-value pair
 typedef struct Cell {
-    char *key;
-    void *value;
-    struct Cell *next;
+  char *key;
+  void *value;
+  struct Cell *next;
 } Cell;
 
 // Define the main hashmap structure
 typedef struct {
-    Cell **cells;
-    size_t size;     // Current number of elements
-    size_t capacity; // Number of buckets
-    bool memory_managed_internally;
-    Samrena *arena; // Arena or null for malloc
+  Cell **cells;
+  size_t size;     // Current number of elements
+  size_t capacity; // Number of buckets
+  bool memory_managed_internally;
+  Samrena *arena; // Arena or null for malloc
 } Honeycomb;
 
 // Function declarations
