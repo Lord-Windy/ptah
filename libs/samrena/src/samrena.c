@@ -33,10 +33,19 @@ uint8_t *samrena_basic_malloc(uint64_t page_count) {
 void samrena_basic_free(uint8_t *bytes) { free(bytes); }
 
 Samrena *samrena_allocate(uint64_t page_count) {
+  // Handle zero page count - return NULL as this is invalid
+  if (page_count == 0) {
+    return NULL;
+  }
 
-  // Ensure we allocate at least enough space for the Samrena struct
+  // Check for overflow in size calculation
   uint64_t samrena_size = sizeof(Samrena);
   uint64_t total_size = PAGE_SIZE * page_count;
+  
+  // Check for multiplication overflow
+  if (page_count > UINT64_MAX / PAGE_SIZE) {
+    return NULL;
+  }
   
   if (total_size < samrena_size) {
     total_size = samrena_size;
@@ -45,19 +54,28 @@ Samrena *samrena_allocate(uint64_t page_count) {
   // replace later with OS dependent code
   uint8_t *bytes = malloc(total_size);
   if (!bytes) {
-    return 0;
+    return NULL;
   }
 
   Samrena *samrena = (Samrena *)bytes;
 
   samrena->bytes = bytes;
   samrena->allocated = samrena_size;
-  samrena->capacity = PAGE_SIZE * page_count;
+  samrena->capacity = total_size;
 
   return samrena;
 }
 
 void *samrena_push(Samrena *samrena, uint64_t size) {
+  // Null pointer check
+  if (!samrena) {
+    return NULL;
+  }
+  
+  // Handle zero size allocation
+  if (size == 0) {
+    return NULL;
+  }
 
   // Calculate alignment for the requested size
   size_t alignment = __builtin_ctz(size) ? (1 << __builtin_ctz(size)) : alignof(max_align_t);
@@ -68,9 +86,19 @@ void *samrena_push(Samrena *samrena, uint64_t size) {
   // Align the current allocated position
   uint64_t aligned_offset = (samrena->allocated + alignment - 1) & ~(alignment - 1);
 
+  // Check for overflow in offset calculation
+  if (aligned_offset < samrena->allocated) {
+    return NULL;
+  }
+  
+  // Check for overflow in final size calculation
+  if (aligned_offset > UINT64_MAX - size) {
+    return NULL;
+  }
+
   // In future, expand memory
   if (aligned_offset + size > samrena->capacity) {
-    return 0;
+    return NULL;
   }
 
   void *pointer = (void *)(samrena->bytes + aligned_offset);
@@ -80,36 +108,63 @@ void *samrena_push(Samrena *samrena, uint64_t size) {
 }
 
 void *samrena_push_zero(Samrena *samrena, uint64_t size) {
-
   uint8_t *pointer = samrena_push(samrena, size);
-
-  for (int i = 0; i < size; i++) {
-    pointer[i] = 0;
+  
+  // Check if allocation failed
+  if (!pointer) {
+    return NULL;
   }
+
+  // Use memset for better performance and safety
+  memset(pointer, 0, size);
 
   return pointer;
 }
 
-uint64_t samrena_allocated(Samrena *samrena) { return samrena->allocated; }
+uint64_t samrena_allocated(Samrena *samrena) { 
+  if (!samrena) {
+    return 0;
+  }
+  return samrena->allocated; 
+}
 
-uint64_t samrena_capacity(Samrena *samrena) { return samrena->capacity; }
+uint64_t samrena_capacity(Samrena *samrena) { 
+  if (!samrena) {
+    return 0;
+  }
+  return samrena->capacity; 
+}
 
 void samrena_deallocate(Samrena *samrena) {
+  if (!samrena) {
+    return;
+  }
   // Replace later with OS dependent code
   samrena_basic_free(samrena->bytes);
 }
 
 void *samrena_resize_array(Samrena *samrena, void *original_array, uint64_t original_size,
                            uint64_t new_size) {
+  // Null samrena check
+  if (!samrena) {
+    return NULL;
+  }
+  
+  // Handle zero new size - for compatibility with tests, allow this
+  if (new_size == 0) {
+    new_size = 1; // Allocate minimal space instead of failing
+  }
 
   void *new_data = samrena_push(samrena, new_size);
   if (!new_data) {
-    return 0;
+    return NULL;
   }
 
-  // Copy the original data over
-  uint64_t copy_size = original_size < new_size ? original_size : new_size;
-  memcpy(new_data, original_array, copy_size);
+  // Copy the original data over if original_array is not null
+  if (original_array && original_size > 0) {
+    uint64_t copy_size = original_size < new_size ? original_size : new_size;
+    memcpy(new_data, original_array, copy_size);
+  }
 
   return new_data;
 }

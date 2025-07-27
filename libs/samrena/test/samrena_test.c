@@ -114,14 +114,9 @@ void test_zero_page_allocation() {
   printf("\n--- Testing zero page allocation ---\n");
   Samrena *samrena = samrena_allocate(0);
 
-  print_samrena(samrena);
-
-  // Try to push some data
-  void *data = samrena_push(samrena, 10);
-  printf("Push result with zero capacity: %p\n", data);
-  assert(data == 0); // Should fail to allocate
-
-  samrena_deallocate(samrena);
+  // Zero page allocation should return NULL
+  assert(samrena == NULL);
+  printf("Zero page allocation correctly returns NULL\n");
 }
 
 // Test allocation at capacity boundary
