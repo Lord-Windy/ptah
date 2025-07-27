@@ -229,6 +229,159 @@ void test_minimal_allocation() {
   samrena_deallocate(samrena);
 }
 
+void test_resize_array_basic() {
+  printf("\n--- Testing samrena_resize_array basic functionality ---\n");
+  Samrena *samrena = samrena_allocate(10);
+
+  int32_t *original = samrena_push(samrena, 5 * sizeof(int32_t));
+  assert(original != 0);
+  
+  for (int i = 0; i < 5; i++) {
+    original[i] = i * 10;
+  }
+  
+  printf("Original array created with 5 elements\n");
+  
+  int32_t *resized = samrena_resize_array(samrena, original, 
+                                         5 * sizeof(int32_t), 
+                                         8 * sizeof(int32_t));
+  assert(resized != 0);
+  
+  for (int i = 0; i < 5; i++) {
+    assert(resized[i] == i * 10);
+    printf("resized[%d] = %d (preserved)\n", i, resized[i]);
+  }
+  
+  for (int i = 5; i < 8; i++) {
+    resized[i] = i * 10;
+    printf("resized[%d] = %d (new)\n", i, resized[i]);
+  }
+  
+  samrena_deallocate(samrena);
+}
+
+void test_resize_array_shrink() {
+  printf("\n--- Testing samrena_resize_array shrinking ---\n");
+  Samrena *samrena = samrena_allocate(10);
+
+  int32_t *original = samrena_push(samrena, 10 * sizeof(int32_t));
+  assert(original != 0);
+  
+  for (int i = 0; i < 10; i++) {
+    original[i] = i * 5;
+  }
+  
+  printf("Original array created with 10 elements\n");
+  
+  int32_t *resized = samrena_resize_array(samrena, original, 
+                                         10 * sizeof(int32_t), 
+                                         4 * sizeof(int32_t));
+  assert(resized != 0);
+  
+  for (int i = 0; i < 4; i++) {
+    assert(resized[i] == i * 5);
+    printf("resized[%d] = %d (preserved)\n", i, resized[i]);
+  }
+  
+  samrena_deallocate(samrena);
+}
+
+void test_resize_array_zero_sizes() {
+  printf("\n--- Testing samrena_resize_array with zero sizes ---\n");
+  Samrena *samrena = samrena_allocate(10);
+
+  void *resized1 = samrena_resize_array(samrena, 0, 0, 100);
+  assert(resized1 != 0);
+  printf("Resize from null pointer succeeded\n");
+  
+  int32_t *original = samrena_push(samrena, 5 * sizeof(int32_t));
+  assert(original != 0);
+  original[0] = 42;
+  
+  void *resized2 = samrena_resize_array(samrena, original, 
+                                       5 * sizeof(int32_t), 0);
+  assert(resized2 != 0);
+  printf("Resize to zero size succeeded\n");
+  
+  samrena_deallocate(samrena);
+}
+
+void test_resize_array_different_types() {
+  printf("\n--- Testing samrena_resize_array with different types ---\n");
+  Samrena *samrena = samrena_allocate(10);
+
+  char *char_array = samrena_push(samrena, 10);
+  assert(char_array != 0);
+  strcpy(char_array, "hello");
+  
+  char *resized_char = samrena_resize_array(samrena, char_array, 10, 20);
+  assert(resized_char != 0);
+  assert(strcmp(resized_char, "hello") == 0);
+  printf("Char array resize: '%s'\n", resized_char);
+  
+  double *double_array = samrena_push(samrena, 3 * sizeof(double));
+  assert(double_array != 0);
+  double_array[0] = 3.14;
+  double_array[1] = 2.71;
+  double_array[2] = 1.41;
+  
+  double *resized_double = samrena_resize_array(samrena, double_array, 
+                                               3 * sizeof(double), 
+                                               5 * sizeof(double));
+  assert(resized_double != 0);
+  assert(resized_double[0] == 3.14);
+  assert(resized_double[1] == 2.71);
+  assert(resized_double[2] == 1.41);
+  printf("Double array resize preserved values\n");
+  
+  samrena_deallocate(samrena);
+}
+
+void test_resize_array_capacity_exhaustion() {
+  printf("\n--- Testing samrena_resize_array capacity exhaustion ---\n");
+  Samrena *samrena = samrena_allocate(1);
+  
+  uint64_t large_size = samrena->capacity - samrena->allocated - 100;
+  void *large_array = samrena_push(samrena, large_size);
+  assert(large_array != 0);
+  
+  printf("Filled arena to near capacity\n");
+  
+  void *resized = samrena_resize_array(samrena, large_array, large_size, 
+                                      samrena->capacity);
+  assert(resized == 0);
+  printf("Resize beyond capacity correctly failed\n");
+  
+  samrena_deallocate(samrena);
+}
+
+void test_resize_array_alignment() {
+  printf("\n--- Testing samrena_resize_array alignment preservation ---\n");
+  Samrena *samrena = samrena_allocate(10);
+  
+  int64_t *int64_array = samrena_push(samrena, 3 * sizeof(int64_t));
+  assert(int64_array != 0);
+  assert(((uintptr_t)int64_array % sizeof(int64_t)) == 0);
+  
+  int64_array[0] = 0x1234567890ABCDEF;
+  int64_array[1] = 0xFEDCBA0987654321;
+  int64_array[2] = 0x0123456789ABCDEF;
+  
+  int64_t *resized_int64 = samrena_resize_array(samrena, int64_array,
+                                               3 * sizeof(int64_t),
+                                               6 * sizeof(int64_t));
+  assert(resized_int64 != 0);
+  assert(((uintptr_t)resized_int64 % sizeof(int64_t)) == 0);
+  
+  assert(resized_int64[0] == 0x1234567890ABCDEF);
+  assert(resized_int64[1] == 0xFEDCBA0987654321);
+  assert(resized_int64[2] == 0x0123456789ABCDEF);
+  
+  printf("int64_t array resize preserved alignment and data\n");
+  
+  samrena_deallocate(samrena);
+}
+
 int main(int argc, char **argv) {
 
   printf("START SAMRENA TESTING\n");
@@ -249,6 +402,14 @@ int main(int argc, char **argv) {
   test_data_alignment();
   test_large_allocation();
   test_minimal_allocation();
+
+  // Run the resize array tests
+  test_resize_array_basic();
+  test_resize_array_shrink();
+  test_resize_array_zero_sizes();
+  test_resize_array_different_types();
+  test_resize_array_capacity_exhaustion();
+  test_resize_array_alignment();
 
   printf("\nAll tests completed successfully!\n");
   return 0;

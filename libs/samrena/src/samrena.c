@@ -34,9 +34,19 @@ void samrena_basic_free(uint8_t *bytes) { free(bytes); }
 
 Samrena *samrena_allocate(uint64_t page_count) {
 
-  // replace later with OS dependent code
-  uint8_t *bytes = samrena_basic_malloc(page_count);
+  // Ensure we allocate at least enough space for the Samrena struct
   uint64_t samrena_size = sizeof(Samrena);
+  uint64_t total_size = PAGE_SIZE * page_count;
+  
+  if (total_size < samrena_size) {
+    total_size = samrena_size;
+  }
+  
+  // replace later with OS dependent code
+  uint8_t *bytes = malloc(total_size);
+  if (!bytes) {
+    return 0;
+  }
 
   Samrena *samrena = (Samrena *)bytes;
 
