@@ -57,15 +57,15 @@ SamrenaVector *samrena_vector_init(Samrena *samrena, uint64_t element_size,
   return vec;
 }
 
-void *samrena_vector_push(SamrenaVector *samrena_vector, Samrena *samrena, void *element) {
+void *samrena_vector_push(Samrena *samrena, SamrenaVector *samrena_vector, void *element) {
   // Null pointer checks
-  if (!samrena_vector || !samrena || !element) {
+  if (!samrena || !samrena_vector || !element) {
     return NULL;
   }
   
   // Check if we need to resize the vector
   if (samrena_vector->size >= samrena_vector->capacity) {
-    void *resize_result = samrena_vector_resize(samrena_vector, samrena, 2); // Double the size
+    void *resize_result = samrena_vector_resize(samrena, samrena_vector, 2); // Double the size
     if (!resize_result) {
       return NULL; // Resize failed
     }
@@ -108,10 +108,10 @@ void *samrena_vector_pop(SamrenaVector *samrena_vector) {
   return (uint8_t *)samrena_vector->data + (samrena_vector->size * samrena_vector->element_size);
 }
 
-void *samrena_vector_resize(SamrenaVector *samrena_vector, Samrena *samrena,
+void *samrena_vector_resize(Samrena *samrena, SamrenaVector *samrena_vector,
                             uint64_t resize_factor) {
   // Null pointer checks
-  if (!samrena_vector || !samrena) {
+  if (!samrena || !samrena_vector) {
     return NULL;
   }
   

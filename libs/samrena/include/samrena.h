@@ -22,6 +22,14 @@
 
 #define NEAT_INITIAL_PAGE_SIZE 1024
 
+typedef enum {
+  SAMRENA_SUCCESS = 0,
+  SAMRENA_ERROR_NULL_POINTER = 1,
+  SAMRENA_ERROR_INVALID_SIZE = 2,
+  SAMRENA_ERROR_OUT_OF_MEMORY = 3,
+  SAMRENA_ERROR_OVERFLOW = 4
+} SamrenaError;
+
 typedef struct {
   uint8_t *bytes;
   uint64_t allocated;
@@ -34,6 +42,9 @@ typedef struct {
   uint64_t capacity;
   void *data;
 } SamrenaVector;
+
+SamrenaError samrena_get_last_error(void);
+const char *samrena_error_string(SamrenaError error);
 
 Samrena *samrena_allocate(uint64_t page_count);
 void samrena_deallocate(Samrena *samrena);
@@ -51,11 +62,11 @@ SamrenaVector *samrena_vector_init(Samrena *samrena, uint64_t element_size,
                                    uint64_t capacity // 0 uses a default
 );
 
-void *samrena_vector_push(SamrenaVector *samrena_vector, Samrena *samrena, void *element);
+void *samrena_vector_push(Samrena *samrena, SamrenaVector *samrena_vector, void *element);
 
 void *samrena_vector_pop(SamrenaVector *samrena_vector);
 
-void *samrena_vector_resize(SamrenaVector *samrena_vector, Samrena *samrena,
+void *samrena_vector_resize(Samrena *samrena, SamrenaVector *samrena_vector,
                             uint64_t resize_factor);
 
 #endif

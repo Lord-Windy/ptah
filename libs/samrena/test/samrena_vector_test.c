@@ -48,7 +48,7 @@ void test_vector_push() {
 
   // Push 3 elements
   for (int i = 0; i < 3; i++) {
-    void *result = samrena_vector_push(vec, arena, &values[i]);
+    void *result = samrena_vector_push(arena, vec, &values[i]);
     assert(result != NULL);
   }
 
@@ -56,7 +56,7 @@ void test_vector_push() {
 
   // Push 2 more elements (should trigger resize)
   for (int i = 3; i < 5; i++) {
-    void *result = samrena_vector_push(vec, arena, &values[i]);
+    void *result = samrena_vector_push(arena, vec, &values[i]);
     assert(result != NULL);
   }
 
@@ -84,7 +84,7 @@ void test_vector_pop() {
 
   // Push 5 elements
   for (int i = 0; i < 5; i++) {
-    samrena_vector_push(vec, arena, &values[i]);
+    samrena_vector_push(arena, vec, &values[i]);
   }
 
   assert(vec->size == 5);
@@ -119,13 +119,13 @@ void test_vector_resize() {
 
   // Push 5 elements
   for (int i = 0; i < 5; i++) {
-    samrena_vector_push(vec, arena, &values[i]);
+    samrena_vector_push(arena, vec, &values[i]);
   }
 
   uint64_t original_capacity = vec->capacity;
 
   // Manually resize vector
-  void *result = samrena_vector_resize(vec, arena, 2);
+  void *result = samrena_vector_resize(arena, vec, 2);
   assert(result != NULL);
   assert(vec->capacity == original_capacity * 2);
 
@@ -137,7 +137,7 @@ void test_vector_resize() {
 
   // Push more elements to fill expanded capacity
   for (int i = 5; i < 10; i++) {
-    samrena_vector_push(vec, arena, &values[i]);
+    samrena_vector_push(arena, vec, &values[i]);
   }
 
   assert(vec->size == 10);
@@ -163,7 +163,7 @@ void test_different_types() {
   char chars[] = {'a', 'b', 'c', 'd', 'e'};
 
   for (int i = 0; i < 5; i++) {
-    samrena_vector_push(char_vec, arena, &chars[i]);
+    samrena_vector_push(arena, char_vec, &chars[i]);
   }
 
   for (int i = 0; i < 5; i++) {
@@ -176,7 +176,7 @@ void test_different_types() {
   double doubles[] = {1.1, 2.2, 3.3, 4.4, 5.5};
 
   for (int i = 0; i < 5; i++) {
-    samrena_vector_push(double_vec, arena, &doubles[i]);
+    samrena_vector_push(arena, double_vec, &doubles[i]);
   }
 
   for (int i = 0; i < 5; i++) {
@@ -199,7 +199,7 @@ void test_different_types() {
     structs[i].id = i + 1;
     snprintf(structs[i].name, 10, "Name%d", i + 1);
     structs[i].value = (i + 1) * 2.5;
-    samrena_vector_push(struct_vec, arena, &structs[i]);
+    samrena_vector_push(arena, struct_vec, &structs[i]);
   }
 
   for (int i = 0; i < 3; i++) {
@@ -230,7 +230,7 @@ void test_edge_cases() {
   SamrenaVector *vec_large = samrena_vector_init(arena, sizeof(int), num_elements);
 
   for (int i = 0; i < num_elements; i++) {
-    samrena_vector_push(vec_large, arena, &i);
+    samrena_vector_push(arena, vec_large, &i);
   }
 
   assert(vec_large->size == (uint64_t)num_elements);
@@ -250,7 +250,7 @@ void test_edge_cases() {
   uint8_t small_vals[] = {0xFF, 0xAA, 0x55, 0x01};
 
   for (int i = 0; i < 4; i++) {
-    samrena_vector_push(vec_small, arena, &small_vals[i]);
+    samrena_vector_push(arena, vec_small, &small_vals[i]);
   }
 
   for (int i = 0; i < 4; i++) {
