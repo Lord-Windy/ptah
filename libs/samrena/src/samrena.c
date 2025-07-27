@@ -15,18 +15,16 @@
  */
 
 #include "samrena.h"
-#include <stdint.h>
-#include <stddef.h>
 #include <stdalign.h>
+#include <stddef.h>
+#include <stdint.h>
 #include <string.h>
 
 #define PAGE_SIZE 4096
 
 static SamrenaError last_error = SAMRENA_SUCCESS;
 
-SamrenaError samrena_get_last_error(void) {
-  return last_error;
-}
+SamrenaError samrena_get_last_error(void) { return last_error; }
 
 const char *samrena_error_string(SamrenaError error) {
   switch (error) {
@@ -45,9 +43,7 @@ const char *samrena_error_string(SamrenaError error) {
   }
 }
 
-static void samrena_set_error(SamrenaError error) {
-  last_error = error;
-}
+static void samrena_set_error(SamrenaError error) { last_error = error; }
 
 uint8_t *samrena_basic_malloc(uint64_t page_count) {
 
@@ -61,7 +57,7 @@ void samrena_basic_free(uint8_t *bytes) { free(bytes); }
 
 Samrena *samrena_allocate(uint64_t page_count) {
   samrena_set_error(SAMRENA_SUCCESS);
-  
+
   // Handle zero page count - return NULL as this is invalid
   if (page_count == 0) {
     samrena_set_error(SAMRENA_ERROR_INVALID_SIZE);
@@ -73,16 +69,16 @@ Samrena *samrena_allocate(uint64_t page_count) {
     samrena_set_error(SAMRENA_ERROR_OVERFLOW);
     return NULL;
   }
-  
+
   uint64_t data_size = PAGE_SIZE * page_count;
-  
+
   // Allocate metadata separately from data pool
   Samrena *samrena = malloc(sizeof(Samrena));
   if (!samrena) {
     samrena_set_error(SAMRENA_ERROR_OUT_OF_MEMORY);
     return NULL;
   }
-  
+
   // Allocate the data pool separately
   uint8_t *bytes = malloc(data_size);
   if (!bytes) {
@@ -92,7 +88,7 @@ Samrena *samrena_allocate(uint64_t page_count) {
   }
 
   samrena->bytes = bytes;
-  samrena->allocated = 0;  // Start with 0 allocated since data pool is separate
+  samrena->allocated = 0; // Start with 0 allocated since data pool is separate
   samrena->capacity = data_size;
 
   return samrena;
@@ -100,13 +96,13 @@ Samrena *samrena_allocate(uint64_t page_count) {
 
 void *samrena_push(Samrena *samrena, uint64_t size) {
   samrena_set_error(SAMRENA_SUCCESS);
-  
+
   // Null pointer check
   if (!samrena) {
     samrena_set_error(SAMRENA_ERROR_NULL_POINTER);
     return NULL;
   }
-  
+
   // Handle zero size allocation
   if (size == 0) {
     samrena_set_error(SAMRENA_ERROR_INVALID_SIZE);
@@ -127,7 +123,7 @@ void *samrena_push(Samrena *samrena, uint64_t size) {
     samrena_set_error(SAMRENA_ERROR_OVERFLOW);
     return NULL;
   }
-  
+
   // Check for overflow in final size calculation
   if (aligned_offset > UINT64_MAX - size) {
     samrena_set_error(SAMRENA_ERROR_OVERFLOW);
@@ -148,7 +144,7 @@ void *samrena_push(Samrena *samrena, uint64_t size) {
 
 void *samrena_push_zero(Samrena *samrena, uint64_t size) {
   uint8_t *pointer = samrena_push(samrena, size);
-  
+
   // Check if allocation failed
   if (!pointer) {
     return NULL;
@@ -160,18 +156,18 @@ void *samrena_push_zero(Samrena *samrena, uint64_t size) {
   return pointer;
 }
 
-uint64_t samrena_allocated(Samrena *samrena) { 
+uint64_t samrena_allocated(Samrena *samrena) {
   if (!samrena) {
     return 0;
   }
-  return samrena->allocated; 
+  return samrena->allocated;
 }
 
-uint64_t samrena_capacity(Samrena *samrena) { 
+uint64_t samrena_capacity(Samrena *samrena) {
   if (!samrena) {
     return 0;
   }
-  return samrena->capacity; 
+  return samrena->capacity;
 }
 
 void samrena_deallocate(Samrena *samrena) {
@@ -192,7 +188,7 @@ void *samrena_resize_array(Samrena *samrena, void *original_array, uint64_t orig
   if (!samrena) {
     return NULL;
   }
-  
+
   // Handle zero new size - for compatibility with tests, allow this
   if (new_size == 0) {
     new_size = 1; // Allocate minimal space instead of failing

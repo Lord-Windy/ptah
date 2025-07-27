@@ -26,19 +26,19 @@ SamrenaVector *samrena_vector_init(Samrena *samrena, uint64_t element_size,
   if (!samrena) {
     return NULL;
   }
-  
+
   // Zero element size check
   if (element_size == 0) {
     return NULL;
   }
 
   uint64_t initial_capacity = capacity ? capacity : DEFAULT_CAPACITY;
-  
+
   // Check for overflow in data size calculation
   if (initial_capacity > UINT64_MAX / element_size) {
     return NULL;
   }
-  
+
   SamrenaVector *vec = samrena_push(samrena, sizeof(SamrenaVector));
   if (!vec) {
     return NULL;
@@ -48,7 +48,7 @@ SamrenaVector *samrena_vector_init(Samrena *samrena, uint64_t element_size,
   vec->element_size = element_size;
   vec->capacity = initial_capacity;
   vec->data = samrena_push(samrena, element_size * initial_capacity);
-  
+
   // Check if data allocation failed
   if (!vec->data) {
     return NULL;
@@ -62,7 +62,7 @@ void *samrena_vector_push(Samrena *samrena, SamrenaVector *samrena_vector, void 
   if (!samrena || !samrena_vector || !element) {
     return NULL;
   }
-  
+
   // Check if we need to resize the vector
   if (samrena_vector->size >= samrena_vector->capacity) {
     void *resize_result = samrena_vector_resize(samrena, samrena_vector, 2); // Double the size
@@ -95,7 +95,7 @@ void *samrena_vector_pop(SamrenaVector *samrena_vector) {
   if (!samrena_vector) {
     return NULL;
   }
-  
+
   // Check if the vector is empty
   if (samrena_vector->size == 0) {
     return NULL;
@@ -114,20 +114,20 @@ void *samrena_vector_resize(Samrena *samrena, SamrenaVector *samrena_vector,
   if (!samrena || !samrena_vector) {
     return NULL;
   }
-  
+
   // Zero resize factor check
   if (resize_factor == 0) {
     return NULL;
   }
-  
+
   // Check for overflow in capacity calculation
   if (samrena_vector->capacity > UINT64_MAX / resize_factor) {
     return NULL;
   }
-  
+
   // Calculate the new capacity
   uint64_t new_capacity = samrena_vector->capacity * resize_factor;
-  
+
   // Check for overflow in data size calculation
   if (new_capacity > UINT64_MAX / samrena_vector->element_size) {
     return NULL;
