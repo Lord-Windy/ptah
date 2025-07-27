@@ -16,6 +16,9 @@
 
 #include "samrena.h"
 #include <stdint.h>
+#include <stddef.h>
+#include <stdalign.h>
+#include <string.h>
 
 #define PAGE_SIZE 4096
 
@@ -46,13 +49,22 @@ Samrena *samrena_allocate(uint64_t page_count) {
 
 void *samrena_push(Samrena *samrena, uint64_t size) {
 
+  // Calculate alignment for the requested size
+  size_t alignment = __builtin_ctz(size) ? (1 << __builtin_ctz(size)) : alignof(max_align_t);
+  if (alignment > alignof(max_align_t)) {
+    alignment = alignof(max_align_t);
+  }
+
+  // Align the current allocated position
+  uint64_t aligned_offset = (samrena->allocated + alignment - 1) & ~(alignment - 1);
+
   // In future, expand memory
-  if (samrena->allocated + size > samrena->capacity) {
+  if (aligned_offset + size > samrena->capacity) {
     return 0;
   }
 
-  void *pointer = (void *)&samrena->bytes + samrena->allocated;
-  samrena->allocated += size;
+  void *pointer = (void *)(samrena->bytes + aligned_offset);
+  samrena->allocated = aligned_offset + size;
 
   return pointer;
 }
@@ -81,6 +93,13 @@ void *samrena_resize_array(Samrena *samrena, void *original_array, uint64_t orig
                            uint64_t new_size) {
 
   void *new_data = samrena_push(samrena, new_size);
+  if (!new_data) {
+    return 0;
+  }
 
-  // memcpy the original data over
+  // Copy the original data over
+  uint64_t copy_size = original_size < new_size ? original_size : new_size;
+  memcpy(new_data, original_array, copy_size);
+
+  return new_data;
 }

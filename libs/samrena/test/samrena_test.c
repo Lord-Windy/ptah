@@ -17,7 +17,7 @@
 #include "samrena.h"
 #include <assert.h>
 #include <stdio.h>
-
+#include <stdint.h>
 #include <string.h>
 
 char *global_dictionary[50] = {
@@ -49,7 +49,10 @@ void create_new_arena() {
   printf("Address of Samrena + sizeof %p\n", (void *)samrena + sizeof(Samrena));
 
   assert(data != 0);
-  assert((void *)data == (void *)samrena + sizeof(Samrena));
+  // Data should be properly aligned, not necessarily at samrena + sizeof(Samrena)
+  assert((uintptr_t)data >= (uintptr_t)samrena + sizeof(Samrena));
+  // Verify data is properly aligned for int32_t
+  assert(((uintptr_t)data % sizeof(int32_t)) == 0);
 
   print_samrena(samrena);
   samrena_deallocate(samrena);
