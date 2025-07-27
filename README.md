@@ -121,6 +121,43 @@ make format
 ./lint.sh format
 ```
 
+## LSP Support (clangd)
+
+This project supports LSP through clangd for enhanced IDE features like autocomplete, go-to-definition, and error checking.
+
+The `compile_commands.json` file is automatically generated during the CMake build process and is required for clangd to understand the project structure.
+
+### Quick Setup
+
+Run the provided setup script to automatically configure LSP support:
+
+```bash
+./setup_lsp.sh
+```
+
+This will:
+1. Create a build directory if it doesn't exist
+2. Generate the `compile_commands.json` file
+3. Create a symlink in the project root for easy access by clangd
+
+### Manual Setup
+
+If you prefer to set up LSP manually:
+
+```bash
+# Create and enter build directory
+mkdir build
+cd build
+
+# Generate compile_commands.json
+cmake .. -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+
+# Create symlink for clangd
+ln -sf build/compile_commands.json ../compile_commands.json
+```
+
+After setup, you can configure your editor to use clangd for C/C++ language support.
+
 ## License
 
 [License information to be added]
