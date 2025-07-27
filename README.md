@@ -95,6 +95,32 @@ cd build
 ctest
 ```
 
+## Code Linting
+
+This project uses `clang-format` for code linting and formatting. You can use either CMake targets or a simple shell script:
+
+### Using CMake
+
+```bash
+# Check for formatting issues
+cd build
+make lint
+
+# Automatically fix formatting issues
+cd build
+make format
+```
+
+### Using the shell script
+
+```bash
+# Check for formatting issues
+./lint.sh
+
+# Automatically fix formatting issues
+./lint.sh format
+```
+
 ## License
 
 [License information to be added]

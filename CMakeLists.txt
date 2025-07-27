@@ -133,6 +133,22 @@ if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/tools)
     add_subdirectories_recursively(tools)
 endif()
 
+# Custom targets
+# Linting target for C code
+add_custom_target(lint
+    COMMAND find ${CMAKE_SOURCE_DIR} -name "*.c" -o -name "*.h" | xargs clang-format --dry-run --Werror
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    COMMENT "Linting C code with clang-format"
+    VERBATIM
+)
+
+add_custom_target(format
+    COMMAND find ${CMAKE_SOURCE_DIR} -name "*.c" -o -name "*.h" | xargs clang-format -i
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    COMMENT "Formatting C code with clang-format"
+    VERBATIM
+)
+
 # Testing
 if(BUILD_TESTING)
     enable_testing()

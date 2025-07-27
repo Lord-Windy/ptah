@@ -21,4 +21,4 @@
 
 void honeycomb_tests();
 
-#endif //HONEYCOMB_TESTS_H
+#endif // HONEYCOMB_TESTS_H

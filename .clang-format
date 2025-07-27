@@ -1,0 +1,13 @@
+# Clang-format configuration for Ptah project
+# Based on LLVM style with customizations
+
+BasedOnStyle: LLVM
+IndentWidth: 2
+TabWidth: 2
+UseTab: Never
+BreakBeforeBraces: Attach
+AllowShortIfStatementsOnASingleLine: false
+IndentCaseLabels: true
+ColumnLimit: 100
+AlignTrailingComments: true
+PenaltyBreakBeforeFirstCallParameter: 100
