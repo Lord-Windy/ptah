@@ -1,0 +1,82 @@
+# Build directories
+build/
+cmake-build-*/
+out/
+bin/
+lib/
+
+# CMake files
+CMakeCache.txt
+CMakeFiles/
+CMakeScripts/
+Testing/
+Makefile
+cmake_install.cmake
+install_manifest.txt
+compile_commands.json
+CTestTestfile.cmake
+_deps/
+*.cmake
+!cmake/*.cmake
+
+# IDE specific files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Build artifacts
+*.o
+*.a
+*.so
+*.so.*
+*.dylib
+*.dll
+*.exe
+*.out
+*.app
+
+# Debug files
+*.dSYM/
+*.su
+*.idb
+*.pdb
+
+# Dependency directories
+vendor/
+third_party/
+
+# Package files
+*.tar.gz
+*.zip
+
+# Logs
+*.log
+
+# Temporary files
+*.tmp
+*.temp
+.cache/
+
+# Documentation
+docs/html/
+docs/latex/
+doxygen_output/
+
+# Test coverage
+*.gcda
+*.gcno
+*.gcov
+coverage/
+coverage.info
+
+# Backup files
+*.bak
+*.backup
+
+# Core dumps
+core
+core.*
+vgcore.*

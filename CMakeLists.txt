@@ -28,42 +28,6 @@ option(BUILD_TESTING "Build tests" ON)
 include(CTest)
 include(GNUInstallDirs)
 
-# Function to recursively find and add subdirectories with CMakeLists.txt
-function(add_subdirectories_recursively dir)
-    file(GLOB children RELATIVE ${CMAKE_CURRENT_SOURCE_DIR}/${dir} ${CMAKE_CURRENT_SOURCE_DIR}/${dir}/*)
-    foreach(child ${children})
-        if(IS_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/${dir}/${child})
-            if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/${dir}/${child}/CMakeLists.txt)
-                add_subdirectory(${dir}/${child})
-            else()
-                add_subdirectories_recursively(${dir}/${child})
-            endif()
-        endif()
-    endforeach()
-endfunction()
-
-# Automatically discover and add all subdirectories with CMakeLists.txt
-# This allows for a Bazel-like structure where each library/app has its own CMakeLists.txt
-if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/libs)
-    add_subdirectories_recursively(libs)
-endif()
-
-if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/apps)
-    add_subdirectories_recursively(apps)
-endif()
-
-if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/tools)
-    add_subdirectories_recursively(tools)
-endif()
-
-# Testing
-if(BUILD_TESTING)
-    enable_testing()
-    if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/tests)
-        add_subdirectories_recursively(tests)
-    endif()
-endif()
-
 # Helper function for creating libraries with consistent settings
 function(ptah_add_library name)
     set(options STATIC SHARED INTERFACE)
@@ -126,3 +90,39 @@ function(ptah_add_executable name)
         RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
     )
 endfunction()
+
+# Function to recursively find and add subdirectories with CMakeLists.txt
+function(add_subdirectories_recursively dir)
+    file(GLOB children RELATIVE ${CMAKE_CURRENT_SOURCE_DIR}/${dir} ${CMAKE_CURRENT_SOURCE_DIR}/${dir}/*)
+    foreach(child ${children})
+        if(IS_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/${dir}/${child})
+            if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/${dir}/${child}/CMakeLists.txt)
+                add_subdirectory(${dir}/${child})
+            else()
+                add_subdirectories_recursively(${dir}/${child})
+            endif()
+        endif()
+    endforeach()
+endfunction()
+
+# Automatically discover and add all subdirectories with CMakeLists.txt
+# This allows for a Bazel-like structure where each library/app has its own CMakeLists.txt
+if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/libs)
+    add_subdirectories_recursively(libs)
+endif()
+
+if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/apps)
+    add_subdirectories_recursively(apps)
+endif()
+
+if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/tools)
+    add_subdirectories_recursively(tools)
+endif()
+
+# Testing
+if(BUILD_TESTING)
+    enable_testing()
+    if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/tests)
+        add_subdirectories_recursively(tests)
+    endif()
+endif()
