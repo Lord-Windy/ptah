@@ -158,6 +158,16 @@ ln -sf build/compile_commands.json ../compile_commands.json
 
 After setup, you can configure your editor to use clangd for C/C++ language support.
 
+## Valgrind Testing
+
+This project includes support for testing binaries with Valgrind to detect memory errors. See [VALGRIND.md](VALGRIND.md) for detailed instructions on how to use Valgrind with this project.
+
+A test script is provided to automatically build and test all binaries with Valgrind:
+
+```bash
+./valgrind_test.sh
+```
+
 ## License
 
 [License information to be added]

@@ -20,14 +20,33 @@ set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_C_EXTENSIONS OFF)
 
+# Compiler flags for Valgrind compatibility in Debug builds
+if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+    # Disable advanced instruction sets that Valgrind might not support
+    # Use a more conservative architecture setting
+    set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -march=x86-64 -mtune=generic -mno-avx -mno-avx2 -mno-avx512f -mno-avx512dq -mno-avx512cd -mno-avx512bw -mno-avx512vl -mno-avx512ifma -mno-avx512vbmi")
+endif()
+
 # Export compile commands for editor integration
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # Set default build type if not specified
 if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE "Debug" CACHE STRING "Choose the type of build." FORCE)
-    set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release" "MinSizeRel" "RelWithDebInfo")
+    set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release" "MinSizeRel" "RelWithDebInfo" "Valgrind")
 endif()
+
+# Custom Valgrind build type with restricted instruction sets
+set(CMAKE_C_FLAGS_VALGRIND "-O0 -g -march=x86-64 -mtune=generic -mno-avx -mno-avx2 -mno-avx512f -mno-avx512dq -mno-avx512cd -mno-avx512bw -mno-avx512vl -mno-avx512ifma -mno-avx512vbmi -mno-sse4.2 -mno-popcnt -mno-lzcnt -mno-bmi -mno-bmi2" CACHE STRING
+    "Flags used by the C compiler during Valgrind builds." FORCE)
+set(CMAKE_EXE_LINKER_FLAGS_VALGRIND "-static-libgcc" CACHE STRING
+    "Flags used for linking binaries during Valgrind builds." FORCE)
+set(CMAKE_SHARED_LINKER_FLAGS_VALGRIND "" CACHE STRING
+    "Flags used by the shared libraries linker during Valgrind builds." FORCE)
+mark_as_advanced(
+    CMAKE_C_FLAGS_VALGRIND
+    CMAKE_EXE_LINKER_FLAGS_VALGRIND
+    CMAKE_SHARED_LINKER_FLAGS_VALGRIND)
 
 # Set output directories
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)

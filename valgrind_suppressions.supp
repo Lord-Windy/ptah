@@ -1,0 +1,13 @@
+# Suppression file for Valgrind to ignore AVX-512 instructions in system libraries
+
+{
+   dl_start_avx512
+   Memcheck:UserErr
+   fun:_dl_start
+}
+
+{
+   dl_aux_init_avx512
+   Memcheck:UserErr
+   fun:_dl_aux_init
+}
