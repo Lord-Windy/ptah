@@ -37,6 +37,7 @@ typedef struct {
   size_t size;     // Current number of elements
   size_t capacity; // Number of buckets
   Samrena *arena; // Arena for memory allocation
+  float load_factor; // Threshold for resizing (default 0.75)
 } Honeycomb;
 
 // Function declarations
@@ -51,10 +52,10 @@ Honeycomb *honeycomb_create(size_t initial_capacity, Samrena *samrena);
 
 void honeycomb_destroy(Honeycomb *comb);
 
-void honeycomb_put(Honeycomb *comb, const char *key, void *value);
+bool honeycomb_put(Honeycomb *comb, const char *key, void *value);
 void *honeycomb_get(const Honeycomb *comb, const char *key);
 
-void honeycomb_remove(Honeycomb *comb, const char *key);
+bool honeycomb_remove(Honeycomb *comb, const char *key);
 bool honeycomb_contains(const Honeycomb *comb, const char *key);
 
 void honeycomb_print(const Honeycomb *comb);

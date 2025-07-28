@@ -17,6 +17,7 @@
 #include "datazoo_tests.h"
 #include <assert.h>
 #include <stdio.h>
+#include <string.h>
 
 char *global_dictionary[50] = {
     "ability",  "about",    "above",    "accept",    "according", "account",
@@ -132,6 +133,37 @@ void honeycomb_tests_size() {
 
 void honeycomb_tests_update_words() {}
 
+void honeycomb_tests_key_copying() {
+  printf("HONEYCOMB TESTS KEY COPYING\n");
+  Samrena *arena = samrena_allocate(10);
+  Honeycomb *comb = honeycomb_create(10, arena);
+  
+  // Create a key in a local buffer
+  char local_key[32];
+  strcpy(local_key, "test_key");
+  
+  // Insert with the local key
+  int *value = samrena_push(arena, sizeof(int));
+  *value = 42;
+  honeycomb_put(comb, local_key, value);
+  
+  // Modify the local buffer
+  strcpy(local_key, "modified");
+  
+  // Verify the hash map still has the original key
+  int *retrieved = honeycomb_get(comb, "test_key");
+  assert(retrieved != NULL);
+  assert(*retrieved == 42);
+  
+  // Verify the modified key is not found
+  assert(honeycomb_get(comb, "modified") == NULL);
+  
+  printf("Key copying test passed!\n");
+  
+  honeycomb_destroy(comb);
+  samrena_deallocate(arena);
+}
+
 void honeycomb_tests() {
   honeycomb_tests_adding_words();
   honeycomb_tests_get_words();
@@ -139,4 +171,5 @@ void honeycomb_tests() {
   honeycomb_tests_size();
   honeycomb_tests_contains_words();
   honeycomb_tests_update_words();
+  honeycomb_tests_key_copying();
 }
