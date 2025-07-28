@@ -33,7 +33,7 @@ void honeycomb_tests_adding_words() {
   printf("HONEYCOMB TESTS ADDING WORDS\n");
 
   Samrena *arena = samrena_allocate(10);
-  Honeycomb *comb = honeycomb_create(10, NULL);
+  Honeycomb *comb = honeycomb_create(10, arena);
 
   for (int i = 0; i < 50; i++) {
     int *x = samrena_push(arena, sizeof(int *));
@@ -41,9 +41,9 @@ void honeycomb_tests_adding_words() {
     honeycomb_put(comb, global_dictionary[i], x);
   }
 
-  samrena_deallocate(arena);
   honeycomb_print(comb);
   honeycomb_destroy(comb);
+  samrena_deallocate(arena);
 }
 
 void honeycomb_tests_get_words() {
@@ -51,7 +51,7 @@ void honeycomb_tests_get_words() {
   printf("HONEYCOMB TESTS GET WORDS\n");
 
   Samrena *arena = samrena_allocate(10);
-  Honeycomb *comb = honeycomb_create(10, NULL);
+  Honeycomb *comb = honeycomb_create(10, arena);
   for (int i = 0; i < 50; i++) {
     int *x = samrena_push(arena, sizeof(int *));
     *x = i;
@@ -72,7 +72,7 @@ void honeycomb_tests_remove_words() {
   printf("HONEYCOMB TESTS REMOVE WORDS\n");
 
   Samrena *arena = samrena_allocate(10);
-  Honeycomb *comb = honeycomb_create(10, NULL);
+  Honeycomb *comb = honeycomb_create(10, arena);
   for (int i = 0; i < 50; i++) {
     int *x = samrena_push(arena, sizeof(int *));
     *x = i;
@@ -95,7 +95,7 @@ void honeycomb_tests_remove_words() {
 void honeycomb_tests_contains_words() {
   printf("HONEYCOMB TESTS CONTAINS WORDS\n");
   Samrena *arena = samrena_allocate(10);
-  Honeycomb *comb = honeycomb_create(10, NULL);
+  Honeycomb *comb = honeycomb_create(10, arena);
 
   for (int i = 0; i < 50; i++) {
     int *x = samrena_push(arena, sizeof(int *));
@@ -115,7 +115,7 @@ void honeycomb_tests_contains_words() {
 void honeycomb_tests_size() {
   printf("HONEYCOMB TESTS SIZE\n");
   Samrena *arena = samrena_allocate(10);
-  Honeycomb *comb = honeycomb_create(10, NULL);
+  Honeycomb *comb = honeycomb_create(10, arena);
 
   for (int i = 0; i < 50; i++) {
     int *x = samrena_push(arena, sizeof(int *));
@@ -123,7 +123,7 @@ void honeycomb_tests_size() {
     honeycomb_put(comb, global_dictionary[i], x);
   }
 
-  printf("size: %d\n", honeycomb_size(comb));
+  printf("size: %zu\n", honeycomb_size(comb));
   assert(honeycomb_size(comb) == 50);
 
   honeycomb_destroy(comb);

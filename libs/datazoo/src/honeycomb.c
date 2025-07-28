@@ -22,10 +22,10 @@
 
 #define DEFAULT_PAGE_COUNT 64
 
-Cell *honeycomb_cell_create(Samrena *arena, char *key, void *value) {
+Cell *honeycomb_cell_create(Samrena *arena, const char *key, void *value) {
   Cell *cell = samrena_push(arena, sizeof(Cell));
 
-  cell->key = key;
+  cell->key = (char *)key;  // Cast needed for storage, key copying should be added later
   cell->value = value;
   cell->next = NULL;
 
@@ -33,27 +33,26 @@ Cell *honeycomb_cell_create(Samrena *arena, char *key, void *value) {
 }
 
 Honeycomb *honeycomb_create(size_t initial_capacity, Samrena *samrena) {
+  if (samrena == NULL) {
+    return NULL;  // Samrena instance is required
+  }
 
-  Samrena *arena = samrena != NULL ? samrena : samrena_allocate(64);
+  Honeycomb *comb = samrena_push(samrena, sizeof(Honeycomb));
 
-  Honeycomb *comb = samrena_push(arena, sizeof(Honeycomb));
-
-  comb->cells = samrena_push_zero(arena, sizeof(Cell *) * initial_capacity);
+  comb->cells = samrena_push_zero(samrena, sizeof(Cell *) * initial_capacity);
   comb->size = 0;
   comb->capacity = initial_capacity;
-  comb->arena = arena;
-  comb->memory_managed_internally = samrena == NULL;
+  comb->arena = samrena;
 
   return comb;
 }
 
 void honeycomb_destroy(Honeycomb *comb) {
-  if (comb->memory_managed_internally) {
-    samrena_deallocate(comb->arena);
-  }
+  // Memory is managed by the caller through samrena
+  // No cleanup needed here
 }
 
-size_t hash_djb2(const char *key, size_t capacity) {
+static size_t hash_djb2(const char *key, size_t capacity) {
   size_t hash = 5381;
   int c;
   while ((c = *key++)) {
@@ -66,7 +65,7 @@ void honeycomb_put(Honeycomb *comb, const char *key, void *value) {
 
   size_t hash_bucket = hash_djb2(key, comb->capacity);
 
-  Cell *new_cell = honeycomb_cell_create(comb->arena, (char *)key, value);
+  Cell *new_cell = honeycomb_cell_create(comb->arena, key, value);
   Cell *current = comb->cells[hash_bucket];
 
   if (current == NULL) {
@@ -95,7 +94,7 @@ void honeycomb_put(Honeycomb *comb, const char *key, void *value) {
   }
 }
 
-void *honeycomb_get(Honeycomb *comb, const char *key) {
+void *honeycomb_get(const Honeycomb *comb, const char *key) {
   size_t hash_bucket = hash_djb2(key, comb->capacity);
   Cell *current = comb->cells[hash_bucket];
   while (current != NULL) {
@@ -129,7 +128,7 @@ void honeycomb_remove(Honeycomb *comb, const char *key) {
   }
 }
 
-bool honeycomb_contains(Honeycomb *comb, const char *key) {
+bool honeycomb_contains(const Honeycomb *comb, const char *key) {
   size_t hash_bucket = hash_djb2(key, comb->capacity);
   Cell *current = comb->cells[hash_bucket];
   while (current != NULL) {
@@ -141,7 +140,7 @@ bool honeycomb_contains(Honeycomb *comb, const char *key) {
   return false;
 }
 
-void honeycomb_print(Honeycomb *comb) {
+void honeycomb_print(const Honeycomb *comb) {
   for (size_t i = 0; i < comb->capacity; i++) {
     Cell *current = comb->cells[i];
     while (current != NULL) {

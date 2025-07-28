@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef ZOOKEEPER_H
-#define ZOOKEEPER_H
+#ifndef DATAZOO_H
+#define DATAZOO_H
 
 #include <stdbool.h>
 #include <stdint.h>
@@ -36,33 +36,34 @@ typedef struct {
   Cell **cells;
   size_t size;     // Current number of elements
   size_t capacity; // Number of buckets
-  bool memory_managed_internally;
-  Samrena *arena; // Arena or null for malloc
+  Samrena *arena; // Arena for memory allocation
 } Honeycomb;
 
 // Function declarations
 
 /**
- *
- * @param samrena - NULLABLE - if null it will create its own
+ * Creates a new honeycomb hash map.
+ * @param initial_capacity Initial number of buckets
+ * @param samrena Memory arena to use - REQUIRED (non-null)
+ * @return New honeycomb instance or NULL if samrena is NULL
  */
 Honeycomb *honeycomb_create(size_t initial_capacity, Samrena *samrena);
 
 void honeycomb_destroy(Honeycomb *comb);
 
 void honeycomb_put(Honeycomb *comb, const char *key, void *value);
-void *honeycomb_get(Honeycomb *comb, const char *key);
+void *honeycomb_get(const Honeycomb *comb, const char *key);
 
 void honeycomb_remove(Honeycomb *comb, const char *key);
-bool honeycomb_contains(Honeycomb *comb, const char *key);
+bool honeycomb_contains(const Honeycomb *comb, const char *key);
 
-void honeycomb_print(Honeycomb *comb);
+void honeycomb_print(const Honeycomb *comb);
 
 size_t honeycomb_size(const Honeycomb *comb);
 bool honeycomb_is_empty(const Honeycomb *comb);
 
 // Optional: Iterator functions
 typedef void (*HoneycombIterator)(const char *key, void *value, void *user_data);
-void hashmap_foreach(Honeycomb *map, HoneycombIterator iterator, void *user_data);
+void hashmap_foreach(const Honeycomb *map, HoneycombIterator iterator, void *user_data);
 
-#endif // HONEYCOMB_H
+#endif // DATAZOO_H
