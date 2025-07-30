@@ -1,12 +1,18 @@
 # Samrena Expansion: Hexagonal Architecture Design
 
 ## Overview
-This document outlines the redesign of samrena to support multiple memory allocation strategies through a hexagonal architecture pattern. This will allow users to choose between different memory management implementations (adapters) while maintaining a consistent interface (port).
+
+This document outlines the redesign of samrena to support multiple memory
+allocation strategies through a hexagonal architecture pattern. This will allow
+users to choose between different memory management implementations (adapters)
+while maintaining a consistent interface (port).
 
 ## Proposed Architecture
 
 ### Core Interface (Port)
-The samrena interface will be abstracted to support different backing implementations:
+
+The samrena interface will be abstracted to support different backing
+implementations:
 
 ```c
 // Forward declaration of opaque handle
@@ -82,7 +88,8 @@ endif()
 option(SAMRENA_ENABLE_VIRTUAL "Enable virtual memory adapter" ${SAMRENA_HAS_VIRTUAL_MEMORY})
 ```
 
-When virtual memory is disabled or unavailable, `SAMRENA_STRATEGY_VIRTUAL` will automatically fall back to chained pages.
+When virtual memory is disabled or unavailable, `SAMRENA_STRATEGY_VIRTUAL` will
+automatically fall back to chained pages.
 
 ## Adapter Summaries
 
