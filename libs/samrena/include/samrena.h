@@ -56,6 +56,13 @@ typedef struct {
     void* context;  // Implementation-specific data
 } Samrena;
 
+// Fallback behavior enumeration
+typedef enum {
+    SAMRENA_FALLBACK_AUTO = 0,     // Automatically choose best alternative
+    SAMRENA_FALLBACK_WARN,         // Fallback with warning
+    SAMRENA_FALLBACK_STRICT        // Fail if exact strategy unavailable
+} SamrenaFallbackMode;
+
 // Configuration structure for all adapter types
 typedef struct {
     // Strategy selection
@@ -75,6 +82,13 @@ typedef struct {
     // Optional features
     bool enable_stats;           // Track allocation statistics
     bool enable_debug;           // Enable debug features
+    
+    // Fallback behavior
+    SamrenaFallbackMode fallback_mode;
+    
+    // Logging callback
+    void (*log_callback)(const char* message, void* user_data);
+    void* log_user_data;
 } SamrenaConfig;
 
 typedef struct {
@@ -94,7 +108,10 @@ static inline SamrenaConfig samrena_default_config(void) {
         .max_reserve = 0,  // Use adapter default
         .commit_size = 0,
         .enable_stats = false,
-        .enable_debug = false
+        .enable_debug = false,
+        .fallback_mode = SAMRENA_FALLBACK_WARN,
+        .log_callback = NULL,
+        .log_user_data = NULL
     };
 }
 
@@ -108,7 +125,10 @@ static inline SamrenaConfig samrena_default_config(void) {
         .max_reserve = 0, \
         .commit_size = 0, \
         .enable_stats = false, \
-        .enable_debug = false \
+        .enable_debug = false, \
+        .fallback_mode = SAMRENA_FALLBACK_WARN, \
+        .log_callback = NULL, \
+        .log_user_data = NULL \
     })
 
 #define SAMRENA_CONFIG_VIRTUAL(reserve_mb) \
@@ -120,7 +140,10 @@ static inline SamrenaConfig samrena_default_config(void) {
         .max_reserve = (reserve_mb) * 1024 * 1024, \
         .commit_size = 0, \
         .enable_stats = false, \
-        .enable_debug = false \
+        .enable_debug = false, \
+        .fallback_mode = SAMRENA_FALLBACK_WARN, \
+        .log_callback = NULL, \
+        .log_user_data = NULL \
     })
 
 // Error handling functions
@@ -140,6 +163,20 @@ SamrenaVector* samrena_vector_init(Samrena* arena, uint64_t element_size, uint64
 void* samrena_vector_push(Samrena* arena, SamrenaVector* vec, const void* element);
 void* samrena_vector_pop(SamrenaVector* vec);
 void* samrena_vector_resize(Samrena* arena, SamrenaVector* vec, uint64_t new_capacity);
+
+// Performance hints structure
+typedef struct {
+    bool contiguous_memory;    // All allocations in single block
+    bool zero_copy_growth;     // Can grow without copying
+    bool constant_time_alloc;  // O(1) allocation
+    uint64_t max_single_alloc; // Largest supported allocation
+} SamrenaPerformanceHints;
+
+// Capability query API
+bool samrena_strategy_available(SamrenaStrategy strategy);
+int samrena_available_strategies(SamrenaStrategy* strategies, int max_count);
+const char* samrena_strategy_name(SamrenaStrategy strategy);
+SamrenaPerformanceHints samrena_get_performance_hints(Samrena* arena);
 
 // Temporary legacy API compatibility (will be removed in Phase 4)
 Samrena* samrena_allocate(uint64_t page_count);
