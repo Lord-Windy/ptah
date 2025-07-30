@@ -1,13 +1,33 @@
-# Suppression file for Valgrind to ignore AVX-512 instructions in system libraries
+# Suppression file for Valgrind to ignore known system library issues
 
 {
-   dl_start_avx512
-   Memcheck:UserErr
+   dl_start_unhandled_instruction
+   Memcheck:Value8
    fun:_dl_start
 }
 
 {
-   dl_aux_init_avx512
-   Memcheck:UserErr
+   dl_aux_init_unhandled_instruction  
+   Memcheck:Value8
    fun:_dl_aux_init
+}
+
+{
+   glibc_dlopen_worker
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   ...
+   fun:_dl_open
+}
+
+{
+   pthread_create_system_leak
+   Memcheck:Leak
+   match-leak-kinds: possible
+   fun:calloc
+   fun:allocate_dtv
+   fun:_dl_allocate_tls
+   fun:allocate_stack
+   fun:pthread_create@@GLIBC_*
 }

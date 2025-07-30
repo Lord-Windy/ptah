@@ -75,6 +75,9 @@ target_include_directories(samrena PRIVATE
 if(BUILD_TESTING)
     enable_testing()
     
+    # Find pthread for thread safety tests
+    find_package(Threads REQUIRED)
+    
     add_executable(samrena_test
         test/samrena_test.c
     )
@@ -92,4 +95,66 @@ if(BUILD_TESTING)
     )
     target_link_libraries(samrena_feature_test PRIVATE samrena)
     add_test(NAME samrena_feature_test COMMAND samrena_feature_test)
+    
+    # Comprehensive adapter test suite
+    add_executable(samrena_adapter_test
+        test/test_samrena_adapters.c
+    )
+    target_link_libraries(samrena_adapter_test PRIVATE samrena Threads::Threads)
+    add_test(NAME samrena_adapter_test COMMAND samrena_adapter_test)
+    
+    # Valgrind integration - only add tests if explicitly requested
+    option(ENABLE_VALGRIND_TESTS "Enable Valgrind memory leak tests (may fail on systems with AVX-512)" OFF)
+    
+    if(ENABLE_VALGRIND_TESTS)
+        find_program(VALGRIND_PROGRAM valgrind)
+        if(VALGRIND_PROGRAM)
+            # Standard valgrind tests
+            add_test(NAME samrena_test_valgrind 
+                     COMMAND ${VALGRIND_PROGRAM} 
+                             --tool=memcheck 
+                             --leak-check=full 
+                             --show-leak-kinds=all 
+                             --track-origins=yes 
+                             --error-exitcode=1
+                             --suppressions=${CMAKE_SOURCE_DIR}/valgrind_suppressions.supp
+                             $<TARGET_FILE:samrena_test>)
+            
+            add_test(NAME samrena_vector_test_valgrind 
+                     COMMAND ${VALGRIND_PROGRAM} 
+                             --tool=memcheck 
+                             --leak-check=full 
+                             --show-leak-kinds=all 
+                             --track-origins=yes 
+                             --error-exitcode=1
+                             --suppressions=${CMAKE_SOURCE_DIR}/valgrind_suppressions.supp
+                             $<TARGET_FILE:samrena_vector_test>)
+            
+            add_test(NAME samrena_feature_test_valgrind 
+                     COMMAND ${VALGRIND_PROGRAM} 
+                             --tool=memcheck 
+                             --leak-check=full 
+                             --show-leak-kinds=all 
+                             --track-origins=yes 
+                             --error-exitcode=1
+                             --suppressions=${CMAKE_SOURCE_DIR}/valgrind_suppressions.supp
+                             $<TARGET_FILE:samrena_feature_test>)
+            
+            add_test(NAME samrena_adapter_test_valgrind 
+                     COMMAND ${VALGRIND_PROGRAM} 
+                             --tool=memcheck 
+                             --leak-check=full 
+                             --show-leak-kinds=all 
+                             --track-origins=yes 
+                             --error-exitcode=1
+                             --suppressions=${CMAKE_SOURCE_DIR}/valgrind_suppressions.supp
+                             $<TARGET_FILE:samrena_adapter_test>)
+            
+            message(STATUS "Samrena: Valgrind tests enabled (use -DENABLE_VALGRIND_TESTS=OFF to disable)")
+        else()
+            message(WARNING "Samrena: Valgrind requested but not found")
+        endif()
+    else()
+        message(STATUS "Samrena: Valgrind tests disabled (use -DENABLE_VALGRIND_TESTS=ON to enable)")
+    endif()
 endif()

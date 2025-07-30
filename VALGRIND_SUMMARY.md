@@ -56,6 +56,73 @@ cmake .. -DCMAKE_BUILD_TYPE=Valgrind -DBUILD_SHARED_LIBS=OFF
 make
 ```
 
+## CMake Integration Pattern for Future Modules
+
+For consistent Valgrind integration across all library modules, use this CMake pattern in each library's CMakeLists.txt:
+
+### 1. Optional Valgrind Tests
+```cmake
+# Build tests if testing is enabled
+if(BUILD_TESTING)
+    enable_testing()
+    
+    # Find pthread if needed for thread safety tests
+    find_package(Threads REQUIRED)
+    
+    # Your regular test executables here
+    add_executable(your_library_test test/your_library_test.c)
+    target_link_libraries(your_library_test PRIVATE your_library Threads::Threads)
+    add_test(NAME your_library_test COMMAND your_library_test)
+    
+    # Valgrind integration - only add tests if explicitly requested
+    option(ENABLE_VALGRIND_TESTS "Enable Valgrind memory leak tests (may fail on systems with AVX-512)" OFF)
+    
+    if(ENABLE_VALGRIND_TESTS)
+        find_program(VALGRIND_PROGRAM valgrind)
+        if(VALGRIND_PROGRAM)
+            # Standard valgrind tests for each test executable
+            add_test(NAME your_library_test_valgrind 
+                     COMMAND ${VALGRIND_PROGRAM} 
+                             --tool=memcheck 
+                             --leak-check=full 
+                             --show-leak-kinds=all 
+                             --track-origins=yes 
+                             --error-exitcode=1
+                             --suppressions=${CMAKE_SOURCE_DIR}/valgrind_suppressions.supp
+                             $<TARGET_FILE:your_library_test>)
+            
+            message(STATUS "YourLibrary: Valgrind tests enabled (use -DENABLE_VALGRIND_TESTS=OFF to disable)")
+        else()
+            message(WARNING "YourLibrary: Valgrind requested but not found")
+        endif()
+    else()
+        message(STATUS "YourLibrary: Valgrind tests disabled (use -DENABLE_VALGRIND_TESTS=ON to enable)")
+    endif()
+endif()
+```
+
+### 2. Valgrind Command Template
+Use these consistent Valgrind flags for all test executables:
+- `--tool=memcheck` - Memory error detection
+- `--leak-check=full` - Complete leak detection
+- `--show-leak-kinds=all` - Show all leak types
+- `--track-origins=yes` - Track uninitialized value origins
+- `--error-exitcode=1` - Exit with error code for CI/CD
+- `--suppressions=${CMAKE_SOURCE_DIR}/valgrind_suppressions.supp` - Use project suppressions
+
+### 3. Test Organization
+- Make Valgrind tests **optional** (disabled by default) due to AVX-512 compatibility issues
+- Use consistent naming: `{test_name}_valgrind`
+- Include pthread linking for thread safety tests
+- Provide clear status messages about Valgrind test availability
+
+### 4. Benefits of This Pattern
+- **Consistent behavior** across all modules
+- **Optional testing** avoids CI/CD failures on incompatible systems
+- **Comprehensive coverage** with memory leak detection
+- **Easy debugging** with origin tracking
+- **CI/CD friendly** with proper exit codes
+
 ## Limitations
 
 Despite these efforts, the fundamental issue remains that system libraries may still contain instructions that Valgrind doesn't recognize. The most effective solution is to:
