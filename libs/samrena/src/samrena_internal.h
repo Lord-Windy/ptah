@@ -47,7 +47,19 @@ typedef struct {
 // Implementation structure - private to samrena
 struct SamrenaImpl {
     const SamrenaOps* ops;
+    SamrenaStrategy strategy;
+    uint64_t page_size;
     SamrenaConfig config;
+    
+    // Statistics (common to all adapters)
+    struct {
+        uint64_t total_allocations;
+        uint64_t failed_allocations;
+        uint64_t peak_usage;
+    } stats;
+    
+    // Debug info
+    char adapter_name[32];
 };
 
 // Operation helpers for SamrenaArena
