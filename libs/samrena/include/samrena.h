@@ -17,15 +17,30 @@
 #ifndef SAMRENA_H
 #define SAMRENA_H
 
+// =============================================================================
+// STANDARD INCLUDES
+// =============================================================================
+
 #include <stdint.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdbool.h>
 
+// =============================================================================
+// CONSTANTS AND DEFINES
+// =============================================================================
+
 #define NEAT_INITIAL_PAGE_SIZE 1024
 
-// Forward declaration of implementation for hexagonal architecture
+// =============================================================================
+// FORWARD DECLARATIONS
+// =============================================================================
+
 typedef struct SamrenaImpl SamrenaImpl;
+
+// =============================================================================
+// CORE ENUMERATIONS
+// =============================================================================
 
 // Strategy enumeration for adapter selection
 typedef enum {
@@ -50,18 +65,16 @@ typedef enum {
   SAMRENA_ERROR_PLATFORM_SPECIFIC = 8
 } SamrenaError;
 
-// Hexagonal architecture Samrena handle
-typedef struct {
-    SamrenaImpl* impl;
-    void* context;  // Implementation-specific data
-} Samrena;
-
 // Fallback behavior enumeration
 typedef enum {
     SAMRENA_FALLBACK_AUTO = 0,     // Automatically choose best alternative
     SAMRENA_FALLBACK_WARN,         // Fallback with warning
     SAMRENA_FALLBACK_STRICT        // Fail if exact strategy unavailable
 } SamrenaFallbackMode;
+
+// =============================================================================
+// GROWTH POLICY ENUMERATIONS
+// =============================================================================
 
 // Growth policy types
 typedef enum {
@@ -71,6 +84,43 @@ typedef enum {
     SAMRENA_GROWTH_ADAPTIVE,    // Learn from allocation pattern
     SAMRENA_GROWTH_CUSTOM       // User-defined function
 } SamrenaGrowthPolicy;
+
+// =============================================================================
+// CAPABILITY ENUMERATIONS
+// =============================================================================
+
+// Capability flags for adapter features
+typedef enum {
+    SAMRENA_CAP_CONTIGUOUS_MEMORY  = 1 << 0,  // All allocations in one block
+    SAMRENA_CAP_ZERO_COPY_GROWTH   = 1 << 1,  // Can grow without moving data
+    SAMRENA_CAP_RESET              = 1 << 2,  // Supports reset operation
+    SAMRENA_CAP_RESERVE            = 1 << 3,  // Supports reserve operation
+    SAMRENA_CAP_MEMORY_STATS       = 1 << 4,  // Tracks statistics
+    SAMRENA_CAP_LARGE_ALLOCATIONS  = 1 << 5,  // Can handle >2GB allocations
+    SAMRENA_CAP_SAVE_RESTORE       = 1 << 6,  // Supports save/restore points
+    SAMRENA_CAP_THREAD_SAFE        = 1 << 7,  // Thread-safe operations
+} SamrenaCapabilityFlags;
+
+// =============================================================================
+// CORE STRUCTURES
+// =============================================================================
+
+// Hexagonal architecture Samrena handle
+typedef struct {
+    SamrenaImpl* impl;
+    void* context;  // Implementation-specific data
+} Samrena;
+
+typedef struct {
+  uint64_t size;
+  uint64_t element_size;
+  uint64_t capacity;
+  void *data;
+} SamrenaVector;
+
+// =============================================================================
+// GROWTH POLICY STRUCTURES
+// =============================================================================
 
 // Growth policy configuration
 typedef struct {
@@ -98,6 +148,10 @@ typedef struct {
                              uint64_t requested_size, void* user_data);
     void* custom_user_data;
 } SamrenaGrowthConfig;
+
+// =============================================================================
+// CONFIGURATION STRUCTURES
+// =============================================================================
 
 // Configuration structure for all adapter types
 typedef struct {
@@ -130,12 +184,59 @@ typedef struct {
     void* log_user_data;
 } SamrenaConfig;
 
+// Allocation hints for automatic strategy selection
 typedef struct {
-  uint64_t size;
-  uint64_t element_size;
-  uint64_t capacity;
-  void *data;
-} SamrenaVector;
+    // Expected usage pattern
+    uint64_t expected_total_size;    // Total memory to be allocated
+    uint64_t expected_max_alloc;     // Largest single allocation
+    uint32_t expected_alloc_count;   // Number of allocations
+    
+    // Performance requirements
+    bool require_contiguous;         // Need contiguous memory
+    bool require_zero_copy_growth;   // Cannot tolerate reallocation
+    bool frequent_reset;             // Will reset/clear often
+    
+    // System constraints
+    uint64_t max_memory_limit;       // Hard memory limit
+    bool low_memory_mode;            // Optimize for memory usage
+} SamrenaAllocationHints;
+
+// =============================================================================
+// INFORMATION STRUCTURES
+// =============================================================================
+
+// Capability information structure
+typedef struct {
+    uint32_t flags;                    // Capability flags
+    uint64_t max_allocation_size;      // Largest single allocation
+    uint64_t max_total_size;          // Maximum total arena size
+    uint64_t allocation_granularity;   // Minimum allocation unit
+    uint64_t alignment_guarantee;      // Guaranteed alignment
+    double allocation_overhead;        // Overhead per allocation (0.0-1.0)
+} SamrenaCapabilities;
+
+// Performance hints structure (kept for compatibility)
+typedef struct {
+    bool contiguous_memory;    // All allocations in single block
+    bool zero_copy_growth;     // Can grow without copying
+    bool constant_time_alloc;  // O(1) allocation
+    uint64_t max_single_alloc; // Largest supported allocation
+} SamrenaPerformanceHints;
+
+// Arena information
+typedef struct {
+    const char* adapter_name;
+    SamrenaStrategy strategy;
+    uint64_t allocated;
+    uint64_t capacity;
+    uint64_t page_size;
+    bool can_grow;
+    bool is_contiguous;
+} SamrenaInfo;
+
+// =============================================================================
+// CONFIGURATION HELPERS
+// =============================================================================
 
 // Configuration helper functions
 static inline SamrenaConfig samrena_default_config(void) {
@@ -209,119 +310,86 @@ static inline SamrenaConfig samrena_default_config(void) {
         }; \
     })
 
-// Error handling functions
-SamrenaError samrena_get_last_error(void);
-const char *samrena_error_string(SamrenaError error);
-
-// Allocation hints for automatic strategy selection
-typedef struct {
-    // Expected usage pattern
-    uint64_t expected_total_size;    // Total memory to be allocated
-    uint64_t expected_max_alloc;     // Largest single allocation
-    uint32_t expected_alloc_count;   // Number of allocations
-    
-    // Performance requirements
-    bool require_contiguous;         // Need contiguous memory
-    bool require_zero_copy_growth;   // Cannot tolerate reallocation
-    bool frequent_reset;             // Will reset/clear often
-    
-    // System constraints
-    uint64_t max_memory_limit;       // Hard memory limit
-    bool low_memory_mode;            // Optimize for memory usage
-} SamrenaAllocationHints;
-
-// Hexagonal architecture API
-Samrena* samrena_create(const SamrenaConfig* config);
-void samrena_destroy(Samrena* arena);
-void* samrena_push(Samrena* arena, uint64_t size);
-void* samrena_push_zero(Samrena* arena, uint64_t size);
-uint64_t samrena_allocated(Samrena* arena);
-uint64_t samrena_capacity(Samrena* arena);
-
-// Factory and strategy selection API
-Samrena* samrena_create_with_hints(const SamrenaAllocationHints* hints);
-Samrena* samrena_create_default(void);
-Samrena* samrena_create_for_size(uint64_t expected_size);
-
-// Growth policy factory functions
-Samrena* samrena_create_with_growth(uint64_t initial_pages, const SamrenaGrowthConfig* growth);
-
 // Preset growth configurations
 extern const SamrenaGrowthConfig SAMRENA_GROWTH_CONSERVATIVE;
 extern const SamrenaGrowthConfig SAMRENA_GROWTH_BALANCED;
 extern const SamrenaGrowthConfig SAMRENA_GROWTH_AGGRESSIVE;
 extern const SamrenaGrowthConfig SAMRENA_GROWTH_SMART;
 
-// Vector API
+// =============================================================================
+// CORE API - Arena Management
+// =============================================================================
+
+// Primary arena lifecycle functions
+Samrena* samrena_create(const SamrenaConfig* config);
+void samrena_destroy(Samrena* arena);
+
+// Core allocation functions
+void* samrena_push(Samrena* arena, uint64_t size);
+void* samrena_push_zero(Samrena* arena, uint64_t size);
+void* samrena_push_aligned(Samrena* arena, uint64_t size, uint64_t alignment);
+
+// Arena information functions
+uint64_t samrena_allocated(Samrena* arena);
+uint64_t samrena_capacity(Samrena* arena);
+void samrena_get_info(Samrena* arena, SamrenaInfo* info);
+
+// =============================================================================
+// FACTORY API - Convenient Arena Creation
+// =============================================================================
+
+// Factory functions for common use cases
+Samrena* samrena_create_default(void);
+Samrena* samrena_create_for_size(uint64_t expected_size);
+Samrena* samrena_create_with_hints(const SamrenaAllocationHints* hints);
+Samrena* samrena_create_with_growth(uint64_t initial_pages, const SamrenaGrowthConfig* growth);
+
+// =============================================================================
+// VECTOR API - Dynamic Arrays
+// =============================================================================
+
 SamrenaVector* samrena_vector_init(Samrena* arena, uint64_t element_size, uint64_t initial_capacity);
 void* samrena_vector_push(Samrena* arena, SamrenaVector* vec, const void* element);
 void* samrena_vector_pop(SamrenaVector* vec);
 void* samrena_vector_resize(Samrena* arena, SamrenaVector* vec, uint64_t new_capacity);
 
-// Capability flags for adapter features
-typedef enum {
-    SAMRENA_CAP_CONTIGUOUS_MEMORY  = 1 << 0,  // All allocations in one block
-    SAMRENA_CAP_ZERO_COPY_GROWTH   = 1 << 1,  // Can grow without moving data
-    SAMRENA_CAP_RESET              = 1 << 2,  // Supports reset operation
-    SAMRENA_CAP_RESERVE            = 1 << 3,  // Supports reserve operation
-    SAMRENA_CAP_MEMORY_STATS       = 1 << 4,  // Tracks statistics
-    SAMRENA_CAP_LARGE_ALLOCATIONS  = 1 << 5,  // Can handle >2GB allocations
-    SAMRENA_CAP_SAVE_RESTORE       = 1 << 6,  // Supports save/restore points
-    SAMRENA_CAP_THREAD_SAFE        = 1 << 7,  // Thread-safe operations
-} SamrenaCapabilityFlags;
+// =============================================================================
+// CAPABILITY API - Feature Detection
+// =============================================================================
 
-// Capability information structure
-typedef struct {
-    uint32_t flags;                    // Capability flags
-    uint64_t max_allocation_size;      // Largest single allocation
-    uint64_t max_total_size;          // Maximum total arena size
-    uint64_t allocation_granularity;   // Minimum allocation unit
-    uint64_t alignment_guarantee;      // Guaranteed alignment
-    double allocation_overhead;        // Overhead per allocation (0.0-1.0)
-} SamrenaCapabilities;
-
-// Performance hints structure (kept for compatibility)
-typedef struct {
-    bool contiguous_memory;    // All allocations in single block
-    bool zero_copy_growth;     // Can grow without copying
-    bool constant_time_alloc;  // O(1) allocation
-    uint64_t max_single_alloc; // Largest supported allocation
-} SamrenaPerformanceHints;
-
-// Capability query API
 SamrenaCapabilities samrena_get_capabilities(Samrena* arena);
 bool samrena_has_capability(Samrena* arena, SamrenaCapabilityFlags cap);
 SamrenaCapabilities samrena_strategy_capabilities(SamrenaStrategy strategy);
 
-// Strategy availability (kept for compatibility)
+// =============================================================================
+// STRATEGY API - Strategy Management (Legacy Compatibility)
+// =============================================================================
+
 bool samrena_strategy_available(SamrenaStrategy strategy);
 int samrena_available_strategies(SamrenaStrategy* strategies, int max_count);
 const char* samrena_strategy_name(SamrenaStrategy strategy);
 SamrenaPerformanceHints samrena_get_performance_hints(Samrena* arena);
 
-// Memory reservation API
+// =============================================================================
+// MEMORY MANAGEMENT API - Advanced Operations
+// =============================================================================
+
 SamrenaError samrena_reserve(Samrena* arena, uint64_t size);
 SamrenaError samrena_reserve_with_growth(Samrena* arena, uint64_t immediate_size, uint64_t expected_total);
-
-// Convenience functions and utilities
 bool samrena_can_allocate(Samrena* arena, uint64_t size);
-void* samrena_push_aligned(Samrena* arena, uint64_t size, uint64_t alignment);
 bool samrena_reset_if_supported(Samrena* arena);
 
-// Arena information
-typedef struct {
-    const char* adapter_name;
-    SamrenaStrategy strategy;
-    uint64_t allocated;
-    uint64_t capacity;
-    uint64_t page_size;
-    bool can_grow;
-    bool is_contiguous;
-} SamrenaInfo;
+// =============================================================================
+// ERROR HANDLING API
+// =============================================================================
 
-void samrena_get_info(Samrena* arena, SamrenaInfo* info);
+SamrenaError samrena_get_last_error(void);
+const char *samrena_error_string(SamrenaError error);
 
-// Type-safe allocation macros
+// =============================================================================
+// TYPE-SAFE MACROS - Convenience Macros for Common Operations
+// =============================================================================
+
 #define SAMRENA_PUSH_TYPE(arena, type) \
     ((type*)samrena_push((arena), sizeof(type)))
 
