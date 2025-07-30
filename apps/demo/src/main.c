@@ -27,7 +27,7 @@ int main() {
 
   // Create a memory arena
   printf("1. Creating memory arena with 2 pages...\n");
-  Samrena *arena = samrena_allocate(2);
+  Samrena *arena = samrena_create_default();
   printf("   Arena capacity: %lu bytes\n", samrena_capacity(arena));
   printf("   Arena allocated: %lu bytes\n\n", samrena_allocated(arena));
 
@@ -115,7 +115,7 @@ int main() {
 
   // Cleanup
   honeycomb_destroy(map);
-  samrena_deallocate(arena);
+  samrena_destroy(arena);
 
   printf("Demo completed successfully!\n");
   printf("This demonstrates:\n");

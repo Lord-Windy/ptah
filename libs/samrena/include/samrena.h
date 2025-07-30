@@ -242,9 +242,6 @@ uint64_t samrena_capacity(Samrena* arena);
 Samrena* samrena_create_with_hints(const SamrenaAllocationHints* hints);
 Samrena* samrena_create_default(void);
 Samrena* samrena_create_for_size(uint64_t expected_size);
-Samrena* samrena_create_high_performance(uint64_t initial_mb);
-Samrena* samrena_create_low_memory(void);
-Samrena* samrena_create_temp(void);
 
 // Growth policy factory functions
 Samrena* samrena_create_with_growth(uint64_t initial_pages, const SamrenaGrowthConfig* growth);
@@ -339,10 +336,5 @@ void samrena_get_info(Samrena* arena, SamrenaInfo* info);
 
 #define SAMRENA_PUSH_ALIGNED_TYPE(arena, type, alignment) \
     ((type*)samrena_push_aligned((arena), sizeof(type), (alignment)))
-
-// Backward compatibility functions (maintained from legacy API)
-Samrena* samrena_allocate(uint64_t page_count);
-void samrena_deallocate(Samrena* samrena);
-void* samrena_resize_array(Samrena* samrena, void* original_array, uint64_t original_size, uint64_t new_size);
 
 #endif

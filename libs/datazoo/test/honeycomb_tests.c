@@ -33,7 +33,7 @@ char *global_dictionary[50] = {
 void honeycomb_tests_adding_words() {
   printf("HONEYCOMB TESTS ADDING WORDS\n");
 
-  Samrena *arena = samrena_allocate(10);
+  Samrena *arena = samrena_create_default();
   Honeycomb *comb = honeycomb_create(10, arena);
 
   for (int i = 0; i < 50; i++) {
@@ -44,14 +44,14 @@ void honeycomb_tests_adding_words() {
 
   honeycomb_print(comb);
   honeycomb_destroy(comb);
-  samrena_deallocate(arena);
+  samrena_destroy(arena);
 }
 
 void honeycomb_tests_get_words() {
 
   printf("HONEYCOMB TESTS GET WORDS\n");
 
-  Samrena *arena = samrena_allocate(10);
+  Samrena *arena = samrena_create_default();
   Honeycomb *comb = honeycomb_create(10, arena);
   for (int i = 0; i < 50; i++) {
     int *x = samrena_push(arena, sizeof(int *));
@@ -66,13 +66,13 @@ void honeycomb_tests_get_words() {
   }
 
   honeycomb_destroy(comb);
-  samrena_deallocate(arena);
+  samrena_destroy(arena);
 }
 
 void honeycomb_tests_remove_words() {
   printf("HONEYCOMB TESTS REMOVE WORDS\n");
 
-  Samrena *arena = samrena_allocate(10);
+  Samrena *arena = samrena_create_default();
   Honeycomb *comb = honeycomb_create(10, arena);
   for (int i = 0; i < 50; i++) {
     int *x = samrena_push(arena, sizeof(int *));
@@ -90,12 +90,12 @@ void honeycomb_tests_remove_words() {
   }
 
   honeycomb_destroy(comb);
-  samrena_deallocate(arena);
+  samrena_destroy(arena);
 }
 
 void honeycomb_tests_contains_words() {
   printf("HONEYCOMB TESTS CONTAINS WORDS\n");
-  Samrena *arena = samrena_allocate(10);
+  Samrena *arena = samrena_create_default();
   Honeycomb *comb = honeycomb_create(10, arena);
 
   for (int i = 0; i < 50; i++) {
@@ -110,12 +110,12 @@ void honeycomb_tests_contains_words() {
   }
 
   honeycomb_destroy(comb);
-  samrena_deallocate(arena);
+  samrena_destroy(arena);
 }
 
 void honeycomb_tests_size() {
   printf("HONEYCOMB TESTS SIZE\n");
-  Samrena *arena = samrena_allocate(10);
+  Samrena *arena = samrena_create_default();
   Honeycomb *comb = honeycomb_create(10, arena);
 
   for (int i = 0; i < 50; i++) {
@@ -128,14 +128,14 @@ void honeycomb_tests_size() {
   assert(honeycomb_size(comb) == 50);
 
   honeycomb_destroy(comb);
-  samrena_deallocate(arena);
+  samrena_destroy(arena);
 }
 
 void honeycomb_tests_update_words() {}
 
 void honeycomb_tests_key_copying() {
   printf("HONEYCOMB TESTS KEY COPYING\n");
-  Samrena *arena = samrena_allocate(10);
+  Samrena *arena = samrena_create_default();
   Honeycomb *comb = honeycomb_create(10, arena);
   
   // Create a key in a local buffer
@@ -161,7 +161,7 @@ void honeycomb_tests_key_copying() {
   printf("Key copying test passed!\n");
   
   honeycomb_destroy(comb);
-  samrena_deallocate(arena);
+  samrena_destroy(arena);
 }
 
 void honeycomb_tests() {

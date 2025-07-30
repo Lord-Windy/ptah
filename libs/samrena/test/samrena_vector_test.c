@@ -24,7 +24,7 @@
 void test_vector_init() {
   printf("Testing vector initialization... ");
 
-  Samrena *arena = samrena_allocate(10);
+  Samrena *arena = samrena_create_default();
   SamrenaVector *vec = samrena_vector_init(arena, sizeof(int), 10);
 
   assert(vec != NULL);
@@ -33,7 +33,7 @@ void test_vector_init() {
   assert(vec->capacity == 10);
   assert(vec->data != NULL);
 
-  samrena_deallocate(arena);
+  samrena_destroy(arena);
   printf("PASSED\n");
 }
 
@@ -41,7 +41,7 @@ void test_vector_init() {
 void test_vector_push() {
   printf("Testing vector push... ");
 
-  Samrena *arena = samrena_allocate(10);
+  Samrena *arena = samrena_create_default();
   SamrenaVector *vec = samrena_vector_init(arena, sizeof(int), 3);
 
   int values[] = {10, 20, 30, 40, 50};
@@ -69,7 +69,7 @@ void test_vector_push() {
     assert(*element == values[i]);
   }
 
-  samrena_deallocate(arena);
+  samrena_destroy(arena);
   printf("PASSED\n");
 }
 
@@ -77,7 +77,7 @@ void test_vector_push() {
 void test_vector_pop() {
   printf("Testing vector pop... ");
 
-  Samrena *arena = samrena_allocate(10);
+  Samrena *arena = samrena_create_default();
   SamrenaVector *vec = samrena_vector_init(arena, sizeof(int), 5);
 
   int values[] = {10, 20, 30, 40, 50};
@@ -101,7 +101,7 @@ void test_vector_pop() {
   void *result = samrena_vector_pop(vec);
   assert(result == NULL);
 
-  samrena_deallocate(arena);
+  samrena_destroy(arena);
   printf("PASSED\n");
 }
 
@@ -109,7 +109,7 @@ void test_vector_pop() {
 void test_vector_resize() {
   printf("Testing vector resize... ");
 
-  Samrena *arena = samrena_allocate(10);
+  Samrena *arena = samrena_create_default();
   SamrenaVector *vec = samrena_vector_init(arena, sizeof(int), 5);
 
   int values[10];
@@ -148,7 +148,7 @@ void test_vector_resize() {
     assert(*element == values[i]);
   }
 
-  samrena_deallocate(arena);
+  samrena_destroy(arena);
   printf("PASSED\n");
 }
 
@@ -156,7 +156,7 @@ void test_vector_resize() {
 void test_different_types() {
   printf("Testing vector with different data types... ");
 
-  Samrena *arena = samrena_allocate(10);
+  Samrena *arena = samrena_create_default();
 
   // Test with char
   SamrenaVector *char_vec = samrena_vector_init(arena, sizeof(char), 5);
@@ -210,7 +210,7 @@ void test_different_types() {
     assert(element->value == structs[i].value);
   }
 
-  samrena_deallocate(arena);
+  samrena_destroy(arena);
   printf("PASSED\n");
 }
 
@@ -218,7 +218,7 @@ void test_different_types() {
 void test_edge_cases() {
   printf("Testing vector edge cases... ");
 
-  Samrena *arena = samrena_allocate(10);
+  Samrena *arena = samrena_create_default();
 
   // Zero capacity
   SamrenaVector *vec_zero = samrena_vector_init(arena, sizeof(int), 0);
@@ -258,7 +258,7 @@ void test_edge_cases() {
     assert(*element == small_vals[i]);
   }
 
-  samrena_deallocate(arena);
+  samrena_destroy(arena);
   printf("PASSED\n");
 }
 

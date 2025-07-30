@@ -38,7 +38,7 @@ void print_samrena(Samrena *samrena) {
 }
 
 void create_new_arena() {
-  Samrena *samrena = samrena_allocate(10);
+  Samrena *samrena = samrena_create_default();
 
   print_samrena(samrena);
 
@@ -55,11 +55,11 @@ void create_new_arena() {
   assert(((uintptr_t)data % sizeof(int32_t)) == 0);
 
   print_samrena(samrena);
-  samrena_deallocate(samrena);
+  samrena_destroy(samrena);
 }
 
 void create_multiple_arrays() {
-  Samrena *samrena = samrena_allocate(10);
+  Samrena *samrena = samrena_create_default();
 
   int32_t *data_holder[10];
 
@@ -79,11 +79,11 @@ void create_multiple_arrays() {
   }
 
   print_samrena(samrena);
-  samrena_deallocate(samrena);
+  samrena_destroy(samrena);
 }
 
 void create_multiple_strings() {
-  Samrena *samrena = samrena_allocate(400);
+  Samrena *samrena = samrena_create_default();
 
   char **string_holder[10];
 
@@ -106,23 +106,27 @@ void create_multiple_strings() {
   }
 
   print_samrena(samrena);
-  samrena_deallocate(samrena);
+  samrena_destroy(samrena);
 }
 
-// Test zero page count allocation
+// Test default allocation
 void test_zero_page_allocation() {
-  printf("\n--- Testing zero page allocation ---\n");
-  Samrena *samrena = samrena_allocate(0);
+  printf("\n--- Testing default allocation ---\n");
+  Samrena *samrena = samrena_create_default();
 
-  // Zero page allocation should return NULL
-  assert(samrena == NULL);
-  printf("Zero page allocation correctly returns NULL\n");
+  // Default allocation should return a valid arena
+  assert(samrena != NULL);
+  printf("Default allocation correctly returns valid arena\n");
+  printf("Arena capacity: %lu bytes\n", samrena_capacity(samrena));
+  printf("Arena allocated: %lu bytes\n", samrena_allocated(samrena));
+  
+  samrena_destroy(samrena);
 }
 
 // Test allocation at capacity boundary
 void test_capacity_boundary() {
   printf("\n--- Testing capacity boundary ---\n");
-  Samrena *samrena = samrena_allocate(1); // Single page
+  Samrena *samrena = samrena_create_default(); // Single page
   print_samrena(samrena);
 
   uint64_t remaining = samrena_capacity(samrena) - samrena_allocated(samrena);
@@ -140,13 +144,13 @@ void test_capacity_boundary() {
   printf("Allocation beyond original capacity: %p\n", data2);
   printf("Arena grew - new capacity: %lu\n", samrena_capacity(samrena));
 
-  samrena_deallocate(samrena);
+  samrena_destroy(samrena);
 }
 
 // Test alignment issues with different data types
 void test_data_alignment() {
   printf("\n--- Testing data alignment ---\n");
-  Samrena *samrena = samrena_allocate(1);
+  Samrena *samrena = samrena_create_default();
 
   // Push data of different types to test alignment
   char *c = samrena_push(samrena, sizeof(char));
@@ -164,14 +168,14 @@ void test_data_alignment() {
   printf("Char value: %c\n", *c);
   printf("Int64 value: %lx\n", *i64);
 
-  samrena_deallocate(samrena);
+  samrena_destroy(samrena);
 }
 
 // Test extremely large allocation
 void test_large_allocation() {
   printf("\n--- Testing large allocation ---\n");
   // Large but should be valid on most systems
-  Samrena *samrena = samrena_allocate(1024); // 4MB
+  Samrena *samrena = samrena_create_default(); // 4MB
 
   print_samrena(samrena);
 
@@ -191,13 +195,13 @@ void test_large_allocation() {
   assert(bytes[1024 * 1024] == 43);
   assert(bytes[2 * 1024 * 1024 - 1] == 44);
 
-  samrena_deallocate(samrena);
+  samrena_destroy(samrena);
 }
 
 // Test minimal size allocation
 void test_minimal_allocation() {
   printf("\n--- Testing minimal allocations ---\n");
-  Samrena *samrena = samrena_allocate(1);
+  Samrena *samrena = samrena_create_default();
 
   // Test with many small allocations
   void *pointers[1000];
@@ -222,12 +226,13 @@ void test_minimal_allocation() {
   }
 
   print_samrena(samrena);
-  samrena_deallocate(samrena);
+  samrena_destroy(samrena);
 }
 
+/*
 void test_resize_array_basic() {
   printf("\n--- Testing samrena_resize_array basic functionality ---\n");
-  Samrena *samrena = samrena_allocate(10);
+  Samrena *samrena = samrena_create_default();
 
   int32_t *original = samrena_push(samrena, 5 * sizeof(int32_t));
   assert(original != 0);
@@ -252,12 +257,14 @@ void test_resize_array_basic() {
     printf("resized[%d] = %d (new)\n", i, resized[i]);
   }
 
-  samrena_deallocate(samrena);
+  samrena_destroy(samrena);
 }
+*/
 
+/*
 void test_resize_array_shrink() {
   printf("\n--- Testing samrena_resize_array shrinking ---\n");
-  Samrena *samrena = samrena_allocate(10);
+  Samrena *samrena = samrena_create_default();
 
   int32_t *original = samrena_push(samrena, 10 * sizeof(int32_t));
   assert(original != 0);
@@ -277,12 +284,14 @@ void test_resize_array_shrink() {
     printf("resized[%d] = %d (preserved)\n", i, resized[i]);
   }
 
-  samrena_deallocate(samrena);
+  samrena_destroy(samrena);
 }
+*/
 
+/*
 void test_resize_array_zero_sizes() {
   printf("\n--- Testing samrena_resize_array with zero sizes ---\n");
-  Samrena *samrena = samrena_allocate(10);
+  Samrena *samrena = samrena_create_default();
 
   void *resized1 = samrena_resize_array(samrena, 0, 0, 100);
   assert(resized1 != 0);
@@ -296,12 +305,12 @@ void test_resize_array_zero_sizes() {
   assert(resized2 != 0);
   printf("Resize to zero size succeeded\n");
 
-  samrena_deallocate(samrena);
+  samrena_destroy(samrena);
 }
 
 void test_resize_array_different_types() {
   printf("\n--- Testing samrena_resize_array with different types ---\n");
-  Samrena *samrena = samrena_allocate(10);
+  Samrena *samrena = samrena_create_default();
 
   char *char_array = samrena_push(samrena, 10);
   assert(char_array != 0);
@@ -326,12 +335,12 @@ void test_resize_array_different_types() {
   assert(resized_double[2] == 1.41);
   printf("Double array resize preserved values\n");
 
-  samrena_deallocate(samrena);
+  samrena_destroy(samrena);
 }
 
 void test_resize_array_capacity_exhaustion() {
   printf("\n--- Testing samrena_resize_array capacity exhaustion ---\n");
-  Samrena *samrena = samrena_allocate(1);
+  Samrena *samrena = samrena_create_default();
 
   uint64_t large_size = samrena_capacity(samrena) - samrena_allocated(samrena) - 100;
   void *large_array = samrena_push(samrena, large_size);
@@ -343,12 +352,12 @@ void test_resize_array_capacity_exhaustion() {
   assert(resized != 0);
   printf("Resize beyond original capacity succeeded by growing arena\n");
 
-  samrena_deallocate(samrena);
+  samrena_destroy(samrena);
 }
 
 void test_resize_array_alignment() {
   printf("\n--- Testing samrena_resize_array alignment preservation ---\n");
-  Samrena *samrena = samrena_allocate(10);
+  Samrena *samrena = samrena_create_default();
 
   int64_t *int64_array = samrena_push(samrena, 3 * sizeof(int64_t));
   assert(int64_array != 0);
@@ -369,8 +378,9 @@ void test_resize_array_alignment() {
 
   printf("int64_t array resize preserved alignment and data\n");
 
-  samrena_deallocate(samrena);
+  samrena_destroy(samrena);
 }
+*/
 
 int main(int argc, char **argv) {
 
@@ -393,13 +403,13 @@ int main(int argc, char **argv) {
   test_large_allocation();
   test_minimal_allocation();
 
-  // Run the resize array tests
-  test_resize_array_basic();
-  test_resize_array_shrink();
-  test_resize_array_zero_sizes();
-  test_resize_array_different_types();
-  test_resize_array_capacity_exhaustion();
-  test_resize_array_alignment();
+  // Resize array tests disabled - samrena_resize_array function was removed
+  // test_resize_array_basic();
+  // test_resize_array_shrink();
+  // test_resize_array_zero_sizes();
+  // test_resize_array_different_types();
+  // test_resize_array_capacity_exhaustion();
+  // test_resize_array_alignment();
 
   printf("\nAll tests completed successfully!\n");
   return 0;
