@@ -124,8 +124,8 @@ void test_vector_resize() {
 
   uint64_t original_capacity = vec->capacity;
 
-  // Manually resize vector
-  void *result = samrena_vector_resize(arena, vec, 2);
+  // Manually resize vector to double capacity
+  void *result = samrena_vector_resize(arena, vec, original_capacity * 2);
   assert(result != NULL);
   assert(vec->capacity == original_capacity * 2);
 

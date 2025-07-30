@@ -33,8 +33,8 @@ char *global_dictionary[50] = {
 
 void print_samrena(Samrena *samrena) {
 
-  printf("Arena allocated: %lu\n", samrena->allocated);
-  printf("Arena capacity: %lu\n", samrena->capacity);
+  printf("Arena allocated: %lu\n", samrena_allocated(samrena));
+  printf("Arena capacity: %lu\n", samrena_capacity(samrena));
 }
 
 void create_new_arena() {
@@ -125,7 +125,7 @@ void test_capacity_boundary() {
   Samrena *samrena = samrena_allocate(1); // Single page
   print_samrena(samrena);
 
-  uint64_t remaining = samrena->capacity - samrena->allocated;
+  uint64_t remaining = samrena_capacity(samrena) - samrena_allocated(samrena);
   printf("Remaining space: %lu bytes\n", remaining);
 
   // Allocate exactly the remaining space
@@ -134,10 +134,11 @@ void test_capacity_boundary() {
   printf("Allocated exact remaining space: %p\n", data1);
   print_samrena(samrena);
 
-  // Try to allocate 1 more byte (should fail)
+  // Try to allocate 1 more byte (should succeed by growing)
   void *data2 = samrena_push(samrena, 1);
-  assert(data2 == 0);
-  printf("Allocation beyond capacity: %p\n", data2);
+  assert(data2 != 0);
+  printf("Allocation beyond original capacity: %p\n", data2);
+  printf("Arena grew - new capacity: %lu\n", samrena_capacity(samrena));
 
   samrena_deallocate(samrena);
 }
@@ -332,15 +333,15 @@ void test_resize_array_capacity_exhaustion() {
   printf("\n--- Testing samrena_resize_array capacity exhaustion ---\n");
   Samrena *samrena = samrena_allocate(1);
 
-  uint64_t large_size = samrena->capacity - samrena->allocated - 100;
+  uint64_t large_size = samrena_capacity(samrena) - samrena_allocated(samrena) - 100;
   void *large_array = samrena_push(samrena, large_size);
   assert(large_array != 0);
 
   printf("Filled arena to near capacity\n");
 
-  void *resized = samrena_resize_array(samrena, large_array, large_size, samrena->capacity);
-  assert(resized == 0);
-  printf("Resize beyond capacity correctly failed\n");
+  void *resized = samrena_resize_array(samrena, large_array, large_size, samrena_capacity(samrena));
+  assert(resized != 0);
+  printf("Resize beyond original capacity succeeded by growing arena\n");
 
   samrena_deallocate(samrena);
 }

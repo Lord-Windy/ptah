@@ -16,6 +16,8 @@ ptah_add_library(samrena
     SOURCES
         src/samrena.c
         src/samrena_vector.c
+        src/adapters/chained_adapter.c
+        src/adapters/virtual_adapter.c
     PUBLIC_HEADERS
         include/samrena.h
 )

@@ -135,6 +135,12 @@ void* samrena_push_zero(Samrena* arena, uint64_t size);
 uint64_t samrena_allocated(Samrena* arena);
 uint64_t samrena_capacity(Samrena* arena);
 
+// Vector API
+SamrenaVector* samrena_vector_init(Samrena* arena, uint64_t element_size, uint64_t initial_capacity);
+void* samrena_vector_push(Samrena* arena, SamrenaVector* vec, const void* element);
+void* samrena_vector_pop(SamrenaVector* vec);
+void* samrena_vector_resize(Samrena* arena, SamrenaVector* vec, uint64_t new_capacity);
+
 // Temporary legacy API compatibility (will be removed in Phase 4)
 Samrena* samrena_allocate(uint64_t page_count);
 void samrena_deallocate(Samrena* samrena);
