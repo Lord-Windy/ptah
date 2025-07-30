@@ -14,6 +14,10 @@
  * limitations under the License.
  */
 
+#ifndef _WIN32
+#define _GNU_SOURCE
+#endif
+
 #include "virtual_adapter.h"
 #include <stdlib.h>
 #include <string.h>
@@ -280,6 +284,69 @@ static void virtual_dump_stats(void* context, FILE* out) {
     fprintf(out, "Allocation granularity: %lu bytes\n", get_allocation_granularity());
 }
 
+// Virtual adapter capabilities
+static const SamrenaCapabilities virtual_capabilities = {
+    .flags = SAMRENA_CAP_CONTIGUOUS_MEMORY |
+             SAMRENA_CAP_ZERO_COPY_GROWTH |
+             SAMRENA_CAP_RESET |
+             SAMRENA_CAP_RESERVE |
+             SAMRENA_CAP_MEMORY_STATS,
+    .max_allocation_size = 0,  // Set dynamically based on reserved size
+    .max_total_size = 0,       // Set dynamically based on platform
+    .allocation_granularity = 1,
+    .alignment_guarantee = 16,  // Better alignment than chained
+    .allocation_overhead = 0.0,
+};
+
+static const SamrenaCapabilities* virtual_get_capabilities(void* context) {
+    if (!context) {
+        // Return static capabilities for strategy queries
+        return &virtual_capabilities;
+    }
+    
+    VirtualContext* ctx = (VirtualContext*)context;
+    static SamrenaCapabilities caps;
+    caps = virtual_capabilities;
+    
+    // Set dynamic values based on current state
+    caps.max_allocation_size = ctx->reserved_size - ctx->allocated_size;
+    caps.max_total_size = ctx->reserved_size;
+    
+    return &caps;
+}
+
+// Virtual adapter prefetch implementation
+static void virtual_prefetch(void* context, uint64_t expected_size) {
+    if (!context) return;
+    
+    VirtualContext* ctx = (VirtualContext*)context;
+    
+    // Ensure enough memory is committed
+    uint64_t needed_committed = ctx->allocated_size + expected_size;
+    if (needed_committed > ctx->committed_size) {
+        uint64_t to_commit = needed_committed - ctx->committed_size;
+        // Round up to commit granularity
+        to_commit = ((to_commit + ctx->commit_granularity - 1) / 
+                     ctx->commit_granularity) * ctx->commit_granularity;
+        
+        if (ctx->committed_size + to_commit <= ctx->reserved_size) {
+            virtual_commit((uint8_t*)ctx->base_address + ctx->committed_size, to_commit);
+            ctx->committed_size += to_commit;
+        }
+    }
+    
+    // Platform-specific prefetch hints
+#ifdef _WIN32
+    WIN32_MEMORY_RANGE_ENTRY entry = {
+        .VirtualAddress = ctx->base_address,
+        .NumberOfBytes = expected_size
+    };
+    PrefetchVirtualMemory(GetCurrentProcess(), 1, &entry, 0);
+#elif defined(__linux__)
+    madvise(ctx->base_address, expected_size, MADV_WILLNEED);
+#endif
+}
+
 const SamrenaOps virtual_adapter_ops = {
     .name = "virtual",
     .create = virtual_create,
@@ -290,5 +357,9 @@ const SamrenaOps virtual_adapter_ops = {
     .capacity = virtual_capacity,
     .reserve = virtual_reserve,
     .reset = virtual_reset,
+    .get_capabilities = virtual_get_capabilities,
+    .save_point = NULL,       // Not implemented yet
+    .restore_point = NULL,    // Not implemented yet
+    .prefetch = virtual_prefetch,
     .dump_stats = virtual_dump_stats
 };

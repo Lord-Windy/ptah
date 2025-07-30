@@ -40,6 +40,16 @@ typedef struct {
     SamrenaError (*reserve)(void* context, uint64_t min_capacity);
     void (*reset)(void* context);
     
+    // Capability query
+    const SamrenaCapabilities* (*get_capabilities)(void* context);
+    
+    // Optional advanced operations
+    SamrenaError (*save_point)(void* context, void** savepoint);
+    SamrenaError (*restore_point)(void* context, void* savepoint);
+    
+    // Performance hints
+    void (*prefetch)(void* context, uint64_t expected_size);
+    
     // Debug operations (optional)
     void (*dump_stats)(void* context, FILE* out);
 } SamrenaOps;
@@ -50,6 +60,9 @@ struct SamrenaImpl {
     SamrenaStrategy strategy;
     uint64_t page_size;
     SamrenaConfig config;
+    
+    // Growth hint for future allocations
+    uint64_t growth_hint;
     
     // Statistics (common to all adapters)
     struct {

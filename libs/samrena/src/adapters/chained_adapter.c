@@ -310,6 +310,25 @@ static void chained_dump_stats(void* context, FILE* out) {
     }
 }
 
+// Chained adapter capabilities
+static const SamrenaCapabilities chained_capabilities = {
+    .flags = SAMRENA_CAP_ZERO_COPY_GROWTH | 
+             SAMRENA_CAP_RESET |
+             SAMRENA_CAP_RESERVE |
+             SAMRENA_CAP_LARGE_ALLOCATIONS |
+             SAMRENA_CAP_MEMORY_STATS,
+    .max_allocation_size = UINT64_MAX,
+    .max_total_size = UINT64_MAX,
+    .allocation_granularity = 1,
+    .alignment_guarantee = sizeof(void*),
+    .allocation_overhead = 0.0,  // No per-allocation overhead
+};
+
+static const SamrenaCapabilities* chained_get_capabilities(void* context) {
+    (void)context;  // Unused for static capabilities
+    return &chained_capabilities;
+}
+
 const SamrenaOps chained_adapter_ops = {
     .name = "chained",
     .create = chained_create,
@@ -320,5 +339,9 @@ const SamrenaOps chained_adapter_ops = {
     .capacity = chained_capacity,
     .reserve = chained_reserve,
     .reset = chained_reset,
+    .get_capabilities = chained_get_capabilities,
+    .save_point = NULL,       // Not supported
+    .restore_point = NULL,    // Not supported
+    .prefetch = NULL,         // Not needed
     .dump_stats = chained_dump_stats
 };
