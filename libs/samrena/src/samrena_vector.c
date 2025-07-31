@@ -19,6 +19,39 @@
 #include <string.h>
 #include <stddef.h>
 
+// =============================================================================
+// INTERNAL HELPER FUNCTIONS
+// =============================================================================
+
+// Internal helper for owned arena sizing
+static size_t calculate_arena_size(size_t element_size, size_t initial_capacity) {
+    // Base size for initial capacity
+    size_t base_size = element_size * initial_capacity;
+    
+    // Add growth headroom (estimate 4x total growth)
+    size_t with_growth = base_size * 4;
+    
+    // Minimum arena size for efficiency
+    const size_t min_arena_size = 4096;  // 4KB
+    const size_t max_arena_size = 1024 * 1024;  // 1MB default max
+    
+    if (with_growth < min_arena_size) return min_arena_size;
+    if (with_growth > max_arena_size) return max_arena_size;
+    
+    // Round up to nearest power of 2 for alignment
+    size_t rounded = 1;
+    while (rounded < with_growth) rounded <<= 1;
+    
+    return rounded;
+}
+
+static bool validate_vector_ownership(const SamrenaVector* vec, bool requires_owned) {
+    if (!vec) return false;
+    if (requires_owned && !vec->owns_arena) return false;
+    if (!requires_owned && vec->owns_arena) return false;
+    return true;
+}
+
 SamrenaVector* samrena_vector_init(Samrena* arena, uint64_t element_size, uint64_t initial_capacity) {
     if (!arena || element_size == 0) {
         return NULL;
@@ -34,6 +67,7 @@ SamrenaVector* samrena_vector_init(Samrena* arena, uint64_t element_size, uint64
     vec->size = 0;
     vec->arena = arena;
     vec->owns_arena = false;  // External arena by default
+    vec->can_shrink = false;  // Conservative default - depends on arena implementation
     vec->growth_factor = 1.5f; // Default growth factor
     vec->min_growth = 8;      // Default minimum growth
     
@@ -406,44 +440,88 @@ SamrenaVectorStats samrena_vector_get_stats(const SamrenaVector* vec) {
 // =============================================================================
 
 SamrenaVector* samrena_vector_init_owned(uint64_t element_size, uint64_t initial_capacity) {
-    if (element_size == 0) {
-        return NULL;
-    }
+    if (element_size == 0) return NULL;
     
-    // Calculate required pages for vector struct + initial data capacity
-    size_t arena_size = sizeof(SamrenaVector) + (element_size * initial_capacity);
-    // Add some extra space for growth
-    arena_size = arena_size * 2;
-    
-    // Convert to pages (assume 4KB pages)
+    // Calculate and create appropriately sized arena
+    size_t arena_size = calculate_arena_size(element_size, initial_capacity);
     size_t pages = (arena_size + 4095) / 4096;
     if (pages < 1) pages = 1;
     
     SamrenaConfig config = samrena_default_config();
     config.initial_pages = pages;
     Samrena* arena = samrena_create(&config);
-    if (!arena) {
-        return NULL;
-    }
+    if (!arena) return NULL;
     
-    SamrenaVector* vec = samrena_vector_init(arena, element_size, initial_capacity);
+    // Initialize vector with owned arena
+    SamrenaVector* vec = samrena_vector_init_with_arena(arena, element_size, initial_capacity);
     if (!vec) {
         samrena_destroy(arena);
         return NULL;
     }
     
+    // Mark arena as owned
     vec->owns_arena = true;
+    vec->can_shrink = true;  // Owned arenas can be resized
+    
     return vec;
 }
 
 SamrenaVector* samrena_vector_init_with_arena(Samrena* arena, uint64_t element_size, uint64_t initial_capacity) {
-    return samrena_vector_init(arena, element_size, initial_capacity);
+    if (!arena || element_size == 0) return NULL;
+    
+    // Allocate vector structure from arena
+    SamrenaVector* vec = samrena_push_zero(arena, sizeof(SamrenaVector));
+    if (!vec) return NULL;
+    
+    // Initialize vector fields
+    vec->size = 0;
+    vec->element_size = element_size;
+    vec->capacity = initial_capacity > 0 ? initial_capacity : 1;
+    vec->arena = arena;
+    vec->owns_arena = false;
+    vec->growth_factor = 1.5f;
+    vec->min_growth = 8;
+    vec->can_shrink = false;  // Conservative default for shared arenas
+    
+    // Allocate initial data buffer
+    if (vec->capacity > 0) {
+        vec->data = samrena_push_zero(arena, vec->capacity * element_size);
+        if (!vec->data) {
+            // Don't free vec - it's in the arena
+            return NULL;
+        }
+    } else {
+        vec->data = NULL;
+    }
+    
+    return vec;
 }
 
 void samrena_vector_destroy(SamrenaVector* vec) {
-    if (vec && vec->owns_arena && vec->arena) {
+    if (!vec) return;
+    
+    if (vec->owns_arena) {
+        // Destroy the entire arena (includes vector and data)
         samrena_destroy(vec->arena);
+    } else {
+        // Vector allocated in external arena - just mark as invalid
+        // Note: Can't actually free from arena-based allocation
+        // External arena owner is responsible for cleanup
+        vec->data = NULL;
+        vec->size = 0;
+        vec->capacity = 0;
+        vec->arena = NULL;
     }
+}
+
+// Alternative for shared arena vectors - explicit cleanup
+void samrena_vector_cleanup(SamrenaVector* vec) {
+    if (!vec || vec->owns_arena) return;
+    
+    // Clear vector but don't attempt to free arena memory
+    vec->data = NULL;
+    vec->size = 0;
+    vec->capacity = 0;
 }
 
 // =============================================================================
@@ -451,17 +529,13 @@ void samrena_vector_destroy(SamrenaVector* vec) {
 // =============================================================================
 
 void* samrena_vector_push_owned(SamrenaVector* vec, const void* element) {
-    if (!vec || !vec->owns_arena || !vec->arena) {
-        return NULL;
-    }
-    return samrena_vector_push(vec->arena, vec, element);
+    if (!vec || !vec->owns_arena) return NULL;
+    return samrena_vector_push_auto(vec, element);
 }
 
 SamrenaVectorError samrena_vector_reserve_owned(SamrenaVector* vec, size_t min_capacity) {
-    if (!vec || !vec->owns_arena) {
-        return SAMRENA_VECTOR_ERROR_NULL_POINTER;
-    }
-    return samrena_vector_reserve(vec, min_capacity);
+    if (!vec || !vec->owns_arena) return SAMRENA_VECTOR_ERROR_INVALID_OPERATION;
+    return samrena_vector_reserve_auto(vec, min_capacity);
 }
 
 // =============================================================================
@@ -469,32 +543,69 @@ SamrenaVectorError samrena_vector_reserve_owned(SamrenaVector* vec, size_t min_c
 // =============================================================================
 
 void* samrena_vector_push_auto(SamrenaVector* vec, const void* element) {
-    if (!vec || !element) {
-        return NULL;
-    }
+    if (!vec || !element) return NULL;
     
-    // Use the arena associated with the vector
-    if (!vec->arena) {
-        return NULL;
-    }
-    
-    return samrena_vector_push(vec->arena, vec, element);
+    // Use the vector's arena regardless of ownership
+    return samrena_vector_push_with_arena(vec->arena, vec, element);
 }
 
 SamrenaVectorError samrena_vector_reserve_auto(SamrenaVector* vec, size_t min_capacity) {
-    if (!vec) {
-        return SAMRENA_VECTOR_ERROR_NULL_POINTER;
-    }
+    if (!vec) return SAMRENA_VECTOR_ERROR_NULL_POINTER;
     
-    if (!vec->arena) {
-        return SAMRENA_VECTOR_ERROR_NULL_POINTER;
-    }
+    // Check if growth is needed
+    if (min_capacity <= vec->capacity) return SAMRENA_VECTOR_SUCCESS;
     
+    // Use vector's arena for reallocation
     return samrena_vector_reserve(vec, min_capacity);
 }
 
 void* samrena_vector_push_with_arena(Samrena* arena, SamrenaVector* vec, const void* element) {
     // Explicit arena override - useful for migration or special cases
     return samrena_vector_push(arena, vec, element);
+}
+
+// =============================================================================
+// OWNERSHIP QUERY FUNCTIONS
+// =============================================================================
+
+bool samrena_vector_owns_arena(const SamrenaVector* vec) {
+    return vec && vec->owns_arena;
+}
+
+Samrena* samrena_vector_get_arena(const SamrenaVector* vec) {
+    return vec ? vec->arena : NULL;
+}
+
+bool samrena_vector_can_grow(const SamrenaVector* vec) {
+    return vec && vec->arena;  // Simplified - arena space checking would need arena API
+}
+
+// =============================================================================
+// MIGRATION HELPERS
+// =============================================================================
+
+// Convert shared vector to owned (creates new arena and copies data)
+SamrenaVector* samrena_vector_make_owned(const SamrenaVector* shared_vec) {
+    if (!shared_vec || shared_vec->owns_arena) return NULL;
+    
+    // Create new owned vector with same configuration
+    SamrenaVector* owned = samrena_vector_init_owned(
+        shared_vec->element_size, 
+        shared_vec->capacity
+    );
+    if (!owned) return NULL;
+    
+    // Copy configuration
+    owned->growth_factor = shared_vec->growth_factor;
+    owned->min_growth = shared_vec->min_growth;
+    
+    // Copy data
+    if (shared_vec->size > 0) {
+        memcpy(owned->data, shared_vec->data, 
+               shared_vec->size * shared_vec->element_size);
+        owned->size = shared_vec->size;
+    }
+    
+    return owned;
 }
 

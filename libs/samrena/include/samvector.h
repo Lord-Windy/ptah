@@ -28,7 +28,10 @@ typedef enum {
   SAMRENA_VECTOR_SUCCESS = 0,
   SAMRENA_VECTOR_ERROR_NULL_POINTER,
   SAMRENA_VECTOR_ERROR_OUT_OF_BOUNDS,
-  SAMRENA_VECTOR_ERROR_ALLOCATION_FAILED
+  SAMRENA_VECTOR_ERROR_ALLOCATION_FAILED,
+  SAMRENA_VECTOR_ERROR_INVALID_OPERATION,
+  SAMRENA_VECTOR_ERROR_ARENA_EXHAUSTED,
+  SAMRENA_VECTOR_ERROR_OWNERSHIP_CONFLICT
 } SamrenaVectorError;
 
 // =============================================================================
@@ -41,7 +44,8 @@ typedef struct {
   uint64_t capacity;
   void *data;
   Samrena *arena;     // Arena used for allocations
-  bool owns_arena;    // True if vector owns and should free the arena
+  bool owns_arena;    // True if vector owns and should free the arena  
+  bool can_shrink;    // True if arena supports reallocation/shrinking
   float growth_factor;
   size_t min_growth;
 } SamrenaVector;
@@ -128,6 +132,15 @@ SamrenaVectorError samrena_vector_reserve_owned(SamrenaVector* vec, size_t min_c
 void* samrena_vector_push_auto(SamrenaVector* vec, const void* element);
 SamrenaVectorError samrena_vector_reserve_auto(SamrenaVector* vec, size_t min_capacity);
 void* samrena_vector_push_with_arena(Samrena* arena, SamrenaVector* vec, const void* element);
+
+// Ownership Query Functions
+bool samrena_vector_owns_arena(const SamrenaVector* vec);
+Samrena* samrena_vector_get_arena(const SamrenaVector* vec);
+bool samrena_vector_can_grow(const SamrenaVector* vec);
+
+// Migration Helpers
+SamrenaVector* samrena_vector_make_owned(const SamrenaVector* shared_vec);
+void samrena_vector_cleanup(SamrenaVector* vec);
 
 // =============================================================================
 // INLINE IMPLEMENTATIONS

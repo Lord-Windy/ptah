@@ -241,6 +241,116 @@ void test_owned_vector_memory_safety() {
     printf("  ✓ Owned vector memory safety test passed\n");
 }
 
+// Test ownership query functions
+void test_ownership_query_functions() {
+    printf("Testing ownership query functions...\n");
+    
+    // Test with owned vector
+    SamrenaVector* owned_vec = samrena_vector_init_owned(sizeof(int), 10);
+    assert(owned_vec != NULL);
+    
+    assert(samrena_vector_owns_arena(owned_vec) == true);
+    assert(samrena_vector_get_arena(owned_vec) != NULL);
+    assert(samrena_vector_can_grow(owned_vec) == true);
+    
+    // Test with shared arena vector
+    SamrenaConfig config = samrena_default_config();
+    Samrena* arena = samrena_create(&config);
+    SamrenaVector* shared_vec = samrena_vector_init_with_arena(arena, sizeof(int), 10);
+    assert(shared_vec != NULL);
+    
+    assert(samrena_vector_owns_arena(shared_vec) == false);
+    assert(samrena_vector_get_arena(shared_vec) == arena);
+    assert(samrena_vector_can_grow(shared_vec) == true);
+    
+    // Test with NULL vector
+    assert(samrena_vector_owns_arena(NULL) == false);
+    assert(samrena_vector_get_arena(NULL) == NULL);
+    assert(samrena_vector_can_grow(NULL) == false);
+    
+    // Clean up
+    samrena_vector_destroy(owned_vec);
+    samrena_vector_destroy(shared_vec);
+    samrena_destroy(arena);
+    
+    printf("  ✓ Ownership query functions test passed\n");
+}
+
+// Test migration helpers
+void test_migration_helpers() {
+    printf("Testing migration helpers...\n");
+    
+    // Create shared arena vector with data
+    SamrenaConfig config = samrena_default_config();
+    Samrena* arena = samrena_create(&config);
+    SamrenaVector* shared_vec = samrena_vector_init_with_arena(arena, sizeof(int), 5);
+    assert(shared_vec != NULL);
+    
+    // Add some data
+    for (int i = 0; i < 10; i++) {
+        samrena_vector_push_auto(shared_vec, &i);
+    }
+    assert(shared_vec->size == 10);
+    
+    // Convert to owned vector
+    SamrenaVector* owned_vec = samrena_vector_make_owned(shared_vec);
+    assert(owned_vec != NULL);
+    assert(owned_vec->owns_arena == true);
+    assert(owned_vec->size == shared_vec->size);
+    assert(owned_vec->element_size == shared_vec->element_size);
+    
+    // Verify data was copied correctly
+    for (int i = 0; i < 10; i++) {
+        int* shared_val = (int*)samrena_vector_at(shared_vec, i);
+        int* owned_val = (int*)samrena_vector_at(owned_vec, i);
+        assert(*shared_val == *owned_val);
+        assert(*owned_val == i);
+    }
+    
+    // Test cleanup function
+    samrena_vector_cleanup(shared_vec);
+    assert(shared_vec->data == NULL);
+    assert(shared_vec->size == 0);
+    assert(shared_vec->capacity == 0);
+    
+    // Test make_owned with NULL and already owned vector
+    assert(samrena_vector_make_owned(NULL) == NULL);
+    assert(samrena_vector_make_owned(owned_vec) == NULL);
+    
+    // Clean up
+    samrena_vector_destroy(owned_vec);
+    samrena_destroy(arena);
+    
+    printf("  ✓ Migration helpers test passed\n");
+}
+
+// Test error conditions
+void test_error_conditions() {
+    printf("Testing error conditions...\n");
+    
+    // Test owned operations on shared vector
+    SamrenaConfig config = samrena_default_config();
+    Samrena* arena = samrena_create(&config);
+    SamrenaVector* shared_vec = samrena_vector_init_with_arena(arena, sizeof(int), 5);
+    
+    int value = 42;
+    assert(samrena_vector_push_owned(shared_vec, &value) == NULL);
+    assert(samrena_vector_reserve_owned(shared_vec, 10) == SAMRENA_VECTOR_ERROR_INVALID_OPERATION);
+    
+    // Test cleanup on owned vector (should do nothing)
+    SamrenaVector* owned_vec = samrena_vector_init_owned(sizeof(int), 5);
+    size_t orig_size = owned_vec->size;
+    samrena_vector_cleanup(owned_vec);
+    assert(owned_vec->size == orig_size); // Should be unchanged
+    
+    // Clean up
+    samrena_vector_destroy(shared_vec);
+    samrena_vector_destroy(owned_vec);
+    samrena_destroy(arena);
+    
+    printf("  ✓ Error conditions test passed\n");
+}
+
 int main() {
     printf("\n=== Samrena Vector Memory Ownership Tests ===\n\n");
     
@@ -250,6 +360,9 @@ int main() {
     test_explicit_arena_override();
     test_backward_compatibility();
     test_owned_vector_memory_safety();
+    test_ownership_query_functions();
+    test_migration_helpers();
+    test_error_conditions();
     
     printf("\n✅ All memory ownership tests passed!\n\n");
     return 0;
