@@ -14,7 +14,7 @@
 
 ptah_add_library(datazoo
     SOURCES
-        src/hash.c
+        src/starfish.c
         src/honeycomb.c
         src/pearl.c
     PUBLIC_HEADERS

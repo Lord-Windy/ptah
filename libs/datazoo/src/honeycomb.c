@@ -18,7 +18,7 @@
 #include <string.h>
 
 #include "datazoo.h"
-#include "datazoo/hash.h"
+#include "datazoo/starfish.h"
 #include "samrena.h"
 
 #define DEFAULT_PAGE_COUNT 64
@@ -94,22 +94,22 @@ void honeycomb_destroy(Honeycomb *comb) {
 
 
 static size_t hash_function(const char *key, size_t capacity, HashFunction func) {
-  DatazooHashFunction datazoo_func;
+  StarfishHashFunction starfish_func;
   switch (func) {
     case HASH_DJB2:
-      datazoo_func = DATAZOO_HASH_DJB2;
+      starfish_func = STARFISH_HASH_DJB2;
       break;
     case HASH_FNV1A:
-      datazoo_func = DATAZOO_HASH_FNV1A;
+      starfish_func = STARFISH_HASH_FNV1A;
       break;
     case HASH_MURMUR3:
-      datazoo_func = DATAZOO_HASH_MURMUR3;
+      starfish_func = STARFISH_HASH_MURMUR3;
       break;
     default:
-      datazoo_func = DATAZOO_HASH_DJB2;
+      starfish_func = STARFISH_HASH_DJB2;
       break;
   }
-  return datazoo_hash_string(key, datazoo_func) % capacity;
+  return starfish_hash_string(key, starfish_func) % capacity;
 }
 
 static bool honeycomb_resize(Honeycomb *comb) {

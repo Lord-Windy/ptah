@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef DATAZOO_HASH_H
-#define DATAZOO_HASH_H
+#ifndef DATAZOO_STARFISH_H
+#define DATAZOO_STARFISH_H
 
 #include <stdint.h>
 #include <stddef.h>
@@ -25,29 +25,29 @@ extern "C" {
 #endif
 
 typedef enum {
-    DATAZOO_HASH_DJB2,
-    DATAZOO_HASH_FNV1A,
-    DATAZOO_HASH_MURMUR3
-} DatazooHashFunction;
+    STARFISH_HASH_DJB2,
+    STARFISH_HASH_FNV1A,
+    STARFISH_HASH_MURMUR3
+} StarfishHashFunction;
 
-uint32_t datazoo_hash_djb2(const void *data, size_t size);
+uint32_t starfish_hash_djb2(const void *data, size_t size);
 
-uint32_t datazoo_hash_fnv1a(const void *data, size_t size);
+uint32_t starfish_hash_fnv1a(const void *data, size_t size);
 
-uint32_t datazoo_hash_murmur3(const void *data, size_t size);
+uint32_t starfish_hash_murmur3(const void *data, size_t size);
 
-uint32_t datazoo_hash_string_djb2(const char *str);
+uint32_t starfish_hash_string_djb2(const char *str);
 
-uint32_t datazoo_hash_string_fnv1a(const char *str);
+uint32_t starfish_hash_string_fnv1a(const char *str);
 
-uint32_t datazoo_hash_string_murmur3(const char *str);
+uint32_t starfish_hash_string_murmur3(const char *str);
 
-uint32_t datazoo_hash(const void *data, size_t size, DatazooHashFunction func);
+uint32_t starfish_hash(const void *data, size_t size, StarfishHashFunction func);
 
-uint32_t datazoo_hash_string(const char *str, DatazooHashFunction func);
+uint32_t starfish_hash_string(const char *str, StarfishHashFunction func);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* DATAZOO_HASH_H */
+#endif /* DATAZOO_STARFISH_H */

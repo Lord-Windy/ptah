@@ -15,7 +15,7 @@
  */
 
 #include <datazoo/pearl.h>
-#include <datazoo/hash.h>
+#include <datazoo/starfish.h>
 #include <string.h>
 
 // =============================================================================
@@ -33,13 +33,13 @@
 static uint32_t (*pearl_get_hash_function(PearlHashFunction func))(const void *, size_t) {
     switch (func) {
         case PEARL_HASH_DJB2:
-            return datazoo_hash_djb2;
+            return starfish_hash_djb2;
         case PEARL_HASH_FNV1A:
-            return datazoo_hash_fnv1a;
+            return starfish_hash_fnv1a;
         case PEARL_HASH_MURMUR3:
-            return datazoo_hash_murmur3;
+            return starfish_hash_murmur3;
         default:
-            return datazoo_hash_djb2;
+            return starfish_hash_djb2;
     }
 }
 
@@ -106,7 +106,7 @@ Pearl *pearl_create_custom(size_t element_size, size_t initial_capacity, Samrena
     pearl->load_factor = PEARL_DEFAULT_LOAD_FACTOR;
     pearl->hash_func = PEARL_HASH_DJB2;
     
-    pearl->hash = hash_fn ? hash_fn : datazoo_hash_djb2;
+    pearl->hash = hash_fn ? hash_fn : starfish_hash_djb2;
     pearl->equals = equals_fn ? equals_fn : pearl_default_equals;
     
     memset(&pearl->stats, 0, sizeof(PearlStats));
