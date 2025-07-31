@@ -18,6 +18,7 @@
 #include <string.h>
 
 #include "datazoo.h"
+#include "datazoo/hash.h"
 #include "samrena.h"
 
 #define DEFAULT_PAGE_COUNT 64
@@ -91,82 +92,24 @@ void honeycomb_destroy(Honeycomb *comb) {
   // No cleanup needed here
 }
 
-static size_t hash_djb2(const char *key, size_t capacity) {
-  size_t hash = 5381;
-  int c;
-  while ((c = *key++)) {
-    hash = (hash << 5) + hash + c; /* hash * 33 + c */
-  }
-  return hash % capacity;
-}
-
-static size_t hash_fnv1a(const char *key, size_t capacity) {
-  size_t hash = 14695981039346656037ULL; // FNV offset basis
-  while (*key) {
-    hash ^= (size_t)*key++;
-    hash *= 1099511628211ULL; // FNV prime
-  }
-  return hash % capacity;
-}
-
-static size_t hash_murmur3(const char *key, size_t capacity) {
-  const uint32_t c1 = 0xcc9e2d51;
-  const uint32_t c2 = 0x1b873593;
-  const uint32_t r1 = 15;
-  const uint32_t r2 = 13;
-  const uint32_t m = 5;
-  const uint32_t n = 0xe6546b64;
-  
-  uint32_t hash = 0; // seed
-  
-  const int len = strlen(key);
-  const int nblocks = len / 4;
-  const uint32_t *blocks = (const uint32_t *) key;
-  
-  for (int i = 0; i < nblocks; i++) {
-    uint32_t k = blocks[i];
-    k *= c1;
-    k = (k << r1) | (k >> (32 - r1));
-    k *= c2;
-    
-    hash ^= k;
-    hash = ((hash << r2) | (hash >> (32 - r2))) * m + n;
-  }
-  
-  const uint8_t *tail = (const uint8_t *) (key + nblocks * 4);
-  uint32_t k1 = 0;
-  
-  switch (len & 3) {
-    case 3: k1 ^= tail[2] << 16;
-    case 2: k1 ^= tail[1] << 8;
-    case 1: k1 ^= tail[0];
-      k1 *= c1;
-      k1 = (k1 << r1) | (k1 >> (32 - r1));
-      k1 *= c2;
-      hash ^= k1;
-  }
-  
-  hash ^= len;
-  hash ^= (hash >> 16);
-  hash *= 0x85ebca6b;
-  hash ^= (hash >> 13);
-  hash *= 0xc2b2ae35;
-  hash ^= (hash >> 16);
-  
-  return hash % capacity;
-}
 
 static size_t hash_function(const char *key, size_t capacity, HashFunction func) {
+  DatazooHashFunction datazoo_func;
   switch (func) {
     case HASH_DJB2:
-      return hash_djb2(key, capacity);
+      datazoo_func = DATAZOO_HASH_DJB2;
+      break;
     case HASH_FNV1A:
-      return hash_fnv1a(key, capacity);
+      datazoo_func = DATAZOO_HASH_FNV1A;
+      break;
     case HASH_MURMUR3:
-      return hash_murmur3(key, capacity);
+      datazoo_func = DATAZOO_HASH_MURMUR3;
+      break;
     default:
-      return hash_djb2(key, capacity);
+      datazoo_func = DATAZOO_HASH_DJB2;
+      break;
   }
+  return datazoo_hash_string(key, datazoo_func) % capacity;
 }
 
 static bool honeycomb_resize(Honeycomb *comb) {

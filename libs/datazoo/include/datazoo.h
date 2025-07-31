@@ -35,6 +35,7 @@
 // DATA STRUCTURE HEADERS
 // =============================================================================
 
+#include "datazoo/hash.h"  
 #include "datazoo/honeycomb.h"
 #include "datazoo/pearl.h"
 

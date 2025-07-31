@@ -15,6 +15,7 @@
  */
 
 #include <datazoo/pearl.h>
+#include <datazoo/hash.h>
 #include <string.h>
 
 // =============================================================================
@@ -24,80 +25,6 @@
 #define PEARL_DEFAULT_LOAD_FACTOR 0.75f
 #define PEARL_MIN_CAPACITY 16
 
-// =============================================================================
-// HASH FUNCTIONS
-// =============================================================================
-
-static uint32_t pearl_hash_djb2(const void *data, size_t size) {
-    const unsigned char *bytes = (const unsigned char *)data;
-    uint32_t hash = 5381;
-    
-    for (size_t i = 0; i < size; i++) {
-        hash = ((hash << 5) + hash) + bytes[i];
-    }
-    
-    return hash;
-}
-
-static uint32_t pearl_hash_fnv1a(const void *data, size_t size) {
-    const unsigned char *bytes = (const unsigned char *)data;
-    uint32_t hash = 2166136261u;
-    
-    for (size_t i = 0; i < size; i++) {
-        hash ^= bytes[i];
-        hash *= 16777619u;
-    }
-    
-    return hash;
-}
-
-static uint32_t pearl_hash_murmur3(const void *data, size_t size) {
-    const unsigned char *bytes = (const unsigned char *)data;
-    const uint32_t c1 = 0xcc9e2d51;
-    const uint32_t c2 = 0x1b873593;
-    const uint32_t r1 = 15;
-    const uint32_t r2 = 13;
-    const uint32_t m = 5;
-    const uint32_t n = 0xe6546b64;
-    
-    uint32_t hash = 0;
-    
-    const int nblocks = size / 4;
-    const uint32_t *blocks = (const uint32_t *)bytes;
-    int i;
-    
-    for (i = 0; i < nblocks; i++) {
-        uint32_t k = blocks[i];
-        k *= c1;
-        k = (k << r1) | (k >> (32 - r1));
-        k *= c2;
-        
-        hash ^= k;
-        hash = ((hash << r2) | (hash >> (32 - r2))) * m + n;
-    }
-    
-    const unsigned char *tail = (const unsigned char *)(bytes + nblocks * 4);
-    uint32_t k1 = 0;
-    
-    switch (size & 3) {
-        case 3: k1 ^= tail[2] << 16;
-        case 2: k1 ^= tail[1] << 8;
-        case 1: k1 ^= tail[0];
-                k1 *= c1;
-                k1 = (k1 << r1) | (k1 >> (32 - r1));
-                k1 *= c2;
-                hash ^= k1;
-    }
-    
-    hash ^= size;
-    hash ^= (hash >> 16);
-    hash *= 0x85ebca6b;
-    hash ^= (hash >> 13);
-    hash *= 0xc2b2ae35;
-    hash ^= (hash >> 16);
-    
-    return hash;
-}
 
 // =============================================================================
 // HELPER FUNCTIONS
@@ -106,13 +33,13 @@ static uint32_t pearl_hash_murmur3(const void *data, size_t size) {
 static uint32_t (*pearl_get_hash_function(PearlHashFunction func))(const void *, size_t) {
     switch (func) {
         case PEARL_HASH_DJB2:
-            return pearl_hash_djb2;
+            return datazoo_hash_djb2;
         case PEARL_HASH_FNV1A:
-            return pearl_hash_fnv1a;
+            return datazoo_hash_fnv1a;
         case PEARL_HASH_MURMUR3:
-            return pearl_hash_murmur3;
+            return datazoo_hash_murmur3;
         default:
-            return pearl_hash_djb2;
+            return datazoo_hash_djb2;
     }
 }
 
@@ -179,7 +106,7 @@ Pearl *pearl_create_custom(size_t element_size, size_t initial_capacity, Samrena
     pearl->load_factor = PEARL_DEFAULT_LOAD_FACTOR;
     pearl->hash_func = PEARL_HASH_DJB2;
     
-    pearl->hash = hash_fn ? hash_fn : pearl_hash_djb2;
+    pearl->hash = hash_fn ? hash_fn : datazoo_hash_djb2;
     pearl->equals = equals_fn ? equals_fn : pearl_default_equals;
     
     memset(&pearl->stats, 0, sizeof(PearlStats));

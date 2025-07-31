@@ -14,7 +14,9 @@
 
 ptah_add_library(datazoo
     SOURCES
+        src/hash.c
         src/honeycomb.c
+        src/pearl.c
     PUBLIC_HEADERS
         include/datazoo.h
     DEPENDENCIES
