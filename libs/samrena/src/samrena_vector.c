@@ -446,3 +446,55 @@ void samrena_vector_destroy(SamrenaVector* vec) {
     }
 }
 
+// =============================================================================
+// OWNED VECTOR OPERATIONS
+// =============================================================================
+
+void* samrena_vector_push_owned(SamrenaVector* vec, const void* element) {
+    if (!vec || !vec->owns_arena || !vec->arena) {
+        return NULL;
+    }
+    return samrena_vector_push(vec->arena, vec, element);
+}
+
+SamrenaVectorError samrena_vector_reserve_owned(SamrenaVector* vec, size_t min_capacity) {
+    if (!vec || !vec->owns_arena) {
+        return SAMRENA_VECTOR_ERROR_NULL_POINTER;
+    }
+    return samrena_vector_reserve(vec, min_capacity);
+}
+
+// =============================================================================
+// AUTO-DETECTION FUNCTIONS
+// =============================================================================
+
+void* samrena_vector_push_auto(SamrenaVector* vec, const void* element) {
+    if (!vec || !element) {
+        return NULL;
+    }
+    
+    // Use the arena associated with the vector
+    if (!vec->arena) {
+        return NULL;
+    }
+    
+    return samrena_vector_push(vec->arena, vec, element);
+}
+
+SamrenaVectorError samrena_vector_reserve_auto(SamrenaVector* vec, size_t min_capacity) {
+    if (!vec) {
+        return SAMRENA_VECTOR_ERROR_NULL_POINTER;
+    }
+    
+    if (!vec->arena) {
+        return SAMRENA_VECTOR_ERROR_NULL_POINTER;
+    }
+    
+    return samrena_vector_reserve(vec, min_capacity);
+}
+
+void* samrena_vector_push_with_arena(Samrena* arena, SamrenaVector* vec, const void* element) {
+    // Explicit arena override - useful for migration or special cases
+    return samrena_vector_push(arena, vec, element);
+}
+

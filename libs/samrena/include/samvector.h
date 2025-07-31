@@ -120,6 +120,15 @@ SamrenaVector* samrena_vector_init_owned(uint64_t element_size, uint64_t initial
 SamrenaVector* samrena_vector_init_with_arena(Samrena* arena, uint64_t element_size, uint64_t initial_capacity);
 void samrena_vector_destroy(SamrenaVector* vec);
 
+// Owned Vector Operations
+void* samrena_vector_push_owned(SamrenaVector* vec, const void* element);
+SamrenaVectorError samrena_vector_reserve_owned(SamrenaVector* vec, size_t min_capacity);
+
+// Auto-detection Functions (Hybrid Operations)
+void* samrena_vector_push_auto(SamrenaVector* vec, const void* element);
+SamrenaVectorError samrena_vector_reserve_auto(SamrenaVector* vec, size_t min_capacity);
+void* samrena_vector_push_with_arena(Samrena* arena, SamrenaVector* vec, const void* element);
+
 // =============================================================================
 // INLINE IMPLEMENTATIONS
 // =============================================================================

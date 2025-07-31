@@ -111,6 +111,13 @@ if(BUILD_TESTING)
     target_link_libraries(samrena_vector_capacity_test PRIVATE samrena)
     add_test(NAME samrena_vector_capacity_test COMMAND samrena_vector_capacity_test)
     
+    # Vector memory ownership test
+    add_executable(samrena_vector_ownership_test
+        test/test_vector_ownership.c
+    )
+    target_link_libraries(samrena_vector_ownership_test PRIVATE samrena)
+    add_test(NAME samrena_vector_ownership_test COMMAND samrena_vector_ownership_test)
+    
     # Valgrind integration - only add tests if explicitly requested
     option(ENABLE_VALGRIND_TESTS "Enable Valgrind memory leak tests (may fail on systems with AVX-512)" OFF)
     
@@ -167,6 +174,16 @@ if(BUILD_TESTING)
                              --error-exitcode=1
                              --suppressions=${CMAKE_SOURCE_DIR}/valgrind_suppressions.supp
                              $<TARGET_FILE:samrena_vector_capacity_test>)
+            
+            add_test(NAME samrena_vector_ownership_test_valgrind 
+                     COMMAND ${VALGRIND_PROGRAM} 
+                             --tool=memcheck 
+                             --leak-check=full 
+                             --show-leak-kinds=all 
+                             --track-origins=yes 
+                             --error-exitcode=1
+                             --suppressions=${CMAKE_SOURCE_DIR}/valgrind_suppressions.supp
+                             $<TARGET_FILE:samrena_vector_ownership_test>)
             
             message(STATUS "Samrena: Valgrind tests enabled (use -DENABLE_VALGRIND_TESTS=OFF to disable)")
         else()
