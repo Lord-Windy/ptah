@@ -206,10 +206,3 @@ const void* samrena_vector_data_const(const SamrenaVector* vec) {
     return vec->data;
 }
 
-void* samrena_vector_at_unchecked(SamrenaVector* vec, size_t index) {
-    return (uint8_t*)vec->data + (index * vec->element_size);
-}
-
-const void* samrena_vector_at_unchecked_const(const SamrenaVector* vec, size_t index) {
-    return (const uint8_t*)vec->data + (index * vec->element_size);
-}

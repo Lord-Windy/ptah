@@ -68,11 +68,29 @@ void* samrena_vector_data(SamrenaVector* vec);
 const void* samrena_vector_data_const(const SamrenaVector* vec);
 
 // Unsafe Access Functions (Performance)
-void* samrena_vector_at_unchecked(SamrenaVector* vec, size_t index);
-const void* samrena_vector_at_unchecked_const(const SamrenaVector* vec, size_t index);
+static inline void* samrena_vector_at_unchecked(SamrenaVector* vec, size_t index);
+static inline const void* samrena_vector_at_unchecked_const(const SamrenaVector* vec, size_t index);
 
 // Direct element access macro
 #define SAMRENA_VECTOR_ELEM(vec, type, index) \
     ((type*)((vec)->data))[(index)]
+
+// =============================================================================
+// INLINE IMPLEMENTATIONS
+// =============================================================================
+
+#include <assert.h>
+
+static inline void* samrena_vector_at_unchecked(SamrenaVector* vec, size_t index) {
+    assert(vec != NULL);
+    assert(index < vec->size);
+    return (uint8_t*)vec->data + (index * vec->element_size);
+}
+
+static inline const void* samrena_vector_at_unchecked_const(const SamrenaVector* vec, size_t index) {
+    assert(vec != NULL);
+    assert(index < vec->size);
+    return (const uint8_t*)vec->data + (index * vec->element_size);
+}
 
 #endif
