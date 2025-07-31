@@ -21,6 +21,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+SAMRENA_DECLARE_VECTOR(int);
+SAMRENA_DECLARE_VECTOR(char);
+SAMRENA_DECLARE_VECTOR(double);
+
 void test_vector_push_basic() {
     printf("Testing samrena_vector_push basic functionality... ");
     
@@ -482,6 +486,66 @@ void test_vector_operations_stability() {
     printf("PASSED\n");
 }
 
+void test_vector_typesafe_comparison() {
+    printf("Testing type-safe vs generic vector comparison... ");
+    
+    // Create both type-safe and generic vectors
+    SamrenaVector_int* typed_vec = samrena_vector_int_init_owned(5);
+    SamrenaVector* generic_vec = samrena_vector_init_owned(sizeof(int), 5);
+    
+    assert(typed_vec != NULL);
+    assert(generic_vec != NULL);
+    
+    int values[] = {42, 84, 126, 168, 210};
+    
+    // Push same values to both vectors
+    for (int i = 0; i < 5; i++) {
+        // Type-safe push - returns typed pointer
+        int* typed_result = samrena_vector_int_push(typed_vec, &values[i]);
+        assert(typed_result != NULL);
+        assert(*typed_result == values[i]);
+        
+        // Generic push - returns void pointer
+        void* generic_result = samrena_vector_push(generic_vec, &values[i]);
+        assert(generic_result != NULL);
+        assert(*(int*)generic_result == values[i]);
+    }
+    
+    // Compare access methods
+    for (int i = 0; i < 5; i++) {
+        // Type-safe access - no casting needed
+        int* typed_elem = samrena_vector_int_at(typed_vec, i);
+        assert(typed_elem != NULL);
+        assert(*typed_elem == values[i]);
+        
+        // Generic access - requires casting
+        int* generic_elem = (int*)samrena_vector_at(generic_vec, i);
+        assert(generic_elem != NULL);
+        assert(*generic_elem == values[i]);
+        
+        // Both should give same result
+        assert(*typed_elem == *generic_elem);
+    }
+    
+    // Test type-safe get vs generic get
+    for (int i = 0; i < 5; i++) {
+        int typed_retrieved, generic_retrieved;
+        
+        assert(samrena_vector_int_get(typed_vec, i, &typed_retrieved) == SAMRENA_VECTOR_SUCCESS);
+        assert(samrena_vector_get(generic_vec, i, &generic_retrieved) == SAMRENA_VECTOR_SUCCESS);
+        assert(typed_retrieved == generic_retrieved);
+        assert(typed_retrieved == values[i]);
+    }
+    
+    // Verify sizes match
+    assert(samrena_vector_int_size(typed_vec) == samrena_vector_size(generic_vec));
+    assert(samrena_vector_int_capacity(typed_vec) == samrena_vector_capacity(generic_vec));
+    
+    samrena_vector_int_destroy(typed_vec);
+    samrena_vector_destroy(generic_vec);
+    printf("PASSED\n");
+}
+
 void test_vector_iterator_basic() {
     printf("Testing samrena_vector_iter basic functionality... ");
     
@@ -676,6 +740,7 @@ int main() {
     test_vector_large_operations();
     test_vector_operations_interleaved();
     test_vector_operations_stability();
+    test_vector_typesafe_comparison();
     test_vector_iterator_basic();
     test_vector_iterator_empty();
     test_vector_iterator_reset();

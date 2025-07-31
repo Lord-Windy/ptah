@@ -91,6 +91,101 @@ static inline const void* samrena_vector_at_unchecked_const(const SamrenaVector*
     ((type*)((vec)->data))[(index)]
 
 // =============================================================================
+// TYPE-SAFE VECTOR MACROS
+// =============================================================================
+
+// Declare a type-safe vector wrapper for a specific type
+#define SAMRENA_DECLARE_VECTOR(type) \
+    typedef struct { \
+        SamrenaVector* _vec; \
+    } SamrenaVector_##type; \
+    \
+    static inline SamrenaVector_##type* samrena_vector_##type##_init(Samrena* arena, uint64_t initial_capacity) { \
+        SamrenaVector_##type* typed_vec = (SamrenaVector_##type*)samrena_push(arena, sizeof(SamrenaVector_##type)); \
+        if (!typed_vec) return NULL; \
+        typed_vec->_vec = samrena_vector_init(arena, sizeof(type), initial_capacity); \
+        if (!typed_vec->_vec) return NULL; \
+        return typed_vec; \
+    } \
+    \
+    static inline SamrenaVector_##type* samrena_vector_##type##_init_owned(uint64_t initial_capacity) { \
+        SamrenaVector_##type* typed_vec = (SamrenaVector_##type*)malloc(sizeof(SamrenaVector_##type)); \
+        if (!typed_vec) return NULL; \
+        typed_vec->_vec = samrena_vector_init_owned(sizeof(type), initial_capacity); \
+        if (!typed_vec->_vec) { \
+            free(typed_vec); \
+            return NULL; \
+        } \
+        return typed_vec; \
+    } \
+    \
+    static inline type* samrena_vector_##type##_push(SamrenaVector_##type* vec, const type* element) { \
+        if (!vec || !vec->_vec) return NULL; \
+        return (type*)samrena_vector_push(vec->_vec, element); \
+    } \
+    \
+    static inline type* samrena_vector_##type##_pop(SamrenaVector_##type* vec) { \
+        if (!vec || !vec->_vec) return NULL; \
+        return (type*)samrena_vector_pop(vec->_vec); \
+    } \
+    \
+    static inline type* samrena_vector_##type##_at(SamrenaVector_##type* vec, size_t index) { \
+        if (!vec || !vec->_vec) return NULL; \
+        return (type*)samrena_vector_at(vec->_vec, index); \
+    } \
+    \
+    static inline const type* samrena_vector_##type##_at_const(const SamrenaVector_##type* vec, size_t index) { \
+        if (!vec || !vec->_vec) return NULL; \
+        return (const type*)samrena_vector_at_const(vec->_vec, index); \
+    } \
+    \
+    static inline SamrenaVectorError samrena_vector_##type##_get(const SamrenaVector_##type* vec, size_t index, type* out_element) { \
+        if (!vec || !vec->_vec) return SAMRENA_VECTOR_ERROR_NULL_POINTER; \
+        return samrena_vector_get(vec->_vec, index, out_element); \
+    } \
+    \
+    static inline SamrenaVectorError samrena_vector_##type##_set(SamrenaVector_##type* vec, size_t index, const type* element) { \
+        if (!vec || !vec->_vec) return SAMRENA_VECTOR_ERROR_NULL_POINTER; \
+        return samrena_vector_set(vec->_vec, index, element); \
+    } \
+    \
+    static inline size_t samrena_vector_##type##_size(const SamrenaVector_##type* vec) { \
+        if (!vec || !vec->_vec) return 0; \
+        return samrena_vector_size(vec->_vec); \
+    } \
+    \
+    static inline size_t samrena_vector_##type##_capacity(const SamrenaVector_##type* vec) { \
+        if (!vec || !vec->_vec) return 0; \
+        return samrena_vector_capacity(vec->_vec); \
+    } \
+    \
+    static inline bool samrena_vector_##type##_is_empty(const SamrenaVector_##type* vec) { \
+        if (!vec || !vec->_vec) return true; \
+        return samrena_vector_is_empty(vec->_vec); \
+    } \
+    \
+    static inline bool samrena_vector_##type##_is_full(const SamrenaVector_##type* vec) { \
+        if (!vec || !vec->_vec) return true; \
+        return samrena_vector_is_full(vec->_vec); \
+    } \
+    \
+    static inline void samrena_vector_##type##_clear(SamrenaVector_##type* vec) { \
+        if (vec && vec->_vec) samrena_vector_clear(vec->_vec); \
+    } \
+    \
+    static inline SamrenaVectorError samrena_vector_##type##_resize(SamrenaVector_##type* vec, uint64_t new_capacity) { \
+        if (!vec || !vec->_vec) return SAMRENA_VECTOR_ERROR_NULL_POINTER; \
+        return samrena_vector_resize(vec->_vec, new_capacity); \
+    } \
+    \
+    static inline void samrena_vector_##type##_destroy(SamrenaVector_##type* vec) { \
+        if (vec) { \
+            if (vec->_vec) samrena_vector_destroy(vec->_vec); \
+            if (vec->_vec && vec->_vec->owns_arena) free(vec); \
+        } \
+    }
+
+// =============================================================================
 // CAPACITY MANAGEMENT API
 // =============================================================================
 

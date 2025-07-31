@@ -141,6 +141,11 @@ if(BUILD_TESTING)
     target_link_libraries(samvector_performance_test PRIVATE samrena)
     add_test(NAME samvector_performance_test COMMAND samvector_performance_test)
     
+    add_executable(samvector_typesafe_test
+        test/test_samvector_typesafe.c
+    )
+    target_link_libraries(samvector_typesafe_test PRIVATE samrena)
+    add_test(NAME samvector_typesafe_test COMMAND samvector_typesafe_test)
     
     
     # Valgrind integration - only add tests if explicitly requested
