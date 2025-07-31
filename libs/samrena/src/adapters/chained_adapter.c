@@ -314,14 +314,9 @@ static void chained_dump_stats(void* context, FILE* out) {
 static const SamrenaCapabilities chained_capabilities = {
     .flags = SAMRENA_CAP_ZERO_COPY_GROWTH | 
              SAMRENA_CAP_RESET |
-             SAMRENA_CAP_RESERVE |
-             SAMRENA_CAP_LARGE_ALLOCATIONS |
-             SAMRENA_CAP_MEMORY_STATS,
+             SAMRENA_CAP_RESERVE,
     .max_allocation_size = UINT64_MAX,
-    .max_total_size = UINT64_MAX,
-    .allocation_granularity = 1,
-    .alignment_guarantee = sizeof(void*),
-    .allocation_overhead = 0.0,  // No per-allocation overhead
+    .alignment_guarantee = sizeof(void*)
 };
 
 static const SamrenaCapabilities* chained_get_capabilities(void* context) {

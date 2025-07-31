@@ -15,6 +15,7 @@
  */
 
 #include "samrena.h"
+#include "samvector.h"
 #include <string.h>
 
 SamrenaVector* samrena_vector_init(Samrena* arena, uint64_t element_size, uint64_t initial_capacity) {

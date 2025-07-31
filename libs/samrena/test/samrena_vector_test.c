@@ -15,6 +15,7 @@
  */
 
 #include "samrena.h"
+#include "samvector.h"
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>

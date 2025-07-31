@@ -20,6 +20,7 @@
 
 #include "datazoo.h"
 #include "samrena.h"
+#include "samvector.h"
 
 int main() {
   printf("=== Ptah Demo Application ===\n");

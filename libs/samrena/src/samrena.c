@@ -49,16 +49,12 @@ const char *samrena_error_string(SamrenaError error) {
             return "Invalid size error";
         case SAMRENA_ERROR_OUT_OF_MEMORY:
             return "Out of memory error";
-        case SAMRENA_ERROR_OVERFLOW:
-            return "Overflow error";
         case SAMRENA_ERROR_INVALID_PARAMETER:
             return "Invalid parameter error";
         case SAMRENA_ERROR_UNSUPPORTED_STRATEGY:
             return "Unsupported strategy error";
         case SAMRENA_ERROR_UNSUPPORTED_OPERATION:
             return "Unsupported operation error";
-        case SAMRENA_ERROR_PLATFORM_SPECIFIC:
-            return "Platform specific error";
         default:
             return "Unknown error";
     }
@@ -755,7 +751,6 @@ SamrenaCapabilities samrena_get_capabilities(Samrena* arena) {
         uint64_t current_used = samrena_allocated(arena);
         uint64_t total_capacity = samrena_capacity(arena);
         caps.max_allocation_size = total_capacity - current_used;
-        caps.max_total_size = total_capacity;
     }
     
     return caps;
@@ -827,62 +822,6 @@ typedef struct {
     uint64_t allocation_count;
 } GrowthState;
 
-static uint64_t calculate_adaptive_growth(
-    const SamrenaGrowthConfig* config,
-    GrowthState* state,
-    uint64_t current_size,
-    uint64_t requested_size
-) {
-    if (!state || !state->allocation_sizes) {
-        // Fallback to simple doubling
-        return requested_size * 2;
-    }
-    
-    // Track allocation size
-    uint64_t alloc_size = requested_size - current_size;
-    if (state->history_size < state->history_capacity) {
-        state->allocation_sizes[state->history_size++] = alloc_size;
-    } else {
-        // Circular buffer
-        state->allocation_sizes[state->history_index] = alloc_size;
-        state->history_index = (state->history_index + 1) % state->history_capacity;
-    }
-    
-    // Calculate average allocation size
-    uint64_t total = 0;
-    uint64_t max_alloc = 0;
-    size_t count = state->history_size;
-    
-    for (size_t i = 0; i < count; i++) {
-        uint64_t size = state->allocation_sizes[i];
-        total += size;
-        if (size > max_alloc) {
-            max_alloc = size;
-        }
-    }
-    
-    uint64_t avg_alloc = count > 0 ? total / count : alloc_size;
-    
-    // Predict future needs
-    double prediction_factor = 1.0 + config->params.adaptive.aggressiveness;
-    uint64_t predicted_need = (uint64_t)(avg_alloc * count * prediction_factor);
-    
-    // Calculate growth to accommodate predicted needs
-    uint64_t growth = predicted_need;
-    
-    // Consider maximum seen allocation
-    if (max_alloc * 2 > growth) {
-        growth = max_alloc * 2;
-    }
-    
-    // Minimum growth to handle current request
-    uint64_t min_growth = alloc_size * 2;
-    if (growth < min_growth) {
-        growth = min_growth;
-    }
-    
-    return growth;
-}
 
 static uint64_t calculate_growth(
     const SamrenaGrowthConfig* config,
@@ -900,34 +839,8 @@ static uint64_t calculate_growth(
         
     case SAMRENA_GROWTH_EXPONENTIAL:
         new_size = (uint64_t)(current_size * config->params.exponential.factor);
-        if (new_size - current_size > config->params.exponential.max_step) {
-            new_size = current_size + config->params.exponential.max_step;
-        }
         break;
         
-    case SAMRENA_GROWTH_FIBONACCI:
-        {
-            // Note: This modifies config, which isn't ideal but matches the task spec
-            SamrenaGrowthConfig* mutable_config = (SamrenaGrowthConfig*)config;
-            uint64_t next = mutable_config->params.fibonacci.fib_a + 
-                           mutable_config->params.fibonacci.fib_b;
-            mutable_config->params.fibonacci.fib_a = mutable_config->params.fibonacci.fib_b;
-            mutable_config->params.fibonacci.fib_b = next;
-            new_size += next;
-        }
-        break;
-        
-    case SAMRENA_GROWTH_ADAPTIVE:
-        new_size += calculate_adaptive_growth(config, state, current_size, requested_size);
-        break;
-        
-    case SAMRENA_GROWTH_CUSTOM:
-        if (config->custom_growth) {
-            new_size = config->custom_growth(state, current_size, 
-                                           requested_size, 
-                                           config->custom_user_data);
-        }
-        break;
     }
     
     // Ensure minimum growth
@@ -951,28 +864,12 @@ Samrena* samrena_create_with_growth(uint64_t initial_pages, const SamrenaGrowthC
 // Preset growth configurations
 const SamrenaGrowthConfig SAMRENA_GROWTH_CONSERVATIVE = {
     .policy = SAMRENA_GROWTH_LINEAR,
-    .params.linear = { .increment = 65536 },  // 64KB at a time
-    .custom_growth = NULL,
-    .custom_user_data = NULL
+    .params.linear = { .increment = 65536 }  // 64KB at a time
 };
 
 const SamrenaGrowthConfig SAMRENA_GROWTH_BALANCED = {
     .policy = SAMRENA_GROWTH_EXPONENTIAL,
-    .params.exponential = { .factor = 1.5, .max_step = 10485760 },  // 10MB max
-    .custom_growth = NULL,
-    .custom_user_data = NULL
+    .params.exponential = { .factor = 1.5 }
 };
 
-const SamrenaGrowthConfig SAMRENA_GROWTH_AGGRESSIVE = {
-    .policy = SAMRENA_GROWTH_EXPONENTIAL,
-    .params.exponential = { .factor = 2.0, .max_step = UINT64_MAX },
-    .custom_growth = NULL,
-    .custom_user_data = NULL
-};
 
-const SamrenaGrowthConfig SAMRENA_GROWTH_SMART = {
-    .policy = SAMRENA_GROWTH_ADAPTIVE,
-    .params.adaptive = { .window_size = 100, .aggressiveness = 0.5 },
-    .custom_growth = NULL,
-    .custom_user_data = NULL
-};

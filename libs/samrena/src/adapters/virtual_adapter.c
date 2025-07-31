@@ -289,13 +289,9 @@ static const SamrenaCapabilities virtual_capabilities = {
     .flags = SAMRENA_CAP_CONTIGUOUS_MEMORY |
              SAMRENA_CAP_ZERO_COPY_GROWTH |
              SAMRENA_CAP_RESET |
-             SAMRENA_CAP_RESERVE |
-             SAMRENA_CAP_MEMORY_STATS,
+             SAMRENA_CAP_RESERVE,
     .max_allocation_size = 0,  // Set dynamically based on reserved size
-    .max_total_size = 0,       // Set dynamically based on platform
-    .allocation_granularity = 1,
-    .alignment_guarantee = 16,  // Better alignment than chained
-    .allocation_overhead = 0.0,
+    .alignment_guarantee = 16  // Better alignment than chained
 };
 
 static const SamrenaCapabilities* virtual_get_capabilities(void* context) {
@@ -310,7 +306,6 @@ static const SamrenaCapabilities* virtual_get_capabilities(void* context) {
     
     // Set dynamic values based on current state
     caps.max_allocation_size = ctx->reserved_size - ctx->allocated_size;
-    caps.max_total_size = ctx->reserved_size;
     
     return &caps;
 }
