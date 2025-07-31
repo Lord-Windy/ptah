@@ -49,20 +49,15 @@ typedef enum {
     SAMRENA_STRATEGY_VIRTUAL
 } SamrenaStrategy;
 
-// Enhanced error codes for hexagonal architecture
+// Error codes
 typedef enum {
-  // Legacy error codes (preserved for compatibility)
   SAMRENA_SUCCESS = 0,
-  SAMRENA_ERROR_NULL_POINTER = 1,
-  SAMRENA_ERROR_INVALID_SIZE = 2,
-  SAMRENA_ERROR_OUT_OF_MEMORY = 3,
-  SAMRENA_ERROR_OVERFLOW = 4,
-  
-  // New error codes for hexagonal architecture
-  SAMRENA_ERROR_INVALID_PARAMETER = 5,
-  SAMRENA_ERROR_UNSUPPORTED_STRATEGY = 6,
-  SAMRENA_ERROR_UNSUPPORTED_OPERATION = 7,
-  SAMRENA_ERROR_PLATFORM_SPECIFIC = 8
+  SAMRENA_ERROR_NULL_POINTER,
+  SAMRENA_ERROR_INVALID_SIZE,
+  SAMRENA_ERROR_OUT_OF_MEMORY,
+  SAMRENA_ERROR_INVALID_PARAMETER,
+  SAMRENA_ERROR_UNSUPPORTED_STRATEGY,
+  SAMRENA_ERROR_UNSUPPORTED_OPERATION
 } SamrenaError;
 
 // Fallback behavior enumeration
@@ -79,10 +74,7 @@ typedef enum {
 // Growth policy types
 typedef enum {
     SAMRENA_GROWTH_LINEAR,      // Add fixed amount each time
-    SAMRENA_GROWTH_EXPONENTIAL, // Double size each time
-    SAMRENA_GROWTH_FIBONACCI,   // Fibonacci sequence growth
-    SAMRENA_GROWTH_ADAPTIVE,    // Learn from allocation pattern
-    SAMRENA_GROWTH_CUSTOM       // User-defined function
+    SAMRENA_GROWTH_EXPONENTIAL  // Double size each time
 } SamrenaGrowthPolicy;
 
 // =============================================================================
@@ -94,11 +86,7 @@ typedef enum {
     SAMRENA_CAP_CONTIGUOUS_MEMORY  = 1 << 0,  // All allocations in one block
     SAMRENA_CAP_ZERO_COPY_GROWTH   = 1 << 1,  // Can grow without moving data
     SAMRENA_CAP_RESET              = 1 << 2,  // Supports reset operation
-    SAMRENA_CAP_RESERVE            = 1 << 3,  // Supports reserve operation
-    SAMRENA_CAP_MEMORY_STATS       = 1 << 4,  // Tracks statistics
-    SAMRENA_CAP_LARGE_ALLOCATIONS  = 1 << 5,  // Can handle >2GB allocations
-    SAMRENA_CAP_SAVE_RESTORE       = 1 << 6,  // Supports save/restore points
-    SAMRENA_CAP_THREAD_SAFE        = 1 << 7,  // Thread-safe operations
+    SAMRENA_CAP_RESERVE            = 1 << 3   // Supports reserve operation
 } SamrenaCapabilityFlags;
 
 // =============================================================================
@@ -111,12 +99,6 @@ typedef struct {
     void* context;  // Implementation-specific data
 } Samrena;
 
-typedef struct {
-  uint64_t size;
-  uint64_t element_size;
-  uint64_t capacity;
-  void *data;
-} SamrenaVector;
 
 // =============================================================================
 // GROWTH POLICY STRUCTURES
@@ -131,22 +113,8 @@ typedef struct {
         } linear;
         struct {
             double factor;       // For exponential (default 2.0)
-            uint64_t max_step;   // Maximum single growth
         } exponential;
-        struct {
-            uint64_t fib_a;      // Fibonacci state
-            uint64_t fib_b;
-        } fibonacci;
-        struct {
-            uint64_t window_size;     // Allocation history window
-            double aggressiveness;    // 0.0 = conservative, 1.0 = aggressive
-        } adaptive;
     } params;
-    
-    // Custom growth function
-    uint64_t (*custom_growth)(void* context, uint64_t current_size, 
-                             uint64_t requested_size, void* user_data);
-    void* custom_user_data;
 } SamrenaGrowthConfig;
 
 // =============================================================================
@@ -209,10 +177,7 @@ typedef struct {
 typedef struct {
     uint32_t flags;                    // Capability flags
     uint64_t max_allocation_size;      // Largest single allocation
-    uint64_t max_total_size;          // Maximum total arena size
-    uint64_t allocation_granularity;   // Minimum allocation unit
     uint64_t alignment_guarantee;      // Guaranteed alignment
-    double allocation_overhead;        // Overhead per allocation (0.0-1.0)
 } SamrenaCapabilities;
 
 // Performance hints structure (kept for compatibility)
@@ -242,9 +207,7 @@ typedef struct {
 static inline SamrenaConfig samrena_default_config(void) {
     SamrenaGrowthConfig default_growth = {
         .policy = SAMRENA_GROWTH_EXPONENTIAL,
-        .params.exponential = { .factor = 1.5, .max_step = 10485760 },  // 10MB max
-        .custom_growth = NULL,
-        .custom_user_data = NULL
+        .params.exponential = { .factor = 1.5 }
     };
     
     return (SamrenaConfig){
@@ -263,58 +226,13 @@ static inline SamrenaConfig samrena_default_config(void) {
     };
 }
 
-// Configuration builder helpers
-#define SAMRENA_CONFIG_CHAINED(pages) \
-    ({ \
-        SamrenaGrowthConfig _growth = { \
-            .policy = SAMRENA_GROWTH_EXPONENTIAL, \
-            .params.exponential = { .factor = 1.5, .max_step = 10485760 }, \
-            .custom_growth = NULL, .custom_user_data = NULL \
-        }; \
-        (SamrenaConfig){ \
-            .strategy = SAMRENA_STRATEGY_CHAINED, \
-            .initial_pages = pages, \
-            .page_size = 0, \
-            .growth_pages = 1, \
-            .max_reserve = 0, \
-            .commit_size = 0, \
-            .enable_stats = false, \
-            .enable_debug = false, \
-            .fallback_mode = SAMRENA_FALLBACK_WARN, \
-            .growth = _growth, \
-            .log_callback = NULL, \
-            .log_user_data = NULL \
-        }; \
-    })
-
-#define SAMRENA_CONFIG_VIRTUAL(reserve_mb) \
-    ({ \
-        SamrenaGrowthConfig _growth = { \
-            .policy = SAMRENA_GROWTH_EXPONENTIAL, \
-            .params.exponential = { .factor = 1.5, .max_step = 10485760 }, \
-            .custom_growth = NULL, .custom_user_data = NULL \
-        }; \
-        (SamrenaConfig){ \
-            .strategy = SAMRENA_STRATEGY_VIRTUAL, \
-            .initial_pages = 1, \
-            .page_size = 0, \
-            .growth_pages = 1, \
-            .max_reserve = (reserve_mb) * 1024 * 1024, \
-            .commit_size = 0, \
-            .enable_stats = false, \
-            .enable_debug = false, \
-            .fallback_mode = SAMRENA_FALLBACK_WARN, \
-            .growth = _growth, \
-            .log_callback = NULL, \
-            .log_user_data = NULL \
-        }; \
-    })
+// Configuration builder functions
+SamrenaConfig samrena_config_chained(uint64_t pages);
+SamrenaConfig samrena_config_virtual(uint64_t reserve_mb);
 
 // Preset growth configurations
 extern const SamrenaGrowthConfig SAMRENA_GROWTH_CONSERVATIVE;
 extern const SamrenaGrowthConfig SAMRENA_GROWTH_BALANCED;
-extern const SamrenaGrowthConfig SAMRENA_GROWTH_AGGRESSIVE;
-extern const SamrenaGrowthConfig SAMRENA_GROWTH_SMART;
 
 // =============================================================================
 // CORE API - Arena Management
@@ -340,18 +258,7 @@ void samrena_get_info(Samrena* arena, SamrenaInfo* info);
 
 // Factory functions for common use cases
 Samrena* samrena_create_default(void);
-Samrena* samrena_create_for_size(uint64_t expected_size);
-Samrena* samrena_create_with_hints(const SamrenaAllocationHints* hints);
-Samrena* samrena_create_with_growth(uint64_t initial_pages, const SamrenaGrowthConfig* growth);
 
-// =============================================================================
-// VECTOR API - Dynamic Arrays
-// =============================================================================
-
-SamrenaVector* samrena_vector_init(Samrena* arena, uint64_t element_size, uint64_t initial_capacity);
-void* samrena_vector_push(Samrena* arena, SamrenaVector* vec, const void* element);
-void* samrena_vector_pop(SamrenaVector* vec);
-void* samrena_vector_resize(Samrena* arena, SamrenaVector* vec, uint64_t new_capacity);
 
 // =============================================================================
 // CAPABILITY API - Feature Detection
