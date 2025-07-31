@@ -17,13 +17,27 @@
 #ifndef PEARL_H
 #define PEARL_H
 
+// =============================================================================
+// STANDARD INCLUDES
+// =============================================================================
+
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
 
+// =============================================================================
+// LIBRARY DEPENDENCIES
+// =============================================================================
+
 #include <samrena.h>
 
-// PEARL - A set data structure for unique elements
+// =============================================================================
+// PEARL - Set Data Structure for Unique Elements
+// =============================================================================
+
+// =============================================================================
+// CORE ENUMERATIONS
+// =============================================================================
 
 // Error types
 typedef enum {
@@ -42,8 +56,16 @@ typedef enum {
     PEARL_HASH_MURMUR3
 } PearlHashFunction;
 
+// =============================================================================
+// CALLBACK FUNCTION TYPES
+// =============================================================================
+
 // Error callback function type
 typedef void (*PearlErrorCallback)(PearlError error, const char *message, void *user_data);
+
+// =============================================================================
+// PERFORMANCE STRUCTURES
+// =============================================================================
 
 // Performance metrics structure
 typedef struct {
@@ -54,6 +76,10 @@ typedef struct {
     size_t total_operations;
     size_t failed_allocations;
 } PearlStats;
+
+// =============================================================================
+// CORE STRUCTURES
+// =============================================================================
 
 // Element node for chaining
 typedef struct PearlNode {
@@ -84,7 +110,9 @@ typedef struct {
     PearlError last_error;
 } Pearl;
 
-// Function declarations
+// =============================================================================
+// CORE API - Pearl Management
+// =============================================================================
 
 /**
  * Creates a new pearl set with default hash function.
@@ -121,54 +149,83 @@ Pearl *pearl_create_custom(size_t element_size, size_t initial_capacity, Samrena
 
 void pearl_destroy(Pearl *pearl);
 
-// Core set operations
+// =============================================================================
+// CORE SET OPERATIONS API
+// =============================================================================
+
 bool pearl_add(Pearl *pearl, const void *element);
 bool pearl_remove(Pearl *pearl, const void *element);
 bool pearl_contains(const Pearl *pearl, const void *element);
 void pearl_clear(Pearl *pearl);
 
-// Set operations
+// =============================================================================
+// SET OPERATIONS API
+// =============================================================================
+
 Pearl *pearl_union(const Pearl *set1, const Pearl *set2, Samrena *samrena);
 Pearl *pearl_intersection(const Pearl *set1, const Pearl *set2, Samrena *samrena);
 Pearl *pearl_difference(const Pearl *set1, const Pearl *set2, Samrena *samrena);
 Pearl *pearl_symmetric_difference(const Pearl *set1, const Pearl *set2, Samrena *samrena);
 
-// Subset operations
+// =============================================================================
+// SUBSET OPERATIONS API
+// =============================================================================
+
 bool pearl_is_subset(const Pearl *subset, const Pearl *superset);
 bool pearl_is_superset(const Pearl *superset, const Pearl *subset);
 bool pearl_is_disjoint(const Pearl *set1, const Pearl *set2);
 bool pearl_equals(const Pearl *set1, const Pearl *set2);
 
-// Utility functions
+// =============================================================================
+// UTILITY API
+// =============================================================================
+
 size_t pearl_size(const Pearl *pearl);
 bool pearl_is_empty(const Pearl *pearl);
 Pearl *pearl_copy(const Pearl *pearl, Samrena *samrena);
 
-// Collection functions
+// =============================================================================
+// COLLECTION API
+// =============================================================================
+
 size_t pearl_to_array(const Pearl *pearl, void *array, size_t max_elements);
 Pearl *pearl_from_array(const void *array, size_t count, size_t element_size, Samrena *samrena);
 
-// Iterator functions
+// =============================================================================
+// ITERATOR API
+// =============================================================================
+
 typedef void (*PearlIterator)(const void *element, void *user_data);
 void pearl_foreach(const Pearl *pearl, PearlIterator iterator, void *user_data);
 
-// Filter and map operations
+// =============================================================================
+// FUNCTIONAL PROGRAMMING API
+// =============================================================================
+
 Pearl *pearl_filter(const Pearl *pearl, bool (*predicate)(const void *, void *), 
                    void *user_data, Samrena *samrena);
 Pearl *pearl_map(const Pearl *pearl, void (*transform)(const void *, void *, void *),
                 size_t new_element_size, void *user_data, Samrena *samrena);
 
-// Performance and debugging functions
+// =============================================================================
+// PERFORMANCE AND DEBUGGING API
+// =============================================================================
+
 PearlStats pearl_get_stats(const Pearl *pearl);
 void pearl_reset_stats(Pearl *pearl);
 void pearl_print_stats(const Pearl *pearl);
 
-// Error handling functions
+// =============================================================================
+// ERROR HANDLING API
+// =============================================================================
+
 void pearl_set_error_callback(Pearl *pearl, PearlErrorCallback callback, void *user_data);
 PearlError pearl_get_last_error(const Pearl *pearl);
 const char *pearl_error_string(PearlError error);
 
-// Type-Safe Wrapper Macros
+// =============================================================================
+// TYPE-SAFE WRAPPER MACROS
+// =============================================================================
 #define PEARL_DEFINE_TYPED(name, type) \
     typedef struct name##_pearl { \
         Pearl *base; \
@@ -226,14 +283,20 @@ const char *pearl_error_string(PearlError error);
         pearl_foreach(p->base, (PearlIterator)iterator, user_data); \
     }
 
-// Common type-safe instantiations
+// =============================================================================
+// COMMON TYPE-SAFE INSTANTIATIONS
+// =============================================================================
+
 PEARL_DEFINE_TYPED(int_set, int)
 PEARL_DEFINE_TYPED(uint_set, unsigned int)
 PEARL_DEFINE_TYPED(long_set, long)
 PEARL_DEFINE_TYPED(ulong_set, unsigned long)
 PEARL_DEFINE_TYPED(ptr_set, void*)
 
-// String set with custom hash/equals
+// =============================================================================
+// STRING SET SPECIALIZATION
+// =============================================================================
+
 typedef struct string_set_pearl {
     Pearl *base;
 } string_set_pearl;

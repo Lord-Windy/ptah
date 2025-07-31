@@ -17,13 +17,27 @@
 #ifndef HONEYCOMB_H
 #define HONEYCOMB_H
 
+// =============================================================================
+// STANDARD INCLUDES
+// =============================================================================
+
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
 
+// =============================================================================
+// LIBRARY DEPENDENCIES
+// =============================================================================
+
 #include <samrena.h>
 
-// HONEYCOMB - Hash map data structure
+// =============================================================================
+// HONEYCOMB - Hash Map Data Structure
+// =============================================================================
+
+// =============================================================================
+// CORE ENUMERATIONS
+// =============================================================================
 
 // Hash function type
 typedef enum {
@@ -41,8 +55,16 @@ typedef enum {
     HONEYCOMB_ERROR_KEY_NOT_FOUND
 } HoneycombError;
 
+// =============================================================================
+// CALLBACK FUNCTION TYPES
+// =============================================================================
+
 // Error callback function type
 typedef void (*HoneycombErrorCallback)(HoneycombError error, const char *message, void *user_data);
+
+// =============================================================================
+// PERFORMANCE STRUCTURES
+// =============================================================================
 
 // Performance metrics structure
 typedef struct {
@@ -54,7 +76,11 @@ typedef struct {
     size_t failed_allocations;
 } HoneycombStats;
 
-//  Define the structure for each key-value pair
+// =============================================================================
+// CORE STRUCTURES
+// =============================================================================
+
+// Define the structure for each key-value pair
 typedef struct Cell {
   char *key;
   void *value;
@@ -75,7 +101,9 @@ typedef struct {
   HoneycombError last_error; // Last error that occurred
 } Honeycomb;
 
-// Function declarations
+// =============================================================================
+// CORE API - Honeycomb Management
+// =============================================================================
 
 /**
  * Creates a new honeycomb hash map with default hash function.
@@ -96,6 +124,10 @@ Honeycomb *honeycomb_create_with_hash(size_t initial_capacity, Samrena *samrena,
 
 void honeycomb_destroy(Honeycomb *comb);
 
+// =============================================================================
+// CORE OPERATIONS API
+// =============================================================================
+
 bool honeycomb_put(Honeycomb *comb, const char *key, void *value);
 void *honeycomb_get(const Honeycomb *comb, const char *key);
 
@@ -105,28 +137,46 @@ bool honeycomb_contains(const Honeycomb *comb, const char *key);
 void honeycomb_clear(Honeycomb *comb);
 void honeycomb_print(const Honeycomb *comb);
 
+// =============================================================================
+// INFORMATION API
+// =============================================================================
+
 size_t honeycomb_size(const Honeycomb *comb);
 bool honeycomb_is_empty(const Honeycomb *comb);
 
-// Collection functions
+// =============================================================================
+// COLLECTION API
+// =============================================================================
+
 size_t honeycomb_get_keys(const Honeycomb *comb, const char **keys, size_t max_keys);
 size_t honeycomb_get_values(const Honeycomb *comb, void **values, size_t max_values);
 
-// Optional: Iterator functions
+// =============================================================================
+// ITERATOR API
+// =============================================================================
+
 typedef void (*HoneycombIterator)(const char *key, void *value, void *user_data);
 void honeycomb_foreach(const Honeycomb *map, HoneycombIterator iterator, void *user_data);
 
-// Performance and debugging functions
+// =============================================================================
+// PERFORMANCE AND DEBUGGING API
+// =============================================================================
+
 HoneycombStats honeycomb_get_stats(const Honeycomb *comb);
 void honeycomb_reset_stats(Honeycomb *comb);
 void honeycomb_print_stats(const Honeycomb *comb);
 
-// Error handling functions
+// =============================================================================
+// ERROR HANDLING API
+// =============================================================================
+
 void honeycomb_set_error_callback(Honeycomb *comb, HoneycombErrorCallback callback, void *user_data);
 HoneycombError honeycomb_get_last_error(const Honeycomb *comb);
 const char *honeycomb_error_string(HoneycombError error);
 
-// Type-Safe Wrapper Macros
+// =============================================================================
+// TYPE-SAFE WRAPPER MACROS
+// =============================================================================
 #define HONEYCOMB_DEFINE_TYPED(name, key_type, value_type) \
     typedef struct name##_honeycomb { \
         Honeycomb *base; \
@@ -189,7 +239,10 @@ const char *honeycomb_error_string(HoneycombError error);
         honeycomb_foreach(h->base, (HoneycombIterator)iterator, user_data); \
     }
 
-// Common type-safe instantiations
+// =============================================================================
+// COMMON TYPE-SAFE INSTANTIATIONS
+// =============================================================================
+
 HONEYCOMB_DEFINE_TYPED(string_string, const char*, const char*)
 HONEYCOMB_DEFINE_TYPED(string_int, const char*, int*)
 HONEYCOMB_DEFINE_TYPED(string_ptr, const char*, void*)
