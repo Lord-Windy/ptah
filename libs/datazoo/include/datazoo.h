@@ -24,6 +24,36 @@
 #include <samrena.h>
 
 // HONEYCOMB
+
+// Hash function type
+typedef enum {
+    HASH_DJB2,
+    HASH_FNV1A,
+    HASH_MURMUR3
+} HashFunction;
+
+// Error types
+typedef enum {
+    HONEYCOMB_ERROR_NONE = 0,
+    HONEYCOMB_ERROR_NULL_PARAM,
+    HONEYCOMB_ERROR_MEMORY_EXHAUSTED,
+    HONEYCOMB_ERROR_RESIZE_FAILED,
+    HONEYCOMB_ERROR_KEY_NOT_FOUND
+} HoneycombError;
+
+// Error callback function type
+typedef void (*HoneycombErrorCallback)(HoneycombError error, const char *message, void *user_data);
+
+// Performance metrics structure
+typedef struct {
+    size_t total_collisions;
+    size_t max_chain_length;
+    size_t resize_count;
+    double average_chain_length;
+    size_t total_operations;
+    size_t failed_allocations;
+} HoneycombStats;
+
 //  Define the structure for each key-value pair
 typedef struct Cell {
   char *key;
@@ -38,17 +68,31 @@ typedef struct {
   size_t capacity; // Number of buckets
   Samrena *arena; // Arena for memory allocation
   float load_factor; // Threshold for resizing (default 0.75)
+  HashFunction hash_func; // Hash function to use
+  HoneycombStats stats; // Performance metrics
+  HoneycombErrorCallback error_callback; // Error callback function
+  void *error_callback_data; // User data for error callback
+  HoneycombError last_error; // Last error that occurred
 } Honeycomb;
 
 // Function declarations
 
 /**
- * Creates a new honeycomb hash map.
+ * Creates a new honeycomb hash map with default hash function.
  * @param initial_capacity Initial number of buckets
  * @param samrena Memory arena to use - REQUIRED (non-null)
  * @return New honeycomb instance or NULL if samrena is NULL
  */
 Honeycomb *honeycomb_create(size_t initial_capacity, Samrena *samrena);
+
+/**
+ * Creates a new honeycomb hash map with specified hash function.
+ * @param initial_capacity Initial number of buckets
+ * @param samrena Memory arena to use - REQUIRED (non-null)
+ * @param hash_func Hash function to use
+ * @return New honeycomb instance or NULL if samrena is NULL
+ */
+Honeycomb *honeycomb_create_with_hash(size_t initial_capacity, Samrena *samrena, HashFunction hash_func);
 
 void honeycomb_destroy(Honeycomb *comb);
 
@@ -71,6 +115,16 @@ size_t honeycomb_get_values(const Honeycomb *comb, void **values, size_t max_val
 // Optional: Iterator functions
 typedef void (*HoneycombIterator)(const char *key, void *value, void *user_data);
 void honeycomb_foreach(const Honeycomb *map, HoneycombIterator iterator, void *user_data);
+
+// Performance and debugging functions
+HoneycombStats honeycomb_get_stats(const Honeycomb *comb);
+void honeycomb_reset_stats(Honeycomb *comb);
+void honeycomb_print_stats(const Honeycomb *comb);
+
+// Error handling functions
+void honeycomb_set_error_callback(Honeycomb *comb, HoneycombErrorCallback callback, void *user_data);
+HoneycombError honeycomb_get_last_error(const Honeycomb *comb);
+const char *honeycomb_error_string(HoneycombError error);
 
 // Type-Safe Wrapper Macros
 #define HONEYCOMB_DEFINE_TYPED(name, key_type, value_type) \
