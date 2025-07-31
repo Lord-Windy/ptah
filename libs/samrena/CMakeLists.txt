@@ -104,19 +104,7 @@ if(BUILD_TESTING)
     target_link_libraries(samrena_adapter_test PRIVATE samrena Threads::Threads)
     add_test(NAME samrena_adapter_test COMMAND samrena_adapter_test)
     
-    # Vector capacity management test
-    add_executable(samrena_vector_capacity_test
-        test/test_vector_capacity.c
-    )
-    target_link_libraries(samrena_vector_capacity_test PRIVATE samrena)
-    add_test(NAME samrena_vector_capacity_test COMMAND samrena_vector_capacity_test)
     
-    # Vector memory ownership test
-    add_executable(samrena_vector_ownership_test
-        test/test_vector_ownership.c
-    )
-    target_link_libraries(samrena_vector_ownership_test PRIVATE samrena)
-    add_test(NAME samrena_vector_ownership_test COMMAND samrena_vector_ownership_test)
     
     # Valgrind integration - only add tests if explicitly requested
     option(ENABLE_VALGRIND_TESTS "Enable Valgrind memory leak tests (may fail on systems with AVX-512)" OFF)

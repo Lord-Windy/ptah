@@ -94,7 +94,7 @@ int main() {
       // Store the string pointer in arena
       char **name_ptr = samrena_push(arena, sizeof(char *));
       *name_ptr = (char *)languages[i];
-      samrena_vector_push(arena, lang_vector, name_ptr);
+      samrena_vector_push(lang_vector, name_ptr);
     }
   }
 
