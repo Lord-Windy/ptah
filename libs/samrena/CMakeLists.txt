@@ -104,6 +104,43 @@ if(BUILD_TESTING)
     target_link_libraries(samrena_adapter_test PRIVATE samrena Threads::Threads)
     add_test(NAME samrena_adapter_test COMMAND samrena_adapter_test)
     
+    # Comprehensive samvector test suite
+    add_executable(samvector_lifecycle_test
+        test/test_samvector_lifecycle.c
+    )
+    target_link_libraries(samvector_lifecycle_test PRIVATE samrena)
+    add_test(NAME samvector_lifecycle_test COMMAND samvector_lifecycle_test)
+    
+    add_executable(samvector_access_test
+        test/test_samvector_access.c
+    )
+    target_link_libraries(samvector_access_test PRIVATE samrena)
+    add_test(NAME samvector_access_test COMMAND samvector_access_test)
+    
+    add_executable(samvector_capacity_test
+        test/test_samvector_capacity.c
+    )
+    target_link_libraries(samvector_capacity_test PRIVATE samrena)
+    add_test(NAME samvector_capacity_test COMMAND samvector_capacity_test)
+    
+    add_executable(samvector_operations_test
+        test/test_samvector_operations.c
+    )
+    target_link_libraries(samvector_operations_test PRIVATE samrena)
+    add_test(NAME samvector_operations_test COMMAND samvector_operations_test)
+    
+    add_executable(samvector_edge_cases_test
+        test/test_samvector_edge_cases.c
+    )
+    target_link_libraries(samvector_edge_cases_test PRIVATE samrena)
+    add_test(NAME samvector_edge_cases_test COMMAND samvector_edge_cases_test)
+    
+    add_executable(samvector_performance_test
+        test/test_samvector_performance.c
+    )
+    target_link_libraries(samvector_performance_test PRIVATE samrena)
+    add_test(NAME samvector_performance_test COMMAND samvector_performance_test)
+    
     
     
     # Valgrind integration - only add tests if explicitly requested
@@ -153,7 +190,8 @@ if(BUILD_TESTING)
                              --suppressions=${CMAKE_SOURCE_DIR}/valgrind_suppressions.supp
                              $<TARGET_FILE:samrena_adapter_test>)
             
-            add_test(NAME samrena_vector_capacity_test_valgrind 
+            # Valgrind tests for comprehensive samvector test suite
+            add_test(NAME samvector_lifecycle_test_valgrind 
                      COMMAND ${VALGRIND_PROGRAM} 
                              --tool=memcheck 
                              --leak-check=full 
@@ -161,9 +199,9 @@ if(BUILD_TESTING)
                              --track-origins=yes 
                              --error-exitcode=1
                              --suppressions=${CMAKE_SOURCE_DIR}/valgrind_suppressions.supp
-                             $<TARGET_FILE:samrena_vector_capacity_test>)
+                             $<TARGET_FILE:samvector_lifecycle_test>)
             
-            add_test(NAME samrena_vector_ownership_test_valgrind 
+            add_test(NAME samvector_access_test_valgrind 
                      COMMAND ${VALGRIND_PROGRAM} 
                              --tool=memcheck 
                              --leak-check=full 
@@ -171,7 +209,37 @@ if(BUILD_TESTING)
                              --track-origins=yes 
                              --error-exitcode=1
                              --suppressions=${CMAKE_SOURCE_DIR}/valgrind_suppressions.supp
-                             $<TARGET_FILE:samrena_vector_ownership_test>)
+                             $<TARGET_FILE:samvector_access_test>)
+            
+            add_test(NAME samvector_capacity_test_valgrind 
+                     COMMAND ${VALGRIND_PROGRAM} 
+                             --tool=memcheck 
+                             --leak-check=full 
+                             --show-leak-kinds=all 
+                             --track-origins=yes 
+                             --error-exitcode=1
+                             --suppressions=${CMAKE_SOURCE_DIR}/valgrind_suppressions.supp
+                             $<TARGET_FILE:samvector_capacity_test>)
+            
+            add_test(NAME samvector_operations_test_valgrind 
+                     COMMAND ${VALGRIND_PROGRAM} 
+                             --tool=memcheck 
+                             --leak-check=full 
+                             --show-leak-kinds=all 
+                             --track-origins=yes 
+                             --error-exitcode=1
+                             --suppressions=${CMAKE_SOURCE_DIR}/valgrind_suppressions.supp
+                             $<TARGET_FILE:samvector_operations_test>)
+            
+            add_test(NAME samvector_edge_cases_test_valgrind 
+                     COMMAND ${VALGRIND_PROGRAM} 
+                             --tool=memcheck 
+                             --leak-check=full 
+                             --show-leak-kinds=all 
+                             --track-origins=yes 
+                             --error-exitcode=1
+                             --suppressions=${CMAKE_SOURCE_DIR}/valgrind_suppressions.supp
+                             $<TARGET_FILE:samvector_edge_cases_test>)
             
             message(STATUS "Samrena: Valgrind tests enabled (use -DENABLE_VALGRIND_TESTS=OFF to disable)")
         else()
