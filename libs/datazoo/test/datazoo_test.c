@@ -23,6 +23,7 @@ int main(int argc, char **argv) {
   printf("STARTING DATAZOO TESTS\n");
 
   honeycomb_tests();
+  typed_honeycomb_tests();
 
   return 0;
 }

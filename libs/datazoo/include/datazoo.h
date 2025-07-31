@@ -72,4 +72,72 @@ size_t honeycomb_get_values(const Honeycomb *comb, void **values, size_t max_val
 typedef void (*HoneycombIterator)(const char *key, void *value, void *user_data);
 void honeycomb_foreach(const Honeycomb *map, HoneycombIterator iterator, void *user_data);
 
+// Type-Safe Wrapper Macros
+#define HONEYCOMB_DEFINE_TYPED(name, key_type, value_type) \
+    typedef struct name##_honeycomb { \
+        Honeycomb *base; \
+    } name##_honeycomb; \
+    \
+    static inline name##_honeycomb *name##_create(size_t initial_capacity, Samrena *samrena) { \
+        name##_honeycomb *typed_map = samrena_push(samrena, sizeof(name##_honeycomb)); \
+        if (typed_map == NULL) return NULL; \
+        typed_map->base = honeycomb_create(initial_capacity, samrena); \
+        if (typed_map->base == NULL) return NULL; \
+        return typed_map; \
+    } \
+    \
+    static inline void name##_destroy(name##_honeycomb *h) { \
+        if (h != NULL && h->base != NULL) { \
+            honeycomb_destroy(h->base); \
+        } \
+    } \
+    \
+    static inline bool name##_put(name##_honeycomb *h, key_type key, value_type value) { \
+        if (h == NULL || h->base == NULL) return false; \
+        return honeycomb_put(h->base, (const char*)key, (void*)value); \
+    } \
+    \
+    static inline value_type name##_get(const name##_honeycomb *h, key_type key) { \
+        if (h == NULL || h->base == NULL) return (value_type)0; \
+        return (value_type)honeycomb_get(h->base, (const char*)key); \
+    } \
+    \
+    static inline bool name##_remove(name##_honeycomb *h, key_type key) { \
+        if (h == NULL || h->base == NULL) return false; \
+        return honeycomb_remove(h->base, (const char*)key); \
+    } \
+    \
+    static inline bool name##_contains(const name##_honeycomb *h, key_type key) { \
+        if (h == NULL || h->base == NULL) return false; \
+        return honeycomb_contains(h->base, (const char*)key); \
+    } \
+    \
+    static inline void name##_clear(name##_honeycomb *h) { \
+        if (h != NULL && h->base != NULL) { \
+            honeycomb_clear(h->base); \
+        } \
+    } \
+    \
+    static inline size_t name##_size(const name##_honeycomb *h) { \
+        if (h == NULL || h->base == NULL) return 0; \
+        return honeycomb_size(h->base); \
+    } \
+    \
+    static inline bool name##_is_empty(const name##_honeycomb *h) { \
+        if (h == NULL || h->base == NULL) return true; \
+        return honeycomb_is_empty(h->base); \
+    } \
+    \
+    typedef void (*name##_iterator)(key_type key, value_type value, void *user_data); \
+    \
+    static inline void name##_foreach(const name##_honeycomb *h, name##_iterator iterator, void *user_data) { \
+        if (h == NULL || h->base == NULL || iterator == NULL) return; \
+        honeycomb_foreach(h->base, (HoneycombIterator)iterator, user_data); \
+    }
+
+// Common type-safe instantiations
+HONEYCOMB_DEFINE_TYPED(string_string, const char*, const char*)
+HONEYCOMB_DEFINE_TYPED(string_int, const char*, int*)
+HONEYCOMB_DEFINE_TYPED(string_ptr, const char*, void*)
+
 #endif // DATAZOO_H

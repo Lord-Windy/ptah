@@ -20,5 +20,6 @@
 #include "datazoo.h"
 
 void honeycomb_tests();
+void typed_honeycomb_tests();
 
 #endif // HONEYCOMB_TESTS_H
