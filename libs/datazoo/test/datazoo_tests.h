@@ -22,4 +22,12 @@
 void honeycomb_tests();
 void typed_honeycomb_tests();
 
+// Comprehensive test suites (Steps 16-17 from planning)
+void comprehensive_edge_case_tests();
+void collision_handling_tests();
+void resize_behavior_tests();
+void memory_exhaustion_tests();
+void performance_benchmark_tests();
+void debugging_support_tests();
+
 #endif // HONEYCOMB_TESTS_H
