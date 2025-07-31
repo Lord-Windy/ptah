@@ -124,9 +124,11 @@ void samrena_vector_iter_reset(SamrenaVectorIterator* iter);
 
 typedef bool (*SamrenaVectorPredicate)(const void* element, void* user_data);
 typedef void (*SamrenaVectorTransform)(const void* src, void* dst, void* user_data);
+typedef void (*SamrenaVectorForEach)(const void* element, void* user_data);
 
 SamrenaVector* samrena_vector_filter(const SamrenaVector* vec, SamrenaVectorPredicate predicate, void* user_data, Samrena* target_arena);
 SamrenaVector* samrena_vector_map(const SamrenaVector* src_vec, size_t dst_element_size, SamrenaVectorTransform transform, void* user_data, Samrena* target_arena);
+void samrena_vector_foreach(const SamrenaVector* vec, SamrenaVectorForEach callback, void* user_data);
 
 // =============================================================================
 // INLINE IMPLEMENTATIONS

@@ -386,3 +386,17 @@ SamrenaVector* samrena_vector_map(const SamrenaVector* src_vec, size_t dst_eleme
     return result;
 }
 
+void samrena_vector_foreach(const SamrenaVector* vec, SamrenaVectorForEach callback, void* user_data) {
+    if (!vec || !callback) {
+        return;
+    }
+    
+    SamrenaVectorIterator iter = samrena_vector_iter_begin(vec);
+    while (samrena_vector_iter_has_next(&iter)) {
+        const void* element = samrena_vector_iter_next(&iter);
+        if (element) {
+            callback(element, user_data);
+        }
+    }
+}
+

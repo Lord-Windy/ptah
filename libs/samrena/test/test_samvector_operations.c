@@ -482,6 +482,184 @@ void test_vector_operations_stability() {
     printf("PASSED\n");
 }
 
+void test_vector_iterator_basic() {
+    printf("Testing samrena_vector_iter basic functionality... ");
+    
+    SamrenaVector *vec = samrena_vector_init_owned(sizeof(int), 5);
+    assert(vec != NULL);
+    
+    int values[] = {10, 20, 30, 40, 50};
+    
+    // Push elements
+    for (int i = 0; i < 5; i++) {
+        samrena_vector_push(vec, &values[i]);
+    }
+    
+    // Test iterator
+    SamrenaVectorIterator iter = samrena_vector_iter_begin(vec);
+    assert(iter.is_valid == true);
+    assert(iter.current_index == 0);
+    assert(iter.vector == vec);
+    
+    int i = 0;
+    while (samrena_vector_iter_has_next(&iter)) {
+        const void* element = samrena_vector_iter_next(&iter);
+        assert(element != NULL);
+        assert(*(const int*)element == values[i]);
+        i++;
+    }
+    
+    assert(i == 5);
+    assert(samrena_vector_iter_has_next(&iter) == false);
+    
+    samrena_vector_destroy(vec);
+    printf("PASSED\n");
+}
+
+void test_vector_iterator_empty() {
+    printf("Testing samrena_vector_iter with empty vector... ");
+    
+    SamrenaVector *vec = samrena_vector_init_owned(sizeof(int), 5);
+    assert(vec != NULL);
+    
+    SamrenaVectorIterator iter = samrena_vector_iter_begin(vec);
+    assert(iter.is_valid == false);
+    assert(samrena_vector_iter_has_next(&iter) == false);
+    assert(samrena_vector_iter_next(&iter) == NULL);
+    
+    samrena_vector_destroy(vec);
+    printf("PASSED\n");
+}
+
+void test_vector_iterator_reset() {
+    printf("Testing samrena_vector_iter_reset functionality... ");
+    
+    SamrenaVector *vec = samrena_vector_init_owned(sizeof(int), 3);
+    assert(vec != NULL);
+    
+    int values[] = {100, 200, 300};
+    for (int i = 0; i < 3; i++) {
+        samrena_vector_push(vec, &values[i]);
+    }
+    
+    SamrenaVectorIterator iter = samrena_vector_iter_begin(vec);
+    
+    // Consume first element
+    assert(samrena_vector_iter_has_next(&iter));
+    const void* element = samrena_vector_iter_next(&iter);
+    assert(*(const int*)element == 100);
+    
+    // Reset iterator
+    samrena_vector_iter_reset(&iter);
+    assert(iter.current_index == 0);
+    assert(iter.is_valid == true);
+    
+    // Should be able to iterate from beginning again
+    int i = 0;
+    while (samrena_vector_iter_has_next(&iter)) {
+        element = samrena_vector_iter_next(&iter);
+        assert(element != NULL);
+        assert(*(const int*)element == values[i]);
+        i++;
+    }
+    
+    assert(i == 3);
+    
+    samrena_vector_destroy(vec);
+    printf("PASSED\n");
+}
+
+// Test data for foreach tests
+static int foreach_sum = 0;
+static int foreach_count = 0;
+
+void sum_callback(const void* element, void* user_data) {
+    int value = *(const int*)element;
+    int multiplier = user_data ? *(int*)user_data : 1;
+    foreach_sum += value * multiplier;
+    foreach_count++;
+}
+
+void test_vector_foreach_basic() {
+    printf("Testing samrena_vector_foreach basic functionality... ");
+    
+    SamrenaVector *vec = samrena_vector_init_owned(sizeof(int), 5);
+    assert(vec != NULL);
+    
+    int values[] = {1, 2, 3, 4, 5};
+    for (int i = 0; i < 5; i++) {
+        samrena_vector_push(vec, &values[i]);
+    }
+    
+    // Reset test globals
+    foreach_sum = 0;
+    foreach_count = 0;
+    int multiplier = 2;
+    
+    // Call foreach with multiplier
+    samrena_vector_foreach(vec, sum_callback, &multiplier);
+    
+    // Should have processed all 5 elements
+    assert(foreach_count == 5);
+    // Sum should be (1+2+3+4+5) * 2 = 30
+    assert(foreach_sum == 30);
+    
+    samrena_vector_destroy(vec);
+    printf("PASSED\n");
+}
+
+void test_vector_foreach_empty() {
+    printf("Testing samrena_vector_foreach with empty vector... ");
+    
+    SamrenaVector *vec = samrena_vector_init_owned(sizeof(int), 5);
+    assert(vec != NULL);
+    
+    // Reset test globals
+    foreach_sum = 0;
+    foreach_count = 0;
+    int multiplier = 1;
+    
+    // Call foreach on empty vector
+    samrena_vector_foreach(vec, sum_callback, &multiplier);
+    
+    // Should have processed 0 elements
+    assert(foreach_count == 0);
+    assert(foreach_sum == 0);
+    
+    samrena_vector_destroy(vec);
+    printf("PASSED\n");
+}
+
+void test_vector_foreach_null_cases() {
+    printf("Testing samrena_vector_foreach with NULL parameters... ");
+    
+    SamrenaVector *vec = samrena_vector_init_owned(sizeof(int), 5);
+    assert(vec != NULL);
+    
+    int value = 42;
+    samrena_vector_push(vec, &value);
+    
+    // Reset test globals
+    foreach_sum = 0;
+    foreach_count = 0;
+    int multiplier = 1;
+    
+    // Test NULL vector (should not crash)
+    samrena_vector_foreach(NULL, sum_callback, &multiplier);
+    assert(foreach_count == 0);
+    
+    // Test NULL callback (should not crash)
+    samrena_vector_foreach(vec, NULL, &multiplier);
+    assert(foreach_count == 0);
+    
+    // Test with NULL user_data (should work)
+    samrena_vector_foreach(vec, sum_callback, NULL);
+    // This should have executed but callback might handle NULL user_data differently
+    
+    samrena_vector_destroy(vec);
+    printf("PASSED\n");
+}
+
 int main() {
     printf("Starting samrena vector operations tests...\n\n");
 
@@ -498,6 +676,12 @@ int main() {
     test_vector_large_operations();
     test_vector_operations_interleaved();
     test_vector_operations_stability();
+    test_vector_iterator_basic();
+    test_vector_iterator_empty();
+    test_vector_iterator_reset();
+    test_vector_foreach_basic();
+    test_vector_foreach_empty();
+    test_vector_foreach_null_cases();
 
     printf("\nAll samrena vector operations tests passed!\n");
     return 0;
