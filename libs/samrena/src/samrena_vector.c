@@ -289,3 +289,100 @@ void samrena_vector_destroy(SamrenaVector* vec) {
     }
 }
 
+// =============================================================================
+// ITERATOR API IMPLEMENTATION
+// =============================================================================
+
+SamrenaVectorIterator samrena_vector_iter_begin(const SamrenaVector* vec) {
+    SamrenaVectorIterator iter = {0};
+    if (vec && vec->size > 0) {
+        iter.vector = vec;
+        iter.current_index = 0;
+        iter.is_valid = true;
+    } else {
+        iter.vector = vec;
+        iter.current_index = 0;
+        iter.is_valid = false;
+    }
+    return iter;
+}
+
+bool samrena_vector_iter_has_next(const SamrenaVectorIterator* iter) {
+    return iter && iter->is_valid && iter->vector && iter->current_index < iter->vector->size;
+}
+
+const void* samrena_vector_iter_next(SamrenaVectorIterator* iter) {
+    if (!samrena_vector_iter_has_next(iter)) {
+        return NULL;
+    }
+    
+    const void* element = samrena_vector_at_unchecked_const(iter->vector, iter->current_index);
+    iter->current_index++;
+    
+    if (iter->current_index >= iter->vector->size) {
+        iter->is_valid = false;
+    }
+    
+    return element;
+}
+
+void samrena_vector_iter_reset(SamrenaVectorIterator* iter) {
+    if (!iter || !iter->vector) return;
+    
+    iter->current_index = 0;
+    iter->is_valid = (iter->vector->size > 0);
+}
+
+// =============================================================================
+// FUNCTIONAL PROGRAMMING API IMPLEMENTATION
+// =============================================================================
+
+SamrenaVector* samrena_vector_filter(const SamrenaVector* vec, SamrenaVectorPredicate predicate, void* user_data, Samrena* target_arena) {
+    if (!vec || !predicate || !target_arena) {
+        return NULL;
+    }
+    
+    SamrenaVector* result = samrena_vector_init(target_arena, vec->element_size, vec->size / 4 + 1);
+    if (!result) {
+        return NULL;
+    }
+    
+    for (size_t i = 0; i < vec->size; i++) {
+        const void* element = samrena_vector_at_unchecked_const(vec, i);
+        if (predicate(element, user_data)) {
+            if (!samrena_vector_push(result, element)) {
+                return NULL;
+            }
+        }
+    }
+    
+    return result;
+}
+
+SamrenaVector* samrena_vector_map(const SamrenaVector* src_vec, size_t dst_element_size, SamrenaVectorTransform transform, void* user_data, Samrena* target_arena) {
+    if (!src_vec || !transform || !target_arena || dst_element_size == 0) {
+        return NULL;
+    }
+    
+    SamrenaVector* result = samrena_vector_init(target_arena, dst_element_size, src_vec->size);
+    if (!result) {
+        return NULL;
+    }
+    
+    void* temp_dst = samrena_push_zero(target_arena, dst_element_size);
+    if (!temp_dst) {
+        return NULL;
+    }
+    
+    for (size_t i = 0; i < src_vec->size; i++) {
+        const void* src_element = samrena_vector_at_unchecked_const(src_vec, i);
+        transform(src_element, temp_dst, user_data);
+        
+        if (!samrena_vector_push(result, temp_dst)) {
+            return NULL;
+        }
+    }
+    
+    return result;
+}
+

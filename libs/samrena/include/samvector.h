@@ -48,6 +48,12 @@ typedef struct {
   size_t min_growth;
 } SamrenaVector;
 
+typedef struct {
+    const SamrenaVector* vector;
+    size_t current_index;
+    bool is_valid;
+} SamrenaVectorIterator;
+
 // Vector statistics structure
 typedef struct {
     size_t used_bytes;      // size * element_size
@@ -102,6 +108,25 @@ size_t samrena_vector_available(const SamrenaVector* vec);
 
 // Vector Lifecycle
 void samrena_vector_destroy(SamrenaVector* vec);
+
+// =============================================================================
+// ITERATOR API
+// =============================================================================
+
+SamrenaVectorIterator samrena_vector_iter_begin(const SamrenaVector* vec);
+bool samrena_vector_iter_has_next(const SamrenaVectorIterator* iter);
+const void* samrena_vector_iter_next(SamrenaVectorIterator* iter);
+void samrena_vector_iter_reset(SamrenaVectorIterator* iter);
+
+// =============================================================================
+// FUNCTIONAL PROGRAMMING API
+// =============================================================================
+
+typedef bool (*SamrenaVectorPredicate)(const void* element, void* user_data);
+typedef void (*SamrenaVectorTransform)(const void* src, void* dst, void* user_data);
+
+SamrenaVector* samrena_vector_filter(const SamrenaVector* vec, SamrenaVectorPredicate predicate, void* user_data, Samrena* target_arena);
+SamrenaVector* samrena_vector_map(const SamrenaVector* src_vec, size_t dst_element_size, SamrenaVectorTransform transform, void* user_data, Samrena* target_arena);
 
 // =============================================================================
 // INLINE IMPLEMENTATIONS
