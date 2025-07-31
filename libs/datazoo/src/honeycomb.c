@@ -122,24 +122,10 @@ bool honeycomb_put(Honeycomb *comb, const char *key, void *value) {
   }
 
   size_t hash_bucket = hash_djb2(key, comb->capacity);
-
-  Cell *new_cell = honeycomb_cell_create(comb->arena, key, value);
-  if (new_cell == NULL) {
-    // Failed to allocate memory for new cell
-    return false;
-  }
   
+  // First, check if key already exists to avoid unnecessary allocation
   Cell *current = comb->cells[hash_bucket];
-
-  if (current == NULL) {
-    comb->cells[hash_bucket] = new_cell;
-    comb->size++;
-    return true;
-  }
-
-  // Traverse to the end of the linked list in the bucket
-  while (current->next != NULL) {
-    // Update value if the key already exists
+  while (current != NULL) {
     if (strcmp(current->key, key) == 0) {
       current->value = value;
       return true;
@@ -147,14 +133,17 @@ bool honeycomb_put(Honeycomb *comb, const char *key, void *value) {
     current = current->next;
   }
 
-  // Check the last node for key match
-  if (strcmp(current->key, key) == 0) {
-    current->value = value;
-  } else {
-    // Insert the new cell at the end of the list
-    current->next = new_cell;
-    comb->size++;
+  // Key doesn't exist, create new cell
+  Cell *new_cell = honeycomb_cell_create(comb->arena, key, value);
+  if (new_cell == NULL) {
+    // Failed to allocate memory for new cell
+    return false;
   }
+  
+  // Insert at the beginning of the bucket chain
+  new_cell->next = comb->cells[hash_bucket];
+  comb->cells[hash_bucket] = new_cell;
+  comb->size++;
   return true;
 }
 
@@ -217,6 +206,17 @@ bool honeycomb_contains(const Honeycomb *comb, const char *key) {
   return false;
 }
 
+void honeycomb_clear(Honeycomb *comb) {
+  if (comb == NULL) {
+    return;
+  }
+  
+  // Zero out all buckets
+  memset(comb->cells, 0, sizeof(Cell *) * comb->capacity);
+  comb->size = 0;
+  // Note: Memory remains allocated in arena - cannot be freed
+}
+
 void honeycomb_print(const Honeycomb *comb) {
   if (comb == NULL) {
     return;
@@ -242,4 +242,54 @@ bool honeycomb_is_empty(const Honeycomb *comb) {
     return true;
   }
   return comb->size == 0;
+}
+
+size_t honeycomb_get_keys(const Honeycomb *comb, const char **keys, size_t max_keys) {
+  if (comb == NULL || keys == NULL || max_keys == 0) {
+    return 0;
+  }
+  
+  size_t count = 0;
+  for (size_t i = 0; i < comb->capacity && count < max_keys; i++) {
+    Cell *current = comb->cells[i];
+    while (current != NULL && count < max_keys) {
+      keys[count] = current->key;
+      count++;
+      current = current->next;
+    }
+  }
+  
+  return count;
+}
+
+size_t honeycomb_get_values(const Honeycomb *comb, void **values, size_t max_values) {
+  if (comb == NULL || values == NULL || max_values == 0) {
+    return 0;
+  }
+  
+  size_t count = 0;
+  for (size_t i = 0; i < comb->capacity && count < max_values; i++) {
+    Cell *current = comb->cells[i];
+    while (current != NULL && count < max_values) {
+      values[count] = current->value;
+      count++;
+      current = current->next;
+    }
+  }
+  
+  return count;
+}
+
+void honeycomb_foreach(const Honeycomb *map, HoneycombIterator iterator, void *user_data) {
+  if (map == NULL || iterator == NULL) {
+    return;
+  }
+  
+  for (size_t i = 0; i < map->capacity; i++) {
+    Cell *current = map->cells[i];
+    while (current != NULL) {
+      iterator(current->key, current->value, user_data);
+      current = current->next;
+    }
+  }
 }

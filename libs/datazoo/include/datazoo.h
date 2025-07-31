@@ -58,13 +58,18 @@ void *honeycomb_get(const Honeycomb *comb, const char *key);
 bool honeycomb_remove(Honeycomb *comb, const char *key);
 bool honeycomb_contains(const Honeycomb *comb, const char *key);
 
+void honeycomb_clear(Honeycomb *comb);
 void honeycomb_print(const Honeycomb *comb);
 
 size_t honeycomb_size(const Honeycomb *comb);
 bool honeycomb_is_empty(const Honeycomb *comb);
 
+// Collection functions
+size_t honeycomb_get_keys(const Honeycomb *comb, const char **keys, size_t max_keys);
+size_t honeycomb_get_values(const Honeycomb *comb, void **values, size_t max_values);
+
 // Optional: Iterator functions
 typedef void (*HoneycombIterator)(const char *key, void *value, void *user_data);
-void hashmap_foreach(const Honeycomb *map, HoneycombIterator iterator, void *user_data);
+void honeycomb_foreach(const Honeycomb *map, HoneycombIterator iterator, void *user_data);
 
 #endif // DATAZOO_H
