@@ -57,6 +57,7 @@ ptah_add_library(samrena
     SOURCES ${SAMRENA_SOURCES}
     PUBLIC_HEADERS
         include/samrena.h
+        include/samvector.h
 )
 
 # Generate config header
@@ -102,6 +103,13 @@ if(BUILD_TESTING)
     )
     target_link_libraries(samrena_adapter_test PRIVATE samrena Threads::Threads)
     add_test(NAME samrena_adapter_test COMMAND samrena_adapter_test)
+    
+    # Vector capacity management test
+    add_executable(samrena_vector_capacity_test
+        test/test_vector_capacity.c
+    )
+    target_link_libraries(samrena_vector_capacity_test PRIVATE samrena)
+    add_test(NAME samrena_vector_capacity_test COMMAND samrena_vector_capacity_test)
     
     # Valgrind integration - only add tests if explicitly requested
     option(ENABLE_VALGRIND_TESTS "Enable Valgrind memory leak tests (may fail on systems with AVX-512)" OFF)
@@ -149,6 +157,16 @@ if(BUILD_TESTING)
                              --error-exitcode=1
                              --suppressions=${CMAKE_SOURCE_DIR}/valgrind_suppressions.supp
                              $<TARGET_FILE:samrena_adapter_test>)
+            
+            add_test(NAME samrena_vector_capacity_test_valgrind 
+                     COMMAND ${VALGRIND_PROGRAM} 
+                             --tool=memcheck 
+                             --leak-check=full 
+                             --show-leak-kinds=all 
+                             --track-origins=yes 
+                             --error-exitcode=1
+                             --suppressions=${CMAKE_SOURCE_DIR}/valgrind_suppressions.supp
+                             $<TARGET_FILE:samrena_vector_capacity_test>)
             
             message(STATUS "Samrena: Valgrind tests enabled (use -DENABLE_VALGRIND_TESTS=OFF to disable)")
         else()

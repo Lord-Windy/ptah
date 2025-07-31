@@ -18,6 +18,7 @@
 #define SAMVECTOR_H
 
 #include "samrena.h"
+#include <stdbool.h>
 
 // =============================================================================
 // VECTOR ERROR CODES
@@ -26,7 +27,8 @@
 typedef enum {
   SAMRENA_VECTOR_SUCCESS = 0,
   SAMRENA_VECTOR_ERROR_NULL_POINTER,
-  SAMRENA_VECTOR_ERROR_OUT_OF_BOUNDS
+  SAMRENA_VECTOR_ERROR_OUT_OF_BOUNDS,
+  SAMRENA_VECTOR_ERROR_ALLOCATION_FAILED
 } SamrenaVectorError;
 
 // =============================================================================
@@ -38,7 +40,19 @@ typedef struct {
   uint64_t element_size;
   uint64_t capacity;
   void *data;
+  Samrena *arena;     // Arena used for allocations
+  bool owns_arena;    // True if vector owns and should free the arena
+  float growth_factor;
+  size_t min_growth;
 } SamrenaVector;
+
+// Vector statistics structure
+typedef struct {
+    size_t used_bytes;      // size * element_size
+    size_t allocated_bytes; // capacity * element_size
+    size_t wasted_bytes;    // allocated - used
+    float utilization;      // used / allocated ratio
+} SamrenaVectorStats;
 
 // =============================================================================
 // VECTOR API - Dynamic Arrays
@@ -74,6 +88,37 @@ static inline const void* samrena_vector_at_unchecked_const(const SamrenaVector*
 // Direct element access macro
 #define SAMRENA_VECTOR_ELEM(vec, type, index) \
     ((type*)((vec)->data))[(index)]
+
+// =============================================================================
+// CAPACITY MANAGEMENT API
+// =============================================================================
+
+// Capacity Control Functions
+SamrenaVectorError samrena_vector_reserve(SamrenaVector* vec, size_t min_capacity);
+SamrenaVectorError samrena_vector_shrink_to_fit(SamrenaVector* vec);
+SamrenaVectorError samrena_vector_set_capacity(SamrenaVector* vec, size_t capacity);
+
+// Content Management Functions
+void samrena_vector_clear(SamrenaVector* vec);
+SamrenaVectorError samrena_vector_truncate(SamrenaVector* vec, size_t new_size);
+SamrenaVectorError samrena_vector_reset(SamrenaVector* vec, size_t initial_capacity);
+
+// Query Functions
+size_t samrena_vector_size(const SamrenaVector* vec);
+size_t samrena_vector_capacity(const SamrenaVector* vec);
+bool samrena_vector_is_empty(const SamrenaVector* vec);
+bool samrena_vector_is_full(const SamrenaVector* vec);
+size_t samrena_vector_available(const SamrenaVector* vec);
+
+// Growth Control Functions
+void samrena_vector_set_growth_factor(SamrenaVector* vec, float factor);
+void samrena_vector_set_min_growth(SamrenaVector* vec, size_t min_elements);
+SamrenaVectorStats samrena_vector_get_stats(const SamrenaVector* vec);
+
+// Memory Ownership Functions
+SamrenaVector* samrena_vector_init_owned(uint64_t element_size, uint64_t initial_capacity);
+SamrenaVector* samrena_vector_init_with_arena(Samrena* arena, uint64_t element_size, uint64_t initial_capacity);
+void samrena_vector_destroy(SamrenaVector* vec);
 
 // =============================================================================
 // INLINE IMPLEMENTATIONS
