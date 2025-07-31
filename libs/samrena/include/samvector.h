@@ -20,6 +20,16 @@
 #include "samrena.h"
 
 // =============================================================================
+// VECTOR ERROR CODES
+// =============================================================================
+
+typedef enum {
+  SAMRENA_VECTOR_SUCCESS = 0,
+  SAMRENA_VECTOR_ERROR_NULL_POINTER,
+  SAMRENA_VECTOR_ERROR_OUT_OF_BOUNDS
+} SamrenaVectorError;
+
+// =============================================================================
 // VECTOR STRUCTURES
 // =============================================================================
 
@@ -38,5 +48,31 @@ SamrenaVector* samrena_vector_init(Samrena* arena, uint64_t element_size, uint64
 void* samrena_vector_push(Samrena* arena, SamrenaVector* vec, const void* element);
 void* samrena_vector_pop(SamrenaVector* vec);
 void* samrena_vector_resize(Samrena* arena, SamrenaVector* vec, uint64_t new_capacity);
+
+// =============================================================================
+// ELEMENT ACCESS API
+// =============================================================================
+
+// Safe Access Functions
+SamrenaVectorError samrena_vector_get(const SamrenaVector* vec, size_t index, void* out_element);
+SamrenaVectorError samrena_vector_set(SamrenaVector* vec, size_t index, const void* element);
+void* samrena_vector_at(SamrenaVector* vec, size_t index);
+const void* samrena_vector_at_const(const SamrenaVector* vec, size_t index);
+
+// Convenience Access Functions
+void* samrena_vector_front(SamrenaVector* vec);
+const void* samrena_vector_front_const(const SamrenaVector* vec);
+void* samrena_vector_back(SamrenaVector* vec);
+const void* samrena_vector_back_const(const SamrenaVector* vec);
+void* samrena_vector_data(SamrenaVector* vec);
+const void* samrena_vector_data_const(const SamrenaVector* vec);
+
+// Unsafe Access Functions (Performance)
+void* samrena_vector_at_unchecked(SamrenaVector* vec, size_t index);
+const void* samrena_vector_at_unchecked_const(const SamrenaVector* vec, size_t index);
+
+// Direct element access macro
+#define SAMRENA_VECTOR_ELEM(vec, type, index) \
+    ((type*)((vec)->data))[(index)]
 
 #endif

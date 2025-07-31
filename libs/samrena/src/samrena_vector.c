@@ -111,3 +111,105 @@ void* samrena_vector_resize(Samrena* arena, SamrenaVector* vec, uint64_t new_cap
     
     return new_data;
 }
+
+SamrenaVectorError samrena_vector_get(const SamrenaVector* vec, size_t index, void* out_element) {
+    if (!vec || !out_element) {
+        return SAMRENA_VECTOR_ERROR_NULL_POINTER;
+    }
+    
+    if (index >= vec->size) {
+        return SAMRENA_VECTOR_ERROR_OUT_OF_BOUNDS;
+    }
+    
+    const uint8_t* src = (const uint8_t*)vec->data + (index * vec->element_size);
+    memcpy(out_element, src, vec->element_size);
+    
+    return SAMRENA_VECTOR_SUCCESS;
+}
+
+SamrenaVectorError samrena_vector_set(SamrenaVector* vec, size_t index, const void* element) {
+    if (!vec || !element) {
+        return SAMRENA_VECTOR_ERROR_NULL_POINTER;
+    }
+    
+    if (index >= vec->size) {
+        return SAMRENA_VECTOR_ERROR_OUT_OF_BOUNDS;
+    }
+    
+    uint8_t* dest = (uint8_t*)vec->data + (index * vec->element_size);
+    memcpy(dest, element, vec->element_size);
+    
+    return SAMRENA_VECTOR_SUCCESS;
+}
+
+void* samrena_vector_at(SamrenaVector* vec, size_t index) {
+    if (!vec || index >= vec->size) {
+        return NULL;
+    }
+    
+    return (uint8_t*)vec->data + (index * vec->element_size);
+}
+
+const void* samrena_vector_at_const(const SamrenaVector* vec, size_t index) {
+    if (!vec || index >= vec->size) {
+        return NULL;
+    }
+    
+    return (const uint8_t*)vec->data + (index * vec->element_size);
+}
+
+void* samrena_vector_front(SamrenaVector* vec) {
+    if (!vec || vec->size == 0) {
+        return NULL;
+    }
+    
+    return vec->data;
+}
+
+const void* samrena_vector_front_const(const SamrenaVector* vec) {
+    if (!vec || vec->size == 0) {
+        return NULL;
+    }
+    
+    return vec->data;
+}
+
+void* samrena_vector_back(SamrenaVector* vec) {
+    if (!vec || vec->size == 0) {
+        return NULL;
+    }
+    
+    return (uint8_t*)vec->data + ((vec->size - 1) * vec->element_size);
+}
+
+const void* samrena_vector_back_const(const SamrenaVector* vec) {
+    if (!vec || vec->size == 0) {
+        return NULL;
+    }
+    
+    return (const uint8_t*)vec->data + ((vec->size - 1) * vec->element_size);
+}
+
+void* samrena_vector_data(SamrenaVector* vec) {
+    if (!vec) {
+        return NULL;
+    }
+    
+    return vec->data;
+}
+
+const void* samrena_vector_data_const(const SamrenaVector* vec) {
+    if (!vec) {
+        return NULL;
+    }
+    
+    return vec->data;
+}
+
+void* samrena_vector_at_unchecked(SamrenaVector* vec, size_t index) {
+    return (uint8_t*)vec->data + (index * vec->element_size);
+}
+
+const void* samrena_vector_at_unchecked_const(const SamrenaVector* vec, size_t index) {
+    return (const uint8_t*)vec->data + (index * vec->element_size);
+}
