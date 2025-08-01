@@ -33,4 +33,41 @@ if(BUILD_TESTING)
     )
     target_link_libraries(datazoo_test PRIVATE datazoo samrena)
     add_test(NAME datazoo_test COMMAND datazoo_test)
+    
+    # Pearl test suite
+    add_executable(pearl_basic_test
+        test/pearl_basic_test.c
+    )
+    target_link_libraries(pearl_basic_test PRIVATE datazoo samrena)
+    add_test(NAME pearl_basic_test COMMAND pearl_basic_test)
+    
+    add_executable(pearl_collision_test
+        test/pearl_collision_test.c
+    )
+    target_link_libraries(pearl_collision_test PRIVATE datazoo samrena)
+    add_test(NAME pearl_collision_test COMMAND pearl_collision_test)
+    
+    add_executable(pearl_resize_test
+        test/pearl_resize_test.c
+    )
+    target_link_libraries(pearl_resize_test PRIVATE datazoo samrena)
+    add_test(NAME pearl_resize_test COMMAND pearl_resize_test)
+    
+    add_executable(pearl_performance_test
+        test/pearl_performance_test.c
+    )
+    target_link_libraries(pearl_performance_test PRIVATE datazoo samrena)
+    add_test(NAME pearl_performance_test COMMAND pearl_performance_test)
+    
+    add_executable(pearl_edge_cases_test
+        test/pearl_edge_cases_test.c
+    )
+    target_link_libraries(pearl_edge_cases_test PRIVATE datazoo samrena)
+    add_test(NAME pearl_edge_cases_test COMMAND pearl_edge_cases_test)
+    
+    add_executable(pearl_typesafe_test
+        test/pearl_typesafe_test.c
+    )
+    target_link_libraries(pearl_typesafe_test PRIVATE datazoo samrena)
+    add_test(NAME pearl_typesafe_test COMMAND pearl_typesafe_test)
 endif()

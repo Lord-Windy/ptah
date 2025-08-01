@@ -17,6 +17,7 @@
 #include <datazoo/pearl.h>
 #include <datazoo/starfish.h>
 #include <string.h>
+#include <stdio.h>
 
 // =============================================================================
 // INTERNAL CONSTANTS
@@ -165,4 +166,261 @@ void pearl_set_error_callback(Pearl *pearl, PearlErrorCallback callback, void *u
 PearlError pearl_get_last_error(const Pearl *pearl) {
     if (pearl == NULL) return PEARL_ERROR_NULL_PARAM;
     return pearl->last_error;
+}
+
+// =============================================================================
+// RESIZE HELPER FUNCTION
+// =============================================================================
+
+static bool pearl_resize(Pearl *pearl, size_t new_capacity) {
+    if (pearl == NULL) return false;
+    
+    PearlNode **old_buckets = pearl->buckets;
+    size_t old_capacity = pearl->capacity;
+    
+    PearlNode **new_buckets = samrena_push(pearl->arena, sizeof(PearlNode *) * new_capacity);
+    if (new_buckets == NULL) {
+        pearl_set_error(pearl, PEARL_ERROR_MEMORY_EXHAUSTED);
+        pearl->stats.failed_allocations++;
+        return false;
+    }
+    
+    memset(new_buckets, 0, sizeof(PearlNode *) * new_capacity);
+    
+    pearl->buckets = new_buckets;
+    pearl->capacity = new_capacity;
+    pearl->stats.resize_count++;
+    
+    for (size_t i = 0; i < old_capacity; i++) {
+        PearlNode *current = old_buckets[i];
+        while (current != NULL) {
+            PearlNode *next = current->next;
+            
+            size_t bucket_index = current->hash % new_capacity;
+            current->next = new_buckets[bucket_index];
+            new_buckets[bucket_index] = current;
+            
+            current = next;
+        }
+    }
+    
+    return true;
+}
+
+// =============================================================================
+// CORE SET OPERATIONS
+// =============================================================================
+
+bool pearl_add(Pearl *pearl, const void *element) {
+    if (pearl == NULL || element == NULL) {
+        if (pearl) pearl_set_error(pearl, PEARL_ERROR_NULL_PARAM);
+        return false;
+    }
+    
+    pearl->stats.total_operations++;
+    
+    uint32_t hash = pearl->hash(element, pearl->element_size);
+    size_t bucket_index = hash % pearl->capacity;
+    
+    PearlNode *current = pearl->buckets[bucket_index];
+    size_t chain_length = 0;
+    
+    while (current != NULL) {
+        chain_length++;
+        if (current->hash == hash && 
+            pearl->equals(current->element, element, pearl->element_size)) {
+            pearl_set_error(pearl, PEARL_ERROR_ELEMENT_EXISTS);
+            return false;
+        }
+        current = current->next;
+    }
+    
+    if (chain_length > 0) {
+        pearl->stats.total_collisions++;
+        if (chain_length > pearl->stats.max_chain_length) {
+            pearl->stats.max_chain_length = chain_length;
+        }
+    }
+    
+    if ((float)(pearl->size + 1) / pearl->capacity > pearl->load_factor) {
+        if (!pearl_resize(pearl, pearl->capacity * 2)) {
+            pearl_set_error(pearl, PEARL_ERROR_RESIZE_FAILED);
+            return false;
+        }
+        bucket_index = hash % pearl->capacity;
+    }
+    
+    PearlNode *new_node = samrena_push(pearl->arena, sizeof(PearlNode));
+    if (new_node == NULL) {
+        pearl_set_error(pearl, PEARL_ERROR_MEMORY_EXHAUSTED);
+        pearl->stats.failed_allocations++;
+        return false;
+    }
+    
+    new_node->element = samrena_push(pearl->arena, pearl->element_size);
+    if (new_node->element == NULL) {
+        pearl_set_error(pearl, PEARL_ERROR_MEMORY_EXHAUSTED);
+        pearl->stats.failed_allocations++;
+        return false;
+    }
+    
+    memcpy(new_node->element, element, pearl->element_size);
+    new_node->hash = hash;
+    new_node->element_size = pearl->element_size;
+    new_node->next = pearl->buckets[bucket_index];
+    pearl->buckets[bucket_index] = new_node;
+    
+    pearl->size++;
+    pearl_set_error(pearl, PEARL_ERROR_NONE);
+    return true;
+}
+
+bool pearl_contains(const Pearl *pearl, const void *element) {
+    if (pearl == NULL || element == NULL) {
+        return false;
+    }
+    
+    uint32_t hash = pearl->hash(element, pearl->element_size);
+    size_t bucket_index = hash % pearl->capacity;
+    
+    PearlNode *current = pearl->buckets[bucket_index];
+    while (current != NULL) {
+        if (current->hash == hash && 
+            pearl->equals(current->element, element, pearl->element_size)) {
+            return true;
+        }
+        current = current->next;
+    }
+    
+    return false;
+}
+
+bool pearl_remove(Pearl *pearl, const void *element) {
+    if (pearl == NULL || element == NULL) {
+        if (pearl) pearl_set_error(pearl, PEARL_ERROR_NULL_PARAM);
+        return false;
+    }
+    
+    pearl->stats.total_operations++;
+    
+    uint32_t hash = pearl->hash(element, pearl->element_size);
+    size_t bucket_index = hash % pearl->capacity;
+    
+    PearlNode **current_ptr = &pearl->buckets[bucket_index];
+    
+    while (*current_ptr != NULL) {
+        PearlNode *current = *current_ptr;
+        if (current->hash == hash && 
+            pearl->equals(current->element, element, pearl->element_size)) {
+            
+            *current_ptr = current->next;
+            pearl->size--;
+            pearl_set_error(pearl, PEARL_ERROR_NONE);
+            return true;
+        }
+        current_ptr = &current->next;
+    }
+    
+    pearl_set_error(pearl, PEARL_ERROR_ELEMENT_NOT_FOUND);
+    return false;
+}
+
+void pearl_clear(Pearl *pearl) {
+    if (pearl == NULL) return;
+    
+    for (size_t i = 0; i < pearl->capacity; i++) {
+        pearl->buckets[i] = NULL;
+    }
+    
+    pearl->size = 0;
+    pearl_set_error(pearl, PEARL_ERROR_NONE);
+}
+
+// =============================================================================
+// UTILITY FUNCTIONS
+// =============================================================================
+
+size_t pearl_size(const Pearl *pearl) {
+    if (pearl == NULL) return 0;
+    return pearl->size;
+}
+
+bool pearl_is_empty(const Pearl *pearl) {
+    if (pearl == NULL) return true;
+    return pearl->size == 0;
+}
+
+// =============================================================================
+// PERFORMANCE AND DEBUGGING
+// =============================================================================
+
+PearlStats pearl_get_stats(const Pearl *pearl) {
+    PearlStats empty_stats = {0};
+    if (pearl == NULL) return empty_stats;
+    
+    PearlStats stats = pearl->stats;
+    
+    if (pearl->capacity > 0 && pearl->size > 0) {
+        size_t total_chain_length = 0;
+        size_t non_empty_buckets = 0;
+        
+        for (size_t i = 0; i < pearl->capacity; i++) {
+            size_t chain_length = 0;
+            PearlNode *current = pearl->buckets[i];
+            
+            while (current != NULL) {
+                chain_length++;
+                current = current->next;
+            }
+            
+            if (chain_length > 0) {
+                non_empty_buckets++;
+                total_chain_length += chain_length;
+            }
+        }
+        
+        if (non_empty_buckets > 0) {
+            stats.average_chain_length = (double)total_chain_length / non_empty_buckets;
+        }
+    }
+    
+    return stats;
+}
+
+void pearl_reset_stats(Pearl *pearl) {
+    if (pearl == NULL) return;
+    memset(&pearl->stats, 0, sizeof(PearlStats));
+}
+
+void pearl_print_stats(const Pearl *pearl) {
+    if (pearl == NULL) return;
+    
+    PearlStats stats = pearl_get_stats(pearl);
+    
+    printf("Pearl Set Statistics:\n");
+    printf("  Size: %zu elements\n", pearl->size);
+    printf("  Capacity: %zu buckets\n", pearl->capacity);
+    printf("  Load Factor: %.2f\n", pearl->capacity > 0 ? (double)pearl->size / pearl->capacity : 0.0);
+    printf("  Total Operations: %zu\n", stats.total_operations);
+    printf("  Total Collisions: %zu\n", stats.total_collisions);
+    printf("  Max Chain Length: %zu\n", stats.max_chain_length);
+    printf("  Average Chain Length: %.2f\n", stats.average_chain_length);
+    printf("  Resize Count: %zu\n", stats.resize_count);
+    printf("  Failed Allocations: %zu\n", stats.failed_allocations);
+}
+
+// =============================================================================
+// ITERATOR FUNCTIONS
+// =============================================================================
+
+void pearl_foreach(const Pearl *pearl, PearlIterator iterator, void *user_data) {
+    if (pearl == NULL || iterator == NULL) return;
+    
+    for (size_t i = 0; i < pearl->capacity; i++) {
+        PearlNode *current = pearl->buckets[i];
+        while (current != NULL) {
+            iterator(current->element, user_data);
+            current = current->next;
+        }
+    }
 }
