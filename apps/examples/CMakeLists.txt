@@ -25,3 +25,11 @@ ptah_add_executable(iterator_example
     DEPENDENCIES
         samrena
 )
+
+ptah_add_executable(pearl_example
+    SOURCES
+        src/pearl_example.c
+    DEPENDENCIES
+        samrena
+        datazoo
+)
