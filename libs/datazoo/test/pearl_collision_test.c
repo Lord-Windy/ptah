@@ -26,7 +26,7 @@ static uint32_t collision_hash(const void *element, size_t size) {
     return 42;
 }
 
-static void test_hash_collisions(void) {
+static void test_pearl_hash_collisions(void) {
     printf("Testing hash collisions with custom hash function...\n");
     
     SamrenaConfig config = samrena_default_config();
@@ -73,7 +73,7 @@ static uint32_t modulo_hash(const void *element, size_t size) {
     return (uint32_t)(value % 4);
 }
 
-static void test_collision_chain_management(void) {
+static void test_pearl_collision_chain_management(void) {
     printf("Testing collision chain management...\n");
     
     SamrenaConfig config = samrena_default_config();
@@ -114,7 +114,7 @@ static void test_collision_chain_management(void) {
     printf("✓ Collision chain management test passed\n");
 }
 
-static void test_different_hash_functions(void) {
+static void test_pearl_different_hash_functions(void) {
     printf("Testing different hash functions...\n");
     
     SamrenaConfig config = samrena_default_config();
@@ -149,7 +149,7 @@ static void test_different_hash_functions(void) {
     printf("✓ Different hash functions test passed\n");
 }
 
-static void test_collision_statistics(void) {
+static void test_pearl_collision_statistics(void) {
     printf("Testing collision statistics...\n");
     
     SamrenaConfig config = samrena_default_config();
@@ -175,7 +175,7 @@ static void test_collision_statistics(void) {
     printf("✓ Collision statistics test passed\n");
 }
 
-static void test_collision_removal_edge_cases(void) {
+static void test_pearl_collision_removal_edge_cases(void) {
     printf("Testing collision removal edge cases...\n");
     
     SamrenaConfig config = samrena_default_config();
@@ -223,11 +223,11 @@ static void test_collision_removal_edge_cases(void) {
 int main(void) {
     printf("=== Pearl Collision Tests ===\n");
     
-    test_hash_collisions();
-    test_collision_chain_management();
-    test_different_hash_functions();
-    test_collision_statistics();
-    test_collision_removal_edge_cases();
+    test_pearl_hash_collisions();
+    test_pearl_collision_chain_management();
+    test_pearl_different_hash_functions();
+    test_pearl_collision_statistics();
+    test_pearl_collision_removal_edge_cases();
     
     printf("\n✅ All Pearl collision tests passed!\n");
     return 0;

@@ -20,7 +20,7 @@
 #include <stdio.h>
 #include <string.h>
 
-static void test_empty_set_operations(void) {
+static void test_pearl_empty_set_operations(void) {
     printf("Testing operations on empty set...\n");
     
     SamrenaConfig config = samrena_default_config();
@@ -52,7 +52,7 @@ static void test_empty_set_operations(void) {
     printf("✓ Empty set operations test passed\n");
 }
 
-static void test_single_element_operations(void) {
+static void test_pearl_single_element_operations(void) {
     printf("Testing operations with single element...\n");
     
     SamrenaConfig config = samrena_default_config();
@@ -90,7 +90,7 @@ static void test_single_element_operations(void) {
     printf("✓ Single element operations test passed\n");
 }
 
-static void test_zero_element_size(void) {
+static void test_pearl_zero_element_size(void) {
     printf("Testing creation with zero element size...\n");
     
     SamrenaConfig config = samrena_default_config();
@@ -104,7 +104,7 @@ static void test_zero_element_size(void) {
     printf("✓ Zero element size test passed\n");
 }
 
-static void test_minimum_capacity(void) {
+static void test_pearl_minimum_capacity(void) {
     printf("Testing creation with very small capacity...\n");
     
     SamrenaConfig config = samrena_default_config();
@@ -128,7 +128,7 @@ static void test_minimum_capacity(void) {
     printf("✓ Minimum capacity test passed\n");
 }
 
-static void test_duplicate_bytes(void) {
+static void test_pearl_duplicate_bytes(void) {
     printf("Testing elements with identical byte patterns...\n");
     
     SamrenaConfig config = samrena_default_config();
@@ -169,7 +169,7 @@ static void test_duplicate_bytes(void) {
     printf("✓ Duplicate bytes test passed\n");
 }
 
-static void test_large_element_size(void) {
+static void test_pearl_large_element_size(void) {
     printf("Testing with large element size...\n");
     
     SamrenaConfig config = samrena_default_config();
@@ -214,7 +214,7 @@ static uint32_t same_hash(const void *element, size_t size) {
     return 42;
 }
 
-static void test_custom_equality_function(void) {
+static void test_pearl_custom_equality_function(void) {
     printf("Testing custom equality function...\n");
     
     SamrenaConfig config = samrena_default_config();
@@ -244,7 +244,7 @@ static void test_custom_equality_function(void) {
     printf("✓ Custom equality function test passed\n");
 }
 
-static void test_operations_after_clear(void) {
+static void test_pearl_operations_after_clear(void) {
     printf("Testing operations after clear...\n");
     
     SamrenaConfig config = samrena_default_config();
@@ -291,7 +291,7 @@ static void error_callback(PearlError error, const char *message, void *user_dat
     callback_message = message;
 }
 
-static void test_error_callback(void) {
+static void test_pearl_error_callback(void) {
     printf("Testing error callback functionality...\n");
     
     SamrenaConfig config = samrena_default_config();
@@ -333,15 +333,15 @@ static void test_error_callback(void) {
 int main(void) {
     printf("=== Pearl Edge Cases Tests ===\n");
     
-    test_empty_set_operations();
-    test_single_element_operations();
-    test_zero_element_size();
-    test_minimum_capacity();
-    test_duplicate_bytes();
-    test_large_element_size();
-    test_custom_equality_function();
-    test_operations_after_clear();
-    test_error_callback();
+    test_pearl_empty_set_operations();
+    test_pearl_single_element_operations();
+    test_pearl_zero_element_size();
+    test_pearl_minimum_capacity();
+    test_pearl_duplicate_bytes();
+    test_pearl_large_element_size();
+    test_pearl_custom_equality_function();
+    test_pearl_operations_after_clear();
+    test_pearl_error_callback();
     
     printf("\n✅ All Pearl edge cases tests passed!\n");
     return 0;

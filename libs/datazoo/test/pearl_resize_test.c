@@ -20,7 +20,7 @@
 #include <stdio.h>
 #include <string.h>
 
-static void test_automatic_resize(void) {
+static void test_pearl_automatic_resize(void) {
     printf("Testing automatic resize when load factor exceeded...\n");
     
     SamrenaConfig config = samrena_default_config();
@@ -58,7 +58,7 @@ static void test_automatic_resize(void) {
     printf("✓ Automatic resize test passed\n");
 }
 
-static void test_resize_preserves_elements(void) {
+static void test_pearl_resize_preserves_elements(void) {
     printf("Testing that resize preserves all elements...\n");
     
     SamrenaConfig config = samrena_default_config();
@@ -97,7 +97,7 @@ static uint32_t modulo_hash_func(const void *element, size_t size) {
     return (uint32_t)(value % 3);
 }
 
-static void test_resize_with_collisions(void) {
+static void test_pearl_resize_with_collisions(void) {
     printf("Testing resize with hash collisions...\n");
     
     SamrenaConfig config = samrena_default_config();
@@ -131,7 +131,7 @@ static void test_resize_with_collisions(void) {
     printf("✓ Resize with collisions test passed\n");
 }
 
-static void test_multiple_resizes(void) {
+static void test_pearl_multiple_resizes(void) {
     printf("Testing multiple consecutive resizes...\n");
     
     SamrenaConfig config = samrena_default_config();
@@ -171,7 +171,7 @@ static void test_multiple_resizes(void) {
     printf("✓ Multiple resizes test passed\n");
 }
 
-static void test_load_factor_threshold(void) {
+static void test_pearl_load_factor_threshold(void) {
     printf("Testing load factor threshold behavior...\n");
     
     SamrenaConfig config = samrena_default_config();
@@ -208,7 +208,7 @@ static void test_load_factor_threshold(void) {
     printf("✓ Load factor threshold test passed\n");
 }
 
-static void test_resize_after_removals(void) {
+static void test_pearl_resize_after_removals(void) {
     printf("Testing behavior after removals and subsequent additions...\n");
     
     SamrenaConfig config = samrena_default_config();
@@ -261,12 +261,12 @@ static void test_resize_after_removals(void) {
 int main(void) {
     printf("=== Pearl Resize Tests ===\n");
     
-    test_automatic_resize();
-    test_resize_preserves_elements();
-    test_resize_with_collisions();
-    test_multiple_resizes();
-    test_load_factor_threshold();
-    test_resize_after_removals();
+    test_pearl_automatic_resize();
+    test_pearl_resize_preserves_elements();
+    test_pearl_resize_with_collisions();
+    test_pearl_multiple_resizes();
+    test_pearl_load_factor_threshold();
+    test_pearl_resize_after_removals();
     
     printf("\n✅ All Pearl resize tests passed!\n");
     return 0;

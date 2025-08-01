@@ -26,7 +26,7 @@ static double get_time_diff(struct timespec start, struct timespec end) {
     return (end.tv_sec - start.tv_sec) + (end.tv_nsec - start.tv_nsec) / 1e9;
 }
 
-static void test_large_scale_operations(void) {
+static void test_pearl_large_scale_operations(void) {
     printf("Testing large scale operations...\n");
     
     SamrenaConfig config = samrena_default_config();
@@ -89,7 +89,7 @@ static void test_large_scale_operations(void) {
     printf("✓ Large scale operations test passed\n");
 }
 
-static void test_hash_function_performance(void) {
+static void test_pearl_hash_function_performance(void) {
     printf("Testing hash function performance comparison...\n");
     
     SamrenaConfig config = samrena_default_config();
@@ -137,7 +137,7 @@ static uint32_t bad_hash(const void *element, size_t size) {
     return 1;
 }
 
-static void test_collision_heavy_scenario(void) {
+static void test_pearl_collision_heavy_scenario(void) {
     printf("Testing collision-heavy scenario...\n");
     
     SamrenaConfig config = samrena_default_config();
@@ -187,7 +187,7 @@ static void test_collision_heavy_scenario(void) {
     printf("✓ Collision-heavy scenario test passed\n");
 }
 
-static void test_resize_performance(void) {
+static void test_pearl_resize_performance(void) {
     printf("Testing resize performance...\n");
     
     SamrenaConfig config = samrena_default_config();
@@ -227,7 +227,7 @@ static void test_resize_performance(void) {
     printf("✓ Resize performance test passed\n");
 }
 
-static void test_memory_efficiency(void) {
+static void test_pearl_memory_efficiency(void) {
     printf("Testing memory efficiency...\n");
     
     SamrenaConfig config = samrena_default_config();
@@ -270,11 +270,11 @@ static void test_memory_efficiency(void) {
 int main(void) {
     printf("=== Pearl Performance Tests ===\n");
     
-    test_large_scale_operations();
-    test_hash_function_performance();
-    test_collision_heavy_scenario();
-    test_resize_performance();
-    test_memory_efficiency();
+    test_pearl_large_scale_operations();
+    test_pearl_hash_function_performance();
+    test_pearl_collision_heavy_scenario();
+    test_pearl_resize_performance();
+    test_pearl_memory_efficiency();
     
     printf("\n✅ All Pearl performance tests completed!\n");
     return 0;

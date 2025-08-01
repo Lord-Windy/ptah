@@ -177,11 +177,16 @@ bool pearl_is_disjoint(const Pearl *set1, const Pearl *set2);
 bool pearl_equals(const Pearl *set1, const Pearl *set2);
 
 // =============================================================================
-// UTILITY API
+// INFORMATION API
 // =============================================================================
 
 size_t pearl_size(const Pearl *pearl);
 bool pearl_is_empty(const Pearl *pearl);
+
+// =============================================================================
+// COPY API  
+// =============================================================================
+
 Pearl *pearl_copy(const Pearl *pearl, Samrena *samrena);
 
 // =============================================================================

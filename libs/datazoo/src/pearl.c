@@ -424,3 +424,78 @@ void pearl_foreach(const Pearl *pearl, PearlIterator iterator, void *user_data) 
         }
     }
 }
+
+// =============================================================================
+// COPY FUNCTIONS
+// =============================================================================
+
+Pearl *pearl_copy(const Pearl *pearl, Samrena *samrena) {
+    if (pearl == NULL || samrena == NULL) {
+        return NULL;
+    }
+    
+    Pearl *copy = pearl_create_custom(pearl->element_size, pearl->capacity, samrena,
+                                     pearl->hash, pearl->equals);
+    if (copy == NULL) {
+        return NULL;
+    }
+    
+    copy->load_factor = pearl->load_factor;
+    copy->hash_func = pearl->hash_func;
+    
+    for (size_t i = 0; i < pearl->capacity; i++) {
+        PearlNode *current = pearl->buckets[i];
+        while (current != NULL) {
+            if (!pearl_add(copy, current->element)) {
+                return NULL;
+            }
+            current = current->next;
+        }
+    }
+    
+    return copy;
+}
+
+// =============================================================================
+// COLLECTION CONVERSION FUNCTIONS
+// =============================================================================
+
+size_t pearl_to_array(const Pearl *pearl, void *array, size_t max_elements) {
+    if (pearl == NULL || array == NULL || max_elements == 0) {
+        return 0;
+    }
+    
+    char *arr = (char *)array;
+    size_t count = 0;
+    
+    for (size_t i = 0; i < pearl->capacity && count < max_elements; i++) {
+        PearlNode *current = pearl->buckets[i];
+        while (current != NULL && count < max_elements) {
+            memcpy(arr + (count * pearl->element_size), current->element, pearl->element_size);
+            count++;
+            current = current->next;
+        }
+    }
+    
+    return count;
+}
+
+Pearl *pearl_from_array(const void *array, size_t count, size_t element_size, Samrena *samrena) {
+    if (array == NULL || count == 0 || element_size == 0 || samrena == NULL) {
+        return NULL;
+    }
+    
+    size_t initial_capacity = count > PEARL_MIN_CAPACITY ? count * 2 : PEARL_MIN_CAPACITY;
+    Pearl *pearl = pearl_create(element_size, initial_capacity, samrena);
+    if (pearl == NULL) {
+        return NULL;
+    }
+    
+    const char *arr = (const char *)array;
+    for (size_t i = 0; i < count; i++) {
+        const void *element = arr + (i * element_size);
+        pearl_add(pearl, element);
+    }
+    
+    return pearl;
+}

@@ -59,15 +59,21 @@ if(BUILD_TESTING)
     target_link_libraries(pearl_performance_test PRIVATE datazoo samrena)
     add_test(NAME pearl_performance_test COMMAND pearl_performance_test)
     
-    add_executable(pearl_edge_cases_test
-        test/pearl_edge_cases_test.c
+    add_executable(pearl_edge_case_test
+        test/pearl_edge_case_test.c
     )
-    target_link_libraries(pearl_edge_cases_test PRIVATE datazoo samrena)
-    add_test(NAME pearl_edge_cases_test COMMAND pearl_edge_cases_test)
+    target_link_libraries(pearl_edge_case_test PRIVATE datazoo samrena)
+    add_test(NAME pearl_edge_case_test COMMAND pearl_edge_case_test)
     
     add_executable(pearl_typesafe_test
         test/pearl_typesafe_test.c
     )
     target_link_libraries(pearl_typesafe_test PRIVATE datazoo samrena)
     add_test(NAME pearl_typesafe_test COMMAND pearl_typesafe_test)
+    
+    add_executable(pearl_utility_test
+        test/pearl_utility_test.c
+    )
+    target_link_libraries(pearl_utility_test PRIVATE datazoo samrena)
+    add_test(NAME pearl_utility_test COMMAND pearl_utility_test)
 endif()

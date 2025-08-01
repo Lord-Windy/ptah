@@ -20,7 +20,7 @@
 #include <stdio.h>
 #include <string.h>
 
-static void test_int_set_operations(void) {
+static void test_pearl_int_set_operations(void) {
     printf("Testing int_set type-safe operations...\n");
     
     SamrenaConfig config = samrena_default_config();
@@ -69,7 +69,7 @@ static void test_int_set_operations(void) {
     printf("✓ int_set operations test passed\n");
 }
 
-static void test_long_set_operations(void) {
+static void test_pearl_long_set_operations(void) {
     printf("Testing long_set type-safe operations...\n");
     
     SamrenaConfig config = samrena_default_config();
@@ -99,7 +99,7 @@ static void test_long_set_operations(void) {
     printf("✓ long_set operations test passed\n");
 }
 
-static void test_ptr_set_operations(void) {
+static void test_pearl_ptr_set_operations(void) {
     printf("Testing ptr_set type-safe operations...\n");
     
     SamrenaConfig config = samrena_default_config();
@@ -137,7 +137,7 @@ static void test_ptr_set_operations(void) {
     printf("✓ ptr_set operations test passed\n");
 }
 
-static void test_uint_set_operations(void) {
+static void test_pearl_uint_set_operations(void) {
     printf("Testing uint_set type-safe operations...\n");
     
     SamrenaConfig config = samrena_default_config();
@@ -168,7 +168,7 @@ static void test_uint_set_operations(void) {
     printf("✓ uint_set operations test passed\n");
 }
 
-static void test_ulong_set_operations(void) {
+static void test_pearl_ulong_set_operations(void) {
     printf("Testing ulong_set type-safe operations...\n");
     
     SamrenaConfig config = samrena_default_config();
@@ -205,7 +205,7 @@ static void int_iterator_callback(int element, void *user_data) {
     data->last_value = element;
 }
 
-static void test_foreach_iterator(void) {
+static void test_pearl_foreach_iterator(void) {
     printf("Testing foreach iterator functionality...\n");
     
     SamrenaConfig config = samrena_default_config();
@@ -232,7 +232,7 @@ static void test_foreach_iterator(void) {
     printf("✓ foreach iterator test passed\n");
 }
 
-static void test_null_parameter_handling(void) {
+static void test_pearl_null_parameter_handling(void) {
     printf("Testing null parameter handling in type-safe wrappers...\n");
     
     SamrenaConfig config = samrena_default_config();
@@ -258,7 +258,7 @@ static void test_null_parameter_handling(void) {
 
 PEARL_DEFINE_TYPED(custom_int_set, int)
 
-static void test_custom_type_definition(void) {
+static void test_pearl_custom_type_definition(void) {
     printf("Testing custom type definition macro...\n");
     
     SamrenaConfig config = samrena_default_config();
@@ -291,7 +291,7 @@ typedef struct {
 
 PEARL_DEFINE_TYPED(point_set, Point)
 
-static void test_struct_type_definition(void) {
+static void test_pearl_struct_type_definition(void) {
     printf("Testing struct type definition...\n");
     
     SamrenaConfig config = samrena_default_config();
@@ -328,15 +328,15 @@ static void test_struct_type_definition(void) {
 int main(void) {
     printf("=== Pearl Type-Safe Tests ===\n");
     
-    test_int_set_operations();
-    test_long_set_operations();
-    test_ptr_set_operations();
-    test_uint_set_operations();
-    test_ulong_set_operations();
-    test_foreach_iterator();
-    test_null_parameter_handling();
-    test_custom_type_definition();
-    test_struct_type_definition();
+    test_pearl_int_set_operations();
+    test_pearl_long_set_operations();
+    test_pearl_ptr_set_operations();
+    test_pearl_uint_set_operations();
+    test_pearl_ulong_set_operations();
+    test_pearl_foreach_iterator();
+    test_pearl_null_parameter_handling();
+    test_pearl_custom_type_definition();
+    test_pearl_struct_type_definition();
     
     printf("\n✅ All Pearl type-safe tests passed!\n");
     return 0;
