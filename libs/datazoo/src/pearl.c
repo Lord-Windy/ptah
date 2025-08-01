@@ -499,3 +499,73 @@ Pearl *pearl_from_array(const void *array, size_t count, size_t element_size, Sa
     
     return pearl;
 }
+
+// =============================================================================
+// FUNCTIONAL PROGRAMMING FUNCTIONS
+// =============================================================================
+
+Pearl *pearl_filter(const Pearl *pearl, bool (*predicate)(const void *, void *), 
+                   void *user_data, Samrena *samrena) {
+    if (pearl == NULL || predicate == NULL || samrena == NULL) {
+        return NULL;
+    }
+    
+    size_t initial_capacity = pearl->size > 0 ? pearl->size : PEARL_MIN_CAPACITY;
+    Pearl *filtered = pearl_create_custom(pearl->element_size, initial_capacity, samrena,
+                                         pearl->hash, pearl->equals);
+    if (filtered == NULL) {
+        return NULL;
+    }
+    
+    filtered->load_factor = pearl->load_factor;
+    filtered->hash_func = pearl->hash_func;
+    
+    for (size_t i = 0; i < pearl->capacity; i++) {
+        PearlNode *current = pearl->buckets[i];
+        while (current != NULL) {
+            if (predicate(current->element, user_data)) {
+                if (!pearl_add(filtered, current->element)) {
+                    return NULL;
+                }
+            }
+            current = current->next;
+        }
+    }
+    
+    return filtered;
+}
+
+Pearl *pearl_map(const Pearl *pearl, void (*transform)(const void *, void *, void *),
+                size_t new_element_size, void *user_data, Samrena *samrena) {
+    if (pearl == NULL || transform == NULL || samrena == NULL || new_element_size == 0) {
+        return NULL;
+    }
+    
+    size_t initial_capacity = pearl->size > 0 ? pearl->size * 2 : PEARL_MIN_CAPACITY;
+    Pearl *mapped = pearl_create(new_element_size, initial_capacity, samrena);
+    if (mapped == NULL) {
+        return NULL;
+    }
+    
+    mapped->load_factor = pearl->load_factor;
+    
+    void *temp_element = samrena_push(samrena, new_element_size);
+    if (temp_element == NULL) {
+        return NULL;
+    }
+    
+    for (size_t i = 0; i < pearl->capacity; i++) {
+        PearlNode *current = pearl->buckets[i];
+        while (current != NULL) {
+            transform(current->element, temp_element, user_data);
+            
+            if (!pearl_add(mapped, temp_element)) {
+                pearl_set_error(mapped, PEARL_ERROR_MEMORY_EXHAUSTED);
+                return NULL;
+            }
+            current = current->next;
+        }
+    }
+    
+    return mapped;
+}

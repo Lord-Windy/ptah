@@ -76,4 +76,10 @@ if(BUILD_TESTING)
     )
     target_link_libraries(pearl_utility_test PRIVATE datazoo samrena)
     add_test(NAME pearl_utility_test COMMAND pearl_utility_test)
+    
+    add_executable(pearl_functional_test
+        test/pearl_functional_test.c
+    )
+    target_link_libraries(pearl_functional_test PRIVATE datazoo samrena)
+    add_test(NAME pearl_functional_test COMMAND pearl_functional_test)
 endif()
