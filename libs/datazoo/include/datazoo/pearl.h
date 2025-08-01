@@ -158,23 +158,6 @@ bool pearl_remove(Pearl *pearl, const void *element);
 bool pearl_contains(const Pearl *pearl, const void *element);
 void pearl_clear(Pearl *pearl);
 
-// =============================================================================
-// SET OPERATIONS API
-// =============================================================================
-
-Pearl *pearl_union(const Pearl *set1, const Pearl *set2, Samrena *samrena);
-Pearl *pearl_intersection(const Pearl *set1, const Pearl *set2, Samrena *samrena);
-Pearl *pearl_difference(const Pearl *set1, const Pearl *set2, Samrena *samrena);
-Pearl *pearl_symmetric_difference(const Pearl *set1, const Pearl *set2, Samrena *samrena);
-
-// =============================================================================
-// SUBSET OPERATIONS API
-// =============================================================================
-
-bool pearl_is_subset(const Pearl *subset, const Pearl *superset);
-bool pearl_is_superset(const Pearl *superset, const Pearl *subset);
-bool pearl_is_disjoint(const Pearl *set1, const Pearl *set2);
-bool pearl_equals(const Pearl *set1, const Pearl *set2);
 
 // =============================================================================
 // INFORMATION API
@@ -298,21 +281,5 @@ PEARL_DEFINE_TYPED(long_set, long)
 PEARL_DEFINE_TYPED(ulong_set, unsigned long)
 PEARL_DEFINE_TYPED(ptr_set, void*)
 
-// =============================================================================
-// STRING SET SPECIALIZATION
-// =============================================================================
-
-typedef struct string_set_pearl {
-    Pearl *base;
-} string_set_pearl;
-
-static inline string_set_pearl *string_set_create(size_t initial_capacity, Samrena *samrena);
-static inline void string_set_destroy(string_set_pearl *p);
-static inline bool string_set_add(string_set_pearl *p, const char *str);
-static inline bool string_set_remove(string_set_pearl *p, const char *str);
-static inline bool string_set_contains(const string_set_pearl *p, const char *str);
-static inline void string_set_clear(string_set_pearl *p);
-static inline size_t string_set_size(const string_set_pearl *p);
-static inline bool string_set_is_empty(const string_set_pearl *p);
 
 #endif // PEARL_H
