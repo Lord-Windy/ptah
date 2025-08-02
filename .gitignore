@@ -18,6 +18,7 @@ CTestTestfile.cmake
 _deps/
 *.cmake
 !cmake/*.cmake
+!cmake/**/*.cmake
 
 # IDE specific files
 .vscode/
