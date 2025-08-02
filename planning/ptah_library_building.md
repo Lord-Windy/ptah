@@ -56,7 +56,9 @@ set(PTAH_INSTALL_DIR "${PTAH_LIBRARY_ROOT}/install")
 # Include all adapters
 include(${CMAKE_CURRENT_LIST_DIR}/adapters/PtahCMakeAdapter.cmake)
 include(${CMAKE_CURRENT_LIST_DIR}/adapters/PtahCargoAdapter.cmake)
-# ... other adapters
+include(${CMAKE_CURRENT_LIST_DIR}/adapters/PtahMesonAdapter.cmake)
+include(${CMAKE_CURRENT_LIST_DIR}/adapters/PtahMakeAdapter.cmake)
+include(${CMAKE_CURRENT_LIST_DIR}/adapters/PtahHeaderOnlyAdapter.cmake)
 
 # Main functions
 function(ptah_add_library)
@@ -221,6 +223,275 @@ function(ptah_build_header_only_library NAME SOURCE_DIR INSTALL_DIR)
 endfunction()
 ```
 
+### 3.4 Meson Adapter
+
+**PtahMesonAdapter.cmake:**
+```cmake
+function(ptah_build_meson_library NAME SOURCE_DIR INSTALL_DIR)
+    set(multiValueArgs MESON_ARGS)
+    cmake_parse_arguments(ARG "" "" "${multiValueArgs}" ${ARGN})
+    
+    # Detect Meson
+    find_program(MESON meson REQUIRED)
+    find_program(NINJA ninja)
+    
+    set(BUILD_DIR ${PTAH_BUILD_DIR}/${NAME})
+    
+    # Configure build type
+    if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+        set(MESON_BUILD_TYPE "debug")
+    else()
+        set(MESON_BUILD_TYPE "release")
+    endif()
+    
+    # Setup
+    execute_process(
+        COMMAND ${MESON} setup ${BUILD_DIR}
+            --prefix=${INSTALL_DIR}
+            --buildtype=${MESON_BUILD_TYPE}
+            ${ARG_MESON_ARGS}
+        WORKING_DIRECTORY ${SOURCE_DIR}
+        RESULT_VARIABLE SETUP_RESULT
+    )
+    
+    if(NOT SETUP_RESULT EQUAL 0)
+        message(FATAL_ERROR "Meson setup failed for ${NAME}")
+    endif()
+    
+    # Build
+    if(NINJA)
+        execute_process(
+            COMMAND ${NINJA} -C ${BUILD_DIR}
+            RESULT_VARIABLE BUILD_RESULT
+        )
+    else()
+        execute_process(
+            COMMAND ${MESON} compile -C ${BUILD_DIR}
+            RESULT_VARIABLE BUILD_RESULT
+        )
+    endif()
+    
+    if(NOT BUILD_RESULT EQUAL 0)
+        message(FATAL_ERROR "Meson build failed for ${NAME}")
+    endif()
+    
+    # Install
+    execute_process(
+        COMMAND ${MESON} install -C ${BUILD_DIR}
+        RESULT_VARIABLE INSTALL_RESULT
+    )
+    
+    if(NOT INSTALL_RESULT EQUAL 0)
+        message(FATAL_ERROR "Meson install failed for ${NAME}")
+    endif()
+    
+    # Generate CMake config if not provided by upstream
+    ptah_generate_cmake_config(${NAME} ${INSTALL_DIR})
+endfunction()
+```
+
+### 3.5 Make Adapter
+
+**PtahMakeAdapter.cmake:**
+```cmake
+function(ptah_build_make_library NAME SOURCE_DIR INSTALL_DIR)
+    set(oneValueArgs MAKEFILE)
+    set(multiValueArgs MAKE_ARGS INSTALL_TARGETS)
+    cmake_parse_arguments(ARG "" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
+    
+    # Detect Make
+    find_program(MAKE make REQUIRED)
+    
+    # Default makefile
+    if(NOT ARG_MAKEFILE)
+        set(ARG_MAKEFILE "Makefile")
+    endif()
+    
+    # Check if makefile exists
+    if(NOT EXISTS "${SOURCE_DIR}/${ARG_MAKEFILE}")
+        message(FATAL_ERROR "Makefile not found: ${SOURCE_DIR}/${ARG_MAKEFILE}")
+    endif()
+    
+    # Set common make variables
+    set(MAKE_VARS 
+        PREFIX=${INSTALL_DIR}
+        DESTDIR=
+        CC=${CMAKE_C_COMPILER}
+        CXX=${CMAKE_CXX_COMPILER}
+    )
+    
+    if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+        list(APPEND MAKE_VARS DEBUG=1)
+    endif()
+    
+    # Build
+    execute_process(
+        COMMAND ${MAKE} -f ${ARG_MAKEFILE} ${MAKE_VARS} ${ARG_MAKE_ARGS}
+        WORKING_DIRECTORY ${SOURCE_DIR}
+        RESULT_VARIABLE BUILD_RESULT
+    )
+    
+    if(NOT BUILD_RESULT EQUAL 0)
+        message(FATAL_ERROR "Make build failed for ${NAME}")
+    endif()
+    
+    # Install
+    if(ARG_INSTALL_TARGETS)
+        foreach(TARGET ${ARG_INSTALL_TARGETS})
+            execute_process(
+                COMMAND ${MAKE} -f ${ARG_MAKEFILE} ${MAKE_VARS} ${TARGET}
+                WORKING_DIRECTORY ${SOURCE_DIR}
+                RESULT_VARIABLE INSTALL_RESULT
+            )
+            if(NOT INSTALL_RESULT EQUAL 0)
+                message(FATAL_ERROR "Make install target '${TARGET}' failed for ${NAME}")
+            endif()
+        endforeach()
+    else()
+        # Try common install targets
+        foreach(TARGET install install-lib install-headers)
+            execute_process(
+                COMMAND ${MAKE} -f ${ARG_MAKEFILE} ${MAKE_VARS} ${TARGET}
+                WORKING_DIRECTORY ${SOURCE_DIR}
+                RESULT_VARIABLE INSTALL_RESULT
+                OUTPUT_QUIET ERROR_QUIET
+            )
+            if(INSTALL_RESULT EQUAL 0)
+                break()
+            endif()
+        endforeach()
+    endif()
+    
+    # Generate CMake config
+    ptah_generate_cmake_config(${NAME} ${INSTALL_DIR})
+endfunction()
+```
+
+### 3.6 Build System Auto-Detection
+
+**Build system detection logic:**
+```cmake
+function(ptah_detect_build_system SOURCE_DIR OUTPUT_VAR)
+    # Priority order for detection
+    if(EXISTS "${SOURCE_DIR}/CMakeLists.txt")
+        set(${OUTPUT_VAR} "cmake" PARENT_SCOPE)
+    elseif(EXISTS "${SOURCE_DIR}/Cargo.toml")
+        set(${OUTPUT_VAR} "cargo" PARENT_SCOPE)
+    elseif(EXISTS "${SOURCE_DIR}/meson.build")
+        set(${OUTPUT_VAR} "meson" PARENT_SCOPE)
+    elseif(EXISTS "${SOURCE_DIR}/Makefile" OR EXISTS "${SOURCE_DIR}/makefile")
+        set(${OUTPUT_VAR} "make" PARENT_SCOPE)
+    elseif(EXISTS "${SOURCE_DIR}/configure" OR EXISTS "${SOURCE_DIR}/configure.ac")
+        set(${OUTPUT_VAR} "autotools" PARENT_SCOPE)
+    else()
+        # Check for header-only patterns
+        file(GLOB_RECURSE HEADERS "${SOURCE_DIR}/*.h" "${SOURCE_DIR}/*.hpp" 
+                                  "${SOURCE_DIR}/*.hxx" "${SOURCE_DIR}/*.hh")
+        file(GLOB_RECURSE SOURCES "${SOURCE_DIR}/*.c" "${SOURCE_DIR}/*.cpp" 
+                                  "${SOURCE_DIR}/*.cxx" "${SOURCE_DIR}/*.cc")
+        
+        list(LENGTH HEADERS HEADER_COUNT)
+        list(LENGTH SOURCES SOURCE_COUNT)
+        
+        # If we have headers but no sources, assume header-only
+        if(HEADER_COUNT GREATER 0 AND SOURCE_COUNT EQUAL 0)
+            set(${OUTPUT_VAR} "header_only" PARENT_SCOPE)
+        else()
+            set(${OUTPUT_VAR} "unknown" PARENT_SCOPE)
+        endif()
+    endif()
+endfunction()
+```
+
+### 3.7 CMake Config File Generation
+
+**PtahConfigTemplate.cmake.in:**
+```cmake
+# @NAME@Config.cmake - CMake configuration for @NAME@
+# Generated by Ptah Library Manager
+
+@PACKAGE_INIT@
+
+# Library information
+set(@NAME@_VERSION "@VERSION@")
+set(@NAME@_FOUND TRUE)
+
+# Include directories
+set(@NAME@_INCLUDE_DIRS "@PACKAGE_INSTALL_DIR@/include")
+
+# Library directories and files
+set(@NAME@_LIBRARY_DIRS "@PACKAGE_INSTALL_DIR@/lib")
+
+# Find all libraries for this package
+file(GLOB @NAME@_LIBRARIES 
+    "@PACKAGE_INSTALL_DIR@/lib/lib@NAME@*${CMAKE_SHARED_LIBRARY_SUFFIX}"
+    "@PACKAGE_INSTALL_DIR@/lib/lib@NAME@*${CMAKE_STATIC_LIBRARY_SUFFIX}"
+    "@PACKAGE_INSTALL_DIR@/lib/@NAME@*${CMAKE_SHARED_LIBRARY_SUFFIX}"
+    "@PACKAGE_INSTALL_DIR@/lib/@NAME@*${CMAKE_STATIC_LIBRARY_SUFFIX}"
+)
+
+# Create interface target if libraries found
+if(@NAME@_LIBRARIES OR "@BUILD_SYSTEM@" STREQUAL "header_only")
+    if(NOT TARGET @NAME@::@NAME@)
+        add_library(@NAME@::@NAME@ INTERFACE IMPORTED)
+        set_target_properties(@NAME@::@NAME@ PROPERTIES
+            INTERFACE_INCLUDE_DIRECTORIES "${@NAME@_INCLUDE_DIRS}"
+        )
+        
+        if(@NAME@_LIBRARIES)
+            set_target_properties(@NAME@::@NAME@ PROPERTIES
+                INTERFACE_LINK_LIBRARIES "${@NAME@_LIBRARIES}"
+            )
+        endif()
+    endif()
+endif()
+
+# Check required components
+check_required_components(@NAME@)
+```
+
+**CMake config generation function:**
+```cmake
+function(ptah_generate_cmake_config NAME INSTALL_DIR)
+    set(oneValueArgs VERSION BUILD_SYSTEM)
+    cmake_parse_arguments(ARG "" "${oneValueArgs}" "" ${ARGN})
+    
+    # Set defaults
+    if(NOT ARG_VERSION)
+        set(ARG_VERSION "unknown")
+    endif()
+    if(NOT ARG_BUILD_SYSTEM)
+        set(ARG_BUILD_SYSTEM "unknown")
+    endif()
+    
+    # Set template variables
+    set(PACKAGE_INSTALL_DIR ${INSTALL_DIR})
+    set(VERSION ${ARG_VERSION})
+    set(BUILD_SYSTEM ${ARG_BUILD_SYSTEM})
+    
+    # Create cmake config directory
+    set(CONFIG_DIR "${INSTALL_DIR}/share/cmake/${NAME}")
+    file(MAKE_DIRECTORY ${CONFIG_DIR})
+    
+    # Generate config file
+    configure_package_config_file(
+        ${CMAKE_CURRENT_LIST_DIR}/../templates/PtahConfigTemplate.cmake.in
+        ${CONFIG_DIR}/${NAME}Config.cmake
+        INSTALL_DESTINATION ${CONFIG_DIR}
+        PATH_VARS PACKAGE_INSTALL_DIR
+    )
+    
+    # Generate version file if we have version info
+    if(NOT ARG_VERSION STREQUAL "unknown")
+        write_basic_package_version_file(
+            ${CONFIG_DIR}/${NAME}ConfigVersion.cmake
+            VERSION ${ARG_VERSION}
+            COMPATIBILITY SameMajorVersion
+        )
+    endif()
+endfunction()
+```
+
 ## Phase 4: Main API Implementation
 
 ### 4.1 ptah_add_library Function
@@ -277,6 +548,12 @@ function(ptah_add_library)
             CMAKE_ARGS ${ARG_CMAKE_ARGS})
     elseif(ARG_BUILD_SYSTEM STREQUAL "cargo")
         ptah_build_cargo_library(${ARG_NAME} ${SOURCE_PATH} ${PTAH_INSTALL_DIR})
+    elseif(ARG_BUILD_SYSTEM STREQUAL "meson")
+        ptah_build_meson_library(${ARG_NAME} ${SOURCE_PATH} ${PTAH_INSTALL_DIR}
+            MESON_ARGS ${ARG_BUILD_OPTIONS})
+    elseif(ARG_BUILD_SYSTEM STREQUAL "make")
+        ptah_build_make_library(${ARG_NAME} ${SOURCE_PATH} ${PTAH_INSTALL_DIR}
+            MAKE_ARGS ${ARG_BUILD_OPTIONS})
     elseif(ARG_BUILD_SYSTEM STREQUAL "header_only" OR ARG_HEADER_ONLY)
         ptah_build_header_only_library(${ARG_NAME} ${SOURCE_PATH} ${PTAH_INSTALL_DIR}
             INTERFACE_TARGET ${ARG_INTERFACE_TARGET})
@@ -305,10 +582,13 @@ endfunction()
 - [ ] Implement Git operations (clone, checkout, ls-remote)
 
 ### Week 3-4: Build System Adapters
-- [ ] CMake adapter (test with SDL)
-- [ ] Cargo adapter (test with wgpu-native)
-- [ ] Header-only adapter (test with Clay)
-- [ ] Build system auto-detection
+- [x] CMake adapter (test with SDL)
+- [x] Cargo adapter (test with wgpu-native)
+- [x] Header-only adapter (test with Clay)
+- [x] Meson adapter
+- [x] Make adapter
+- [x] Build system auto-detection
+- [x] CMake config file generation utility
 
 ### Week 5-6: Version Management
 - [ ] Git tag/branch resolution
@@ -397,6 +677,24 @@ ptah_add_library(
     VERSION main
     HEADER_ONLY TRUE
     INTERFACE_TARGET TRUE
+)
+
+# Meson library example
+ptah_add_library(
+    NAME libsoup
+    GIT_REPOSITORY https://gitlab.gnome.org/GNOME/libsoup.git
+    VERSION 3.4.0
+    BUILD_SYSTEM meson
+    BUILD_OPTIONS -Dtests=false -Dgtk_doc=false
+)
+
+# Make library example  
+ptah_add_library(
+    NAME zlib
+    GIT_REPOSITORY https://github.com/madler/zlib.git
+    VERSION v1.3
+    BUILD_SYSTEM make
+    BUILD_OPTIONS CC=${CMAKE_C_COMPILER}
 )
 
 # Save manifest
