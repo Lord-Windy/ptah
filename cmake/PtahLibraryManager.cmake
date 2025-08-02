@@ -566,8 +566,96 @@ function(ptah_fetch_source NAME GIT_URL COMMIT_OR_TAG OUTPUT_PATH)
 endfunction()
 
 function(ptah_fetch_archive NAME URL OUTPUT_PATH)
-    # For future implementation - download and extract archives
-    message(FATAL_ERROR "Archive downloads not yet implemented")
+    set(DOWNLOAD_PATH "${PTAH_DOWNLOAD_DIR}/${NAME}")
+    set(SOURCE_PATH "${PTAH_SOURCE_DIR}/${NAME}")
+    
+    # Determine file extension and extraction method
+    if(URL MATCHES "\\.tar\\.gz$" OR URL MATCHES "\\.tgz$")
+        set(ARCHIVE_NAME "${NAME}.tar.gz")
+        set(EXTRACT_COMMAND tar -xzf)
+    elseif(URL MATCHES "\\.tar\\.bz2$" OR URL MATCHES "\\.tbz2$")
+        set(ARCHIVE_NAME "${NAME}.tar.bz2")
+        set(EXTRACT_COMMAND tar -xjf)
+    elseif(URL MATCHES "\\.tar\\.xz$")
+        set(ARCHIVE_NAME "${NAME}.tar.xz")
+        set(EXTRACT_COMMAND tar -xJf)
+    elseif(URL MATCHES "\\.tar$")
+        set(ARCHIVE_NAME "${NAME}.tar")
+        set(EXTRACT_COMMAND tar -xf)
+    elseif(URL MATCHES "\\.zip$")
+        set(ARCHIVE_NAME "${NAME}.zip")
+        set(EXTRACT_COMMAND unzip -q)
+    else()
+        message(FATAL_ERROR "Unsupported archive format for URL: ${URL}")
+    endif()
+    
+    set(ARCHIVE_FILE "${DOWNLOAD_PATH}/${ARCHIVE_NAME}")
+    
+    # Download if not already present
+    if(NOT EXISTS ${ARCHIVE_FILE})
+        message(STATUS "Ptah: Downloading ${NAME} from ${URL}")
+        file(MAKE_DIRECTORY ${DOWNLOAD_PATH})
+        
+        file(DOWNLOAD ${URL} ${ARCHIVE_FILE}
+            STATUS DOWNLOAD_STATUS
+            SHOW_PROGRESS
+        )
+        
+        list(GET DOWNLOAD_STATUS 0 DOWNLOAD_RESULT)
+        if(NOT DOWNLOAD_RESULT EQUAL 0)
+            list(GET DOWNLOAD_STATUS 1 DOWNLOAD_ERROR)
+            message(FATAL_ERROR "Failed to download ${URL}: ${DOWNLOAD_ERROR}")
+        endif()
+    else()
+        message(STATUS "Ptah: Using cached archive for ${NAME}")
+    endif()
+    
+    # Extract archive
+    if(NOT EXISTS ${SOURCE_PATH})
+        message(STATUS "Ptah: Extracting ${ARCHIVE_NAME}")
+        file(MAKE_DIRECTORY ${SOURCE_PATH})
+        
+        execute_process(
+            COMMAND ${EXTRACT_COMMAND} ${ARCHIVE_FILE}
+            WORKING_DIRECTORY ${SOURCE_PATH}
+            RESULT_VARIABLE EXTRACT_RESULT
+            OUTPUT_QUIET
+        )
+        
+        if(NOT EXTRACT_RESULT EQUAL 0)
+            message(FATAL_ERROR "Failed to extract ${ARCHIVE_FILE}")
+        endif()
+        
+        # Many archives extract to a subdirectory, try to find the real source
+        file(GLOB EXTRACTED_DIRS "${SOURCE_PATH}/*")
+        list(LENGTH EXTRACTED_DIRS DIR_COUNT)
+        
+        if(DIR_COUNT EQUAL 1)
+            list(GET EXTRACTED_DIRS 0 EXTRACTED_DIR)
+            if(IS_DIRECTORY ${EXTRACTED_DIR})
+                # Check if this looks like the main source directory
+                get_filename_component(DIR_NAME ${EXTRACTED_DIR} NAME)
+                if(DIR_NAME MATCHES "^${NAME}" OR 
+                   EXISTS "${EXTRACTED_DIR}/CMakeLists.txt" OR
+                   EXISTS "${EXTRACTED_DIR}/Makefile" OR
+                   EXISTS "${EXTRACTED_DIR}/configure")
+                    # Move contents up one level
+                    file(GLOB_RECURSE ALL_FILES "${EXTRACTED_DIR}/*")
+                    foreach(FILE_PATH ${ALL_FILES})
+                        file(RELATIVE_PATH REL_PATH ${EXTRACTED_DIR} ${FILE_PATH})
+                        get_filename_component(DEST_DIR "${SOURCE_PATH}/${REL_PATH}" DIRECTORY)
+                        file(MAKE_DIRECTORY ${DEST_DIR})
+                        file(RENAME ${FILE_PATH} "${SOURCE_PATH}/${REL_PATH}")
+                    endforeach()
+                    file(REMOVE_RECURSE ${EXTRACTED_DIR})
+                endif()
+            endif()
+        endif()
+    else()
+        message(STATUS "Ptah: Using existing extracted source for ${NAME}")
+    endif()
+    
+    set(${OUTPUT_PATH} ${SOURCE_PATH} PARENT_SCOPE)
 endfunction()
 
 function(ptah_update_manifest NAME GIT_REPO VERSION COMMIT REF BUILD_SYSTEM)
