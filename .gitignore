@@ -47,6 +47,7 @@ _deps/
 # Dependency directories
 vendor/
 third_party/
+external_dependencies/
 
 # Package files
 *.tar.gz
@@ -54,6 +55,9 @@ third_party/
 
 # Logs
 *.log
+
+# Ptah Library Manager
+ptah-lock.yaml
 
 # Temporary files
 *.tmp

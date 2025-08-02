@@ -12,7 +12,29 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-add_subdirectory(typesafe_example)
-add_subdirectory(iterator_example)
-add_subdirectory(pearl_example)
-add_subdirectory(sdl_example)
+# Include the Ptah Library Manager
+include(${CMAKE_SOURCE_DIR}/cmake/PtahLibraryManager.cmake)
+
+# Add SDL3 library using Ptah Library Manager
+ptah_add_library(
+    NAME SDL3
+    GIT_REPOSITORY https://github.com/libsdl-org/SDL
+    VERSION release-3.2.18
+    BUILD_SYSTEM cmake
+    CMAKE_ARGS
+        -DSDL_STATIC=ON
+        -DSDL_SHARED=OFF
+        -DSDL_TEST=OFF
+        -DSDL_EXAMPLES=OFF
+)
+
+# Find the SDL3 library
+ptah_find_library(SDL3)
+
+# Create the SDL example executable
+ptah_add_executable(sdl_example
+    SOURCES
+        sdl_example.c
+    DEPENDENCIES
+        SDL3::SDL3
+)
