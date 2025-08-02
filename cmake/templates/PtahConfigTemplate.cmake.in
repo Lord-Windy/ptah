@@ -1,0 +1,95 @@
+# Copyright 2025 Samuel "Lord-Windy" Brown
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# CMake Config Template for Ptah-managed libraries
+# This template is used to generate @PACKAGE_NAME@Config.cmake files
+
+@PACKAGE_INIT@
+
+include(CMakeFindDependencyMacro)
+
+# Library information
+set(@PACKAGE_NAME@_VERSION "@PACKAGE_VERSION@")
+set(@PACKAGE_NAME@_VERSION_MAJOR "@PACKAGE_VERSION_MAJOR@")
+set(@PACKAGE_NAME@_VERSION_MINOR "@PACKAGE_VERSION_MINOR@")
+set(@PACKAGE_NAME@_VERSION_PATCH "@PACKAGE_VERSION_PATCH@")
+
+# Include directories
+set(@PACKAGE_NAME@_INCLUDE_DIRS "@PACKAGE_INCLUDE_DIRS@")
+set(@PACKAGE_NAME@_INCLUDE_DIR "@PACKAGE_INCLUDE_DIRS@")  # Legacy compatibility
+
+# Library paths
+set(@PACKAGE_NAME@_LIBRARIES "@PACKAGE_LIBRARIES@")
+set(@PACKAGE_NAME@_LIBRARY "@PACKAGE_LIBRARIES@")  # Legacy compatibility
+
+# Library type information
+set(@PACKAGE_NAME@_LIBRARY_TYPE "@PACKAGE_LIBRARY_TYPE@")  # STATIC, SHARED, or INTERFACE
+
+# Dependencies
+@PACKAGE_DEPENDENCIES@
+
+# Check if all required components are found
+check_required_components(@PACKAGE_NAME@)
+
+# Define the imported target
+if(NOT TARGET @PACKAGE_NAMESPACE@::@PACKAGE_NAME@)
+    if(@PACKAGE_NAME@_LIBRARY_TYPE STREQUAL "INTERFACE")
+        add_library(@PACKAGE_NAMESPACE@::@PACKAGE_NAME@ INTERFACE IMPORTED)
+        set_target_properties(@PACKAGE_NAMESPACE@::@PACKAGE_NAME@ PROPERTIES
+            INTERFACE_INCLUDE_DIRECTORIES "${@PACKAGE_NAME@_INCLUDE_DIRS}"
+        )
+        
+        # Add interface link libraries if any
+        if(@PACKAGE_NAME@_LIBRARIES)
+            set_target_properties(@PACKAGE_NAMESPACE@::@PACKAGE_NAME@ PROPERTIES
+                INTERFACE_LINK_LIBRARIES "${@PACKAGE_NAME@_LIBRARIES}"
+            )
+        endif()
+    else()
+        # STATIC or SHARED library
+        add_library(@PACKAGE_NAMESPACE@::@PACKAGE_NAME@ @PACKAGE_LIBRARY_TYPE@ IMPORTED)
+        
+        # Set the main library location
+        set_target_properties(@PACKAGE_NAMESPACE@::@PACKAGE_NAME@ PROPERTIES
+            IMPORTED_LOCATION "@PACKAGE_MAIN_LIBRARY@"
+            INTERFACE_INCLUDE_DIRECTORIES "${@PACKAGE_NAME@_INCLUDE_DIRS}"
+        )
+        
+        # Add additional libraries as interface link libraries
+        if(@PACKAGE_NAME@_LIBRARIES)
+            set_target_properties(@PACKAGE_NAMESPACE@::@PACKAGE_NAME@ PROPERTIES
+                INTERFACE_LINK_LIBRARIES "${@PACKAGE_NAME@_LIBRARIES}"
+            )
+        endif()
+    endif()
+    
+    # Add compile features if specified
+    @PACKAGE_COMPILE_FEATURES@
+    
+    # Add compile definitions if specified
+    @PACKAGE_COMPILE_DEFINITIONS@
+endif()
+
+# Legacy target name for compatibility
+if(NOT TARGET @PACKAGE_NAME@::@PACKAGE_NAME@ AND NOT "@PACKAGE_NAMESPACE@" STREQUAL "@PACKAGE_NAME@")
+    add_library(@PACKAGE_NAME@::@PACKAGE_NAME@ ALIAS @PACKAGE_NAMESPACE@::@PACKAGE_NAME@)
+endif()
+
+# Mark package as found
+set(@PACKAGE_NAME@_FOUND TRUE)
+
+# Print found message
+if(NOT @PACKAGE_NAME@_FIND_QUIETLY)
+    message(STATUS "Found @PACKAGE_NAME@: @PACKAGE_MAIN_LIBRARY@ (found version \"${@PACKAGE_NAME@_VERSION}\")")
+endif()
