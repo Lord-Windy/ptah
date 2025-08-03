@@ -1,0 +1,11 @@
+[workspace]
+resolver = "2"
+members = ["lib/*", "app/*"]
+
+[workspace.package]
+authors = ["Samuel \"Lord Windy\" Brown"]
+edition = "2021"
+license = "Apache-2.0"
+rust-version = "1.70"
+
+[workspace.dependencies]
