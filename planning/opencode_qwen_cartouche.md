@@ -2,7 +2,11 @@
 
 ## Project Overview
 
-This learning project focuses on building a cross-platform GUI application prototype using wgpu for rendering and clay for UI layout, implementing the MVVM (Model-View-ViewModel) architecture pattern. The goal is to create a reusable frontend framework that can be controlled dynamically by external applications and eventually support iOS/Android deployment.
+This learning project focuses on building a cross-platform GUI application
+prototype using wgpu for rendering and clay for UI layout, implementing the
+MVVM (Model-View-ViewModel) architecture pattern. The goal is to create
+a reusable frontend framework that can be controlled dynamically by external
+applications and eventually support iOS/Android deployment.
 
 ### Learning Objectives
 

@@ -1,4 +1,7 @@
-Create a detailed learning project plan in markdown format for building a cross-platform GUI application prototype using wgpu and clay. The project should help me learn MVVM architecture while creating a reusable frontend framework for various projects.
+Create a detailed learning project plan in markdown format for building
+a cross-platform GUI application prototype using wgpu and clay. The project
+should help me learn MVVM architecture while creating a reusable frontend
+framework for various projects.
 
 Project Requirements:
 
@@ -27,4 +30,6 @@ Resources for learning wgpu, clay, and MVVM in this context
 Common pitfalls and debugging tips
 Extension ideas for after the prototype is complete
 
-Format the response as a structured markdown document with clear headers, code examples where helpful, and checkboxes for tracking progress. Prioritize hands-on learning with small, testable increments that build upon each other
+Format the response as a structured markdown document with clear headers, code
+examples where helpful, and checkboxes for tracking progress. Prioritize
+hands-on learning with small, testable increments that build upon each other

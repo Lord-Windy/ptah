@@ -2,7 +2,11 @@
 
 ## Project Overview
 
-This project is designed as a hands-on learning experience to build a cross-platform GUI application prototype using wgpu for rendering and clay for UI layout. The primary goal is to understand and implement the MVVM (Model-View-ViewModel) architectural pattern while creating a reusable frontend framework.
+This project is designed as a hands-on learning experience to build
+a cross-platform GUI application prototype using wgpu for rendering and clay
+for UI layout. The primary goal is to understand and implement the MVVM
+(Model-View-ViewModel) architectural pattern while creating a reusable frontend
+framework.
 
 ### Learning Objectives
 
@@ -411,7 +415,8 @@ src/
 
 ## Project Tracking
 
-To track your progress, use the checkboxes throughout this document. As you complete each task or milestone, check the corresponding boxes.
+To track your progress, use the checkboxes throughout this document. As you
+complete each task or milestone, check the corresponding boxes.
 
 ### Milestone Completion Status
 - [ ] Milestone 1: Basic Window Creation with wgpu
@@ -421,4 +426,6 @@ To track your progress, use the checkboxes throughout this document. As you comp
 - [ ] Milestone 5: Advanced MVVM Features and Performance
 - [ ] Milestone 6: Mobile Deployment Preparation
 
-By following this plan incrementally, you'll develop a deep understanding of both the technologies involved and the architectural patterns that make for robust, maintainable GUI applications.
+By following this plan incrementally, you'll develop a deep understanding of
+both the technologies involved and the architectural patterns that make for
+robust, maintainable GUI applications.

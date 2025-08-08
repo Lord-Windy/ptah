@@ -11,7 +11,11 @@
 - [ ] Learn cross-platform deployment considerations (iOS/Android)
 
 ### Project Vision
-Build a prototype GUI application that demonstrates modern graphics programming with wgpu, declarative UI with clay, and clean architecture with MVVM. The prototype will serve as both a learning tool and a foundation for future cross-platform applications.
+
+Build a prototype GUI application that demonstrates modern graphics programming
+with wgpu, declarative UI with clay, and clean architecture with MVVM. The
+prototype will serve as both a learning tool and a foundation for future
+cross-platform applications.
 
 ## Prerequisites and Setup Requirements
 
@@ -379,7 +383,10 @@ src/
 
 ## Conclusion
 
-This learning project provides a comprehensive path to understanding modern GUI development with Rust, wgpu, and clay while implementing MVVM architecture. The incremental approach ensures that each concept is thoroughly understood before moving to more complex topics.
+This learning project provides a comprehensive path to understanding modern GUI
+development with Rust, wgpu, and clay while implementing MVVM architecture. The
+incremental approach ensures that each concept is thoroughly understood before
+moving to more complex topics.
 
 Remember to:
 - Take time to understand each concept before proceeding

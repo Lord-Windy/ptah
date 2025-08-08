@@ -3,7 +3,12 @@
 ## Project Overview
 
 ### Description
-Build a modular, cross-platform GUI application framework using wgpu for rendering and clay for layout management, implementing the MVVM (Model-View-ViewModel) architecture pattern. This project focuses on creating a reusable foundation that can be controlled programmatically by external applications.
+
+Build a modular, cross-platform GUI application framework using wgpu for
+rendering and clay for layout management, implementing the MVVM
+(Model-View-ViewModel) architecture pattern. This project focuses on creating
+a reusable foundation that can be controlled programmatically by external
+applications.
 
 ### Learning Objectives
 - [ ] Master wgpu's rendering pipeline and shader system
