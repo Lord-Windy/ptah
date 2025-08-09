@@ -9,6 +9,11 @@ pub fn build(b: *std.Build) void {
         .root_source_file = b.path("libs/example_lib/src/main.zig"),
     });
 
+    // Add the thoth library as a module
+    _ = b.addModule("thoth", .{
+        .root_source_file = b.path("libs/thoth/src/root.zig"),
+    });
+
     // Add the example app
     const example_app_exe = b.addExecutable(.{
         .name = "example_app",
@@ -39,6 +44,18 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
+    const lib_separate_tests = b.addTest(.{
+        .root_source_file = b.path("libs/example_lib/src/main_test.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+
+    const thoth_tests = b.addTest(.{
+        .root_source_file = b.path("libs/thoth/src/root.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+
     // Build the app tests
     const app_tests = b.addTest(.{
         .root_source_file = b.path("apps/example_app/src/main.zig"),
@@ -47,8 +64,18 @@ pub fn build(b: *std.Build) void {
     });
     app_tests.root_module.addImport("example_lib", example_lib);
 
+    const app_separate_tests = b.addTest(.{
+        .root_source_file = b.path("apps/example_app/src/main_test.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    app_separate_tests.root_module.addImport("example_lib", example_lib);
+
     // Create test step
     const test_step = b.step("test", "Run all tests");
     test_step.dependOn(&lib_tests.step);
+    test_step.dependOn(&lib_separate_tests.step);
+    test_step.dependOn(&thoth_tests.step);
     test_step.dependOn(&app_tests.step);
+    test_step.dependOn(&app_separate_tests.step);
 }
