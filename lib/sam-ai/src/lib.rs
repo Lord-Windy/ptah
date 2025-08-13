@@ -140,6 +140,9 @@ pub async fn run_compute_example_async(input: &[u32]) -> anyhow::Result<Vec<u32>
         cpass.dispatch_workgroups(x, 1, 1);
     }
 
+    // Copy output to download buffer
+    encoder.copy_buffer_to_buffer(&output_data_buffer, 0, &download_buffer, 0, size_bytes);
+
     // Submit
     queue.submit(Some(encoder.finish()));
 
