@@ -7,8 +7,8 @@ license.workspace = true
 rust-version.workspace = true
 
 [dependencies]
-wgpu = "0.19"
-pollster = "0.3"
+wgpu = "26.0.1"
+pollster = "0.4"
 anyhow = "1"
 bytemuck = { version = "1", features = ["extern_crate_alloc"] }
 futures-intrusive = "0.5"

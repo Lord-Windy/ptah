@@ -4,51 +4,73 @@
 // A minimal wgpu compute example exposed as a library function.
 // It doubles an array of u32 values on the GPU and returns the result.
 
+use anyhow::Context;
+
+
 pub async fn run_compute_example_async(input: &[u32]) -> anyhow::Result<Vec<u32>> {
     // 1. Instance/Adapter/Device
     let instance = wgpu::Instance::default();
-    let adapter = instance
-        .request_adapter(&wgpu::RequestAdapterOptions {
-            power_preference: wgpu::PowerPreference::HighPerformance,
-            force_fallback_adapter: false,
-            compatible_surface: None,
-        })
-        .await
-        .ok_or_else(|| anyhow::anyhow!("No suitable GPU adapters found on the system"))?;
 
-    let (device, queue) = adapter
+    // let adapter = instance
+    //     .request_adapter(&wgpu::RequestAdapterOptions {
+    //         power_preference: wgpu::PowerPreference::HighPerformance,
+    //         force_fallback_adapter: false,
+    //         compatible_surface: None,
+    //     })
+    //     .await
+    //     .map_err(|e| anyhow::anyhow!("No suitable GPU adapters found on the system: {e}"))?;
+
+    let adapter = pollster::block_on(instance.request_adapter(&wgpu::RequestAdapterOptions::default()))
+        .context("No suitable GPU adapters found on the system")?;
+
+    let downlevel_capabilities = adapter.get_downlevel_capabilities();
+    if !downlevel_capabilities
+        .flags
+        .contains(wgpu::DownlevelFlags::COMPUTE_SHADERS)
+    {
+        panic!("Adapter does not support compute shaders");
+    }
+
+    let (device, queue) = pollster::block_on(adapter
         .request_device(
             &wgpu::DeviceDescriptor {
                 label: Some("sam-ai-device"),
                 required_features: wgpu::Features::empty(),
-                required_limits: wgpu::Limits::default(),
+                required_limits: wgpu::Limits::downlevel_defaults(),
+                memory_hints: wgpu::MemoryHints::default(),
+                trace: wgpu::Trace::Off,
             },
-            None,
-        )
-        .await?;
+        )).context("Failed to create device")?;
 
-    // 2. Create buffers
-    let size_bytes = (input.len() * std::mem::size_of::<u32>()) as wgpu::BufferAddress;
-
-    let staging_src = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-        label: Some("Input Buffer"),
-        contents: bytemuck::cast_slice(input),
-        usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_SRC,
-    });
-
-    let staging_dst = device.create_buffer(&wgpu::BufferDescriptor {
-        label: Some("Output Buffer"),
-        size: size_bytes,
-        usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ | wgpu::BufferUsages::STORAGE,
-        mapped_at_creation: false,
-    });
-
-    // 3. Shader and pipeline
     let shader_src = include_str!("shaders/double.wgsl");
     let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
         label: Some("Compute Shader - Double"),
         source: wgpu::ShaderSource::Wgsl(shader_src.into()),
     });
+
+    // 2. Create buffers
+    let size_bytes = (input.len() * std::mem::size_of::<u32>()) as wgpu::BufferAddress;
+
+    let input_data_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+        label: Some("Input Buffer"),
+        contents: bytemuck::cast_slice(input),
+        usage: wgpu::BufferUsages::STORAGE,
+    });
+
+    let output_data_buffer = device.create_buffer(&wgpu::BufferDescriptor {
+        label: Some("Output Buffer"),
+        size: input_data_buffer.size(),
+        usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_SRC,
+        mapped_at_creation: false,
+    });
+
+    let download_buffer = device.create_buffer(&wgpu::BufferDescriptor {
+        label: Some("Download Buffer"),
+        size: input_data_buffer.size(),
+        usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
+        mapped_at_creation: false,
+    });
+
 
     let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
         label: Some("BGL"),
@@ -76,6 +98,15 @@ pub async fn run_compute_example_async(input: &[u32]) -> anyhow::Result<Vec<u32>
         ],
     });
 
+    let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+        label: Some("Bind Group"),
+        layout: &bind_group_layout,
+        entries: &[
+            wgpu::BindGroupEntry { binding: 0, resource: input_data_buffer.as_entire_binding() },
+            wgpu::BindGroupEntry { binding: 1, resource: output_data_buffer.as_entire_binding() },
+        ],
+    });
+
     let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
         label: Some("Pipeline Layout"),
         bind_group_layouts: &[&bind_group_layout],
@@ -86,17 +117,12 @@ pub async fn run_compute_example_async(input: &[u32]) -> anyhow::Result<Vec<u32>
         label: Some("Compute Pipeline"),
         layout: Some(&pipeline_layout),
         module: &shader,
-        entry_point: "main",
+        entry_point: Some("main"),
+        compilation_options: Default::default(),
+        cache: None,
     });
 
-    let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-        label: Some("Bind Group"),
-        layout: &bind_group_layout,
-        entries: &[
-            wgpu::BindGroupEntry { binding: 0, resource: staging_src.as_entire_binding() },
-            wgpu::BindGroupEntry { binding: 1, resource: staging_dst.as_entire_binding() },
-        ],
-    });
+
 
     // 4. Dispatch compute
     let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
@@ -118,16 +144,16 @@ pub async fn run_compute_example_async(input: &[u32]) -> anyhow::Result<Vec<u32>
     queue.submit(Some(encoder.finish()));
 
     // 5. Read back results
-    let buffer_slice = staging_dst.slice(..);
+    let buffer_slice = download_buffer.slice(..);
     let (sender, receiver) = futures_intrusive::channel::shared::oneshot_channel();
     buffer_slice.map_async(wgpu::MapMode::Read, move |v| { sender.send(v).unwrap(); });
-    device.poll(wgpu::Maintain::Wait);
+    device.poll(wgpu::PollType::Wait).unwrap();
     receiver.receive().await.unwrap().unwrap();
 
     let data = buffer_slice.get_mapped_range();
     let result: Vec<u32> = bytemuck::cast_slice(&data).to_vec();
     drop(data);
-    staging_dst.unmap();
+    //staging_dst.unmap();
 
     Ok(result)
 }
