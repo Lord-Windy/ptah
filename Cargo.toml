@@ -1,6 +1,11 @@
 [workspace]
 resolver = "2"
-members = ["lib/*", "app/*"]
+members = [
+    "lib/ptah-lib",
+    "lib/sam-ai",
+    "app/ptah-app",
+    "app/examples/sam-ai/compute-example",
+]
 
 [workspace.package]
 authors = ["Samuel \"Lord Windy\" Brown"]

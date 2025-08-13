@@ -1,0 +1,14 @@
+[package]
+name = "sam-ai"
+version = "0.1.0"
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+wgpu = "0.19"
+pollster = "0.3"
+anyhow = "1"
+bytemuck = { version = "1", features = ["extern_crate_alloc"] }
+futures-intrusive = "0.5"
