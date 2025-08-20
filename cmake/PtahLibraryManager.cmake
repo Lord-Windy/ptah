@@ -151,11 +151,24 @@ endfunction()
 
 # ptah_find_library - Find and configure an external library for use
 function(ptah_find_library NAME)
-    set(CONFIG_PATH "${PTAH_INSTALL_DIR}/share/cmake/${NAME}")
-    if(EXISTS "${CONFIG_PATH}/${NAME}Config.cmake")
-        list(APPEND CMAKE_PREFIX_PATH ${PTAH_INSTALL_DIR})
-        find_package(${NAME} REQUIRED CONFIG PATHS ${PTAH_INSTALL_DIR} NO_DEFAULT_PATH)
-    else()
+    # Check multiple possible locations for CMake config files
+    set(CONFIG_LOCATIONS 
+        "${PTAH_INSTALL_DIR}/share/cmake/${NAME}"
+        "${PTAH_INSTALL_DIR}/lib/cmake/${NAME}"
+        "${PTAH_INSTALL_DIR}/lib64/cmake/${NAME}"
+    )
+    
+    set(CONFIG_FOUND FALSE)
+    foreach(CONFIG_PATH ${CONFIG_LOCATIONS})
+        if(EXISTS "${CONFIG_PATH}/${NAME}Config.cmake")
+            list(APPEND CMAKE_PREFIX_PATH ${PTAH_INSTALL_DIR})
+            find_package(${NAME} REQUIRED CONFIG PATHS ${PTAH_INSTALL_DIR} NO_DEFAULT_PATH)
+            set(CONFIG_FOUND TRUE)
+            break()
+        endif()
+    endforeach()
+    
+    if(NOT CONFIG_FOUND)
         message(WARNING "Ptah: No CMake config found for ${NAME}, you may need to set up find_package manually")
     endif()
 endfunction()

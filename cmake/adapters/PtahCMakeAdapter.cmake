@@ -93,14 +93,24 @@ function(ptah_build_cmake_library NAME SOURCE_DIR INSTALL_DIR)
 endfunction()
 
 function(ptah_cmake_ensure_config NAME INSTALL_DIR)
+    # Check multiple possible locations for CMake config files
+    set(CONFIG_LOCATIONS 
+        "${INSTALL_DIR}/share/cmake/${NAME}"
+        "${INSTALL_DIR}/lib/cmake/${NAME}"
+        "${INSTALL_DIR}/lib64/cmake/${NAME}"
+    )
+    
+    foreach(CONFIG_DIR ${CONFIG_LOCATIONS})
+        set(CONFIG_FILE "${CONFIG_DIR}/${NAME}Config.cmake")
+        if(EXISTS ${CONFIG_FILE})
+            message(STATUS "Ptah CMake: Using existing CMake config for ${NAME}")
+            return()
+        endif()
+    endforeach()
+    
+    # If no existing config was found, use the default location for generation
     set(CONFIG_DIR "${INSTALL_DIR}/share/cmake/${NAME}")
     set(CONFIG_FILE "${CONFIG_DIR}/${NAME}Config.cmake")
-    
-    # Check if a config file already exists
-    if(EXISTS ${CONFIG_FILE})
-        message(STATUS "Ptah CMake: Using existing CMake config for ${NAME}")
-        return()
-    endif()
     
     # Look for pkg-config files as an alternative
     set(PKGCONFIG_FILE "${INSTALL_DIR}/lib/pkgconfig/${NAME}.pc")
@@ -121,9 +131,9 @@ function(ptah_cmake_generate_basic_config NAME INSTALL_DIR)
     
     file(MAKE_DIRECTORY ${CONFIG_DIR})
     
-    # Find libraries
-    file(GLOB_RECURSE STATIC_LIBS "${INSTALL_DIR}/lib/*.a")
-    file(GLOB_RECURSE SHARED_LIBS "${INSTALL_DIR}/lib/*.so" "${INSTALL_DIR}/lib/*.dylib" "${INSTALL_DIR}/lib/*.dll")
+    # Find libraries (check both lib and lib64 directories)
+    file(GLOB_RECURSE STATIC_LIBS "${INSTALL_DIR}/lib/*.a" "${INSTALL_DIR}/lib64/*.a")
+    file(GLOB_RECURSE SHARED_LIBS "${INSTALL_DIR}/lib/*.so" "${INSTALL_DIR}/lib64/*.so" "${INSTALL_DIR}/lib/*.dylib" "${INSTALL_DIR}/lib64/*.dylib" "${INSTALL_DIR}/lib/*.dll" "${INSTALL_DIR}/lib64/*.dll")
     
     # Prefer static libraries
     set(LIBS ${STATIC_LIBS})
@@ -192,7 +202,15 @@ function(ptah_cmake_get_library_options NAME OUTPUT_VAR)
     set(OPTIONS "")
     
     # Library-specific options
-    if(NAME STREQUAL "SDL" OR NAME STREQUAL "SDL2" OR NAME STREQUAL "SDL3")
+    if(NAME STREQUAL "SDL3")
+        list(APPEND OPTIONS
+            -DSDL3_SHARED_ENABLED=OFF
+            -DSDL3_STATIC_ENABLED=ON
+            -DSDL3_TEST_ENABLED=OFF
+            -DSDL3_DISABLE_INSTALL=OFF
+            -DSDL3_DISABLE_INSTALL_DOCS=ON
+        )
+    elseif(NAME STREQUAL "SDL" OR NAME STREQUAL "SDL2")
         list(APPEND OPTIONS
             -DSDL_SHARED=OFF
             -DSDL_STATIC=ON
