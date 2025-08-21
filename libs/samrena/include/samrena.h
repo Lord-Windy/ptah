@@ -152,22 +152,6 @@ typedef struct {
     void* log_user_data;
 } SamrenaConfig;
 
-// Allocation hints for automatic strategy selection
-typedef struct {
-    // Expected usage pattern
-    uint64_t expected_total_size;    // Total memory to be allocated
-    uint64_t expected_max_alloc;     // Largest single allocation
-    uint32_t expected_alloc_count;   // Number of allocations
-    
-    // Performance requirements
-    bool require_contiguous;         // Need contiguous memory
-    bool require_zero_copy_growth;   // Cannot tolerate reallocation
-    bool frequent_reset;             // Will reset/clear often
-    
-    // System constraints
-    uint64_t max_memory_limit;       // Hard memory limit
-    bool low_memory_mode;            // Optimize for memory usage
-} SamrenaAllocationHints;
 
 // =============================================================================
 // INFORMATION STRUCTURES
@@ -180,13 +164,6 @@ typedef struct {
     uint64_t alignment_guarantee;      // Guaranteed alignment
 } SamrenaCapabilities;
 
-// Performance hints structure (kept for compatibility)
-typedef struct {
-    bool contiguous_memory;    // All allocations in single block
-    bool zero_copy_growth;     // Can grow without copying
-    bool constant_time_alloc;  // O(1) allocation
-    uint64_t max_single_alloc; // Largest supported allocation
-} SamrenaPerformanceHints;
 
 // Arena information
 typedef struct {
@@ -269,13 +246,12 @@ bool samrena_has_capability(Samrena* arena, SamrenaCapabilityFlags cap);
 SamrenaCapabilities samrena_strategy_capabilities(SamrenaStrategy strategy);
 
 // =============================================================================
-// STRATEGY API - Strategy Management (Legacy Compatibility)
+// STRATEGY API - Strategy Management
 // =============================================================================
 
 bool samrena_strategy_available(SamrenaStrategy strategy);
 int samrena_available_strategies(SamrenaStrategy* strategies, int max_count);
 const char* samrena_strategy_name(SamrenaStrategy strategy);
-SamrenaPerformanceHints samrena_get_performance_hints(Samrena* arena);
 
 // =============================================================================
 // MEMORY MANAGEMENT API - Advanced Operations
