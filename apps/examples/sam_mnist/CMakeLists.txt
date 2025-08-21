@@ -12,8 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-add_subdirectory(typesafe_example)
-add_subdirectory(iterator_example)
-add_subdirectory(samset_example)
-add_subdirectory(sam_mnist)
-add_subdirectory(sdl_example)
+ptah_add_executable(sam_mnist
+    SOURCES
+        src/main.c
+    DEPENDENCIES
+        samneural
+)
