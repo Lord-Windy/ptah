@@ -17,7 +17,7 @@
 #include <stdio.h>
 #include <string.h>
 #include "samrena.h"
-#include "datazoo/pearl.h"
+#include "samdata/samset.h"
 
 typedef struct {
     int id;
@@ -65,7 +65,7 @@ bool student_equals(const void* a, const void* b, size_t size) {
 }
 
 int main() {
-    printf("=== Pearl Set Data Structure Examples ===\n\n");
+    printf("=== SamSet Data Structure Examples ===\n\n");
     
     Samrena* arena = samrena_create_default();
     if (!arena) {
@@ -74,7 +74,7 @@ int main() {
     }
 
     printf("1. Basic Integer Set Operations:\n");
-    Pearl* int_set = pearl_create(sizeof(int), 8, arena);
+    SamSet* int_set = samset_create(sizeof(int), 8, arena);
     if (!int_set) {
         fprintf(stderr, "Failed to create integer set\n");
         samrena_destroy(arena);
@@ -87,20 +87,20 @@ int main() {
     printf("   Adding values (duplicates should be ignored): ");
     for (int i = 0; i < num_values; i++) {
         printf("%d ", values[i]);
-        pearl_add(int_set, &values[i]);
+        samset_add(int_set, &values[i]);
     }
     printf("\n");
 
-    printf("   Set size: %zu\n", pearl_size(int_set));
+    printf("   Set size: %zu\n", samset_size(int_set));
     printf("   Set contents: ");
-    pearl_foreach(int_set, print_int, (void*)"");
+    samset_foreach(int_set, print_int, (void*)"");
     printf("\n");
 
-    printf("   Contains 3: %s\n", pearl_contains(int_set, &(int){3}) ? "Yes" : "No");
-    printf("   Contains 9: %s\n", pearl_contains(int_set, &(int){9}) ? "Yes" : "No");
+    printf("   Contains 3: %s\n", samset_contains(int_set, &(int){3}) ? "Yes" : "No");
+    printf("   Contains 9: %s\n", samset_contains(int_set, &(int){9}) ? "Yes" : "No");
 
     printf("\n2. Type-safe Integer Set (using macros):\n");
-    int_set_pearl* typed_int_set = int_set_create(8, arena);
+    int_set_samset* typed_int_set = int_set_create(8, arena);
     if (!typed_int_set) {
         fprintf(stderr, "Failed to create typed integer set\n");
         samrena_destroy(arena);
@@ -119,8 +119,8 @@ int main() {
     printf("   Contains 30: %s\n", int_set_contains(typed_int_set, 30) ? "Yes" : "No");
 
     printf("\n3. Student Set with Custom Hash Function:\n");
-    Pearl* student_set = pearl_create_custom(sizeof(Student), 8, arena, 
-                                           student_hash, student_equals);
+    SamSet* student_set = samset_create_custom(sizeof(Student), 8, arena, 
+                                             student_hash, student_equals);
     if (!student_set) {
         fprintf(stderr, "Failed to create student set\n");
         samrena_destroy(arena);
@@ -137,7 +137,7 @@ int main() {
 
     printf("   Adding students (duplicate IDs ignored):\n");
     for (int i = 0; i < 5; i++) {
-        bool added = pearl_add(student_set, &students[i]);
+        bool added = samset_add(student_set, &students[i]);
         printf("   %s: %s (ID: %d)\n", 
                students[i].name, 
                added ? "Added" : "Duplicate", 
@@ -145,67 +145,67 @@ int main() {
     }
 
     printf("\n   Final student set:\n");
-    pearl_foreach(student_set, print_student, NULL);
+    samset_foreach(student_set, print_student, NULL);
 
     printf("\n4. Set Operations and Filtering:\n");
     printf("   Removing element 2 from integer set: %s\n", 
-           pearl_remove(int_set, &(int){2}) ? "Success" : "Not found");
+           samset_remove(int_set, &(int){2}) ? "Success" : "Not found");
     printf("   Set after removal: ");
-    pearl_foreach(int_set, print_int, (void*)"");
+    samset_foreach(int_set, print_int, (void*)"");
     printf("\n");
 
-    Pearl* even_set = pearl_filter(int_set, is_even, NULL, arena);
+    SamSet* even_set = samset_filter(int_set, is_even, NULL, arena);
     if (even_set) {
         printf("   Even numbers only: ");
-        pearl_foreach(even_set, print_int, (void*)"");
+        samset_foreach(even_set, print_int, (void*)"");
         printf("\n");
     }
 
     float score_threshold = 90.0f;
-    Pearl* high_scorers = pearl_filter(student_set, high_scorer, &score_threshold, arena);
+    SamSet* high_scorers = samset_filter(student_set, high_scorer, &score_threshold, arena);
     if (high_scorers) {
         printf("   High scorers (> %.1f):\n", score_threshold);
-        pearl_foreach(high_scorers, print_student, NULL);
+        samset_foreach(high_scorers, print_student, NULL);
     }
 
     printf("\n5. Set Transformation (Map):\n");
-    Pearl* doubled_set = pearl_map(int_set, double_transform, sizeof(int), NULL, arena);
+    SamSet* doubled_set = samset_map(int_set, double_transform, sizeof(int), NULL, arena);
     if (doubled_set) {
         printf("   Original set: ");
-        pearl_foreach(int_set, print_int, (void*)"");
+        samset_foreach(int_set, print_int, (void*)"");
         printf("\n   Doubled set: ");
-        pearl_foreach(doubled_set, print_int, (void*)"");
+        samset_foreach(doubled_set, print_int, (void*)"");
         printf("\n");
     }
 
     printf("\n6. Array Conversion:\n");
     int array[20];
-    size_t copied = pearl_to_array(int_set, array, 20);
+    size_t copied = samset_to_array(int_set, array, 20);
     printf("   Copied %zu elements to array: ", copied);
     for (size_t i = 0; i < copied; i++) {
         printf("%d ", array[i]);
     }
     printf("\n");
 
-    Pearl* from_array_set = pearl_from_array(array, copied, sizeof(int), arena);
+    SamSet* from_array_set = samset_from_array(array, copied, sizeof(int), arena);
     if (from_array_set) {
-        printf("   Created set from array (size: %zu): ", pearl_size(from_array_set));
-        pearl_foreach(from_array_set, print_int, (void*)"");
+        printf("   Created set from array (size: %zu): ", samset_size(from_array_set));
+        samset_foreach(from_array_set, print_int, (void*)"");
         printf("\n");
     }
 
     printf("\n7. Set Copying:\n");
-    Pearl* copied_set = pearl_copy(int_set, arena);
+    SamSet* copied_set = samset_copy(int_set, arena);
     if (copied_set) {
-        printf("   Original set size: %zu\n", pearl_size(int_set));
-        printf("   Copied set size: %zu\n", pearl_size(copied_set));
+        printf("   Original set size: %zu\n", samset_size(int_set));
+        printf("   Copied set size: %zu\n", samset_size(copied_set));
         printf("   Copied set contents: ");
-        pearl_foreach(copied_set, print_int, (void*)"");
+        samset_foreach(copied_set, print_int, (void*)"");
         printf("\n");
     }
 
     printf("\n8. Performance Statistics:\n");
-    PearlStats stats = pearl_get_stats(int_set);
+    SamSetStats stats = samset_get_stats(int_set);
     printf("   Total operations: %zu\n", stats.total_operations);
     printf("   Total collisions: %zu\n", stats.total_collisions);
     printf("   Max chain length: %zu\n", stats.max_chain_length);
@@ -213,17 +213,17 @@ int main() {
     printf("   Resize count: %zu\n", stats.resize_count);
 
     printf("\n9. Error Handling:\n");
-    PearlError last_error = pearl_get_last_error(int_set);
-    printf("   Last error: %s\n", pearl_error_string(last_error));
+    SamSetError last_error = samset_get_last_error(int_set);
+    printf("   Last error: %s\n", samset_error_string(last_error));
 
     printf("\n10. Clear and Empty Check:\n");
     printf("   Before clear - Empty: %s, Size: %zu\n", 
-           pearl_is_empty(int_set) ? "Yes" : "No", pearl_size(int_set));
-    pearl_clear(int_set);
+           samset_is_empty(int_set) ? "Yes" : "No", samset_size(int_set));
+    samset_clear(int_set);
     printf("   After clear - Empty: %s, Size: %zu\n", 
-           pearl_is_empty(int_set) ? "Yes" : "No", pearl_size(int_set));
+           samset_is_empty(int_set) ? "Yes" : "No", samset_size(int_set));
 
     samrena_destroy(arena);
-    printf("\nPearl set example completed successfully!\n");
+    printf("\nSamSet example completed successfully!\n");
     return 0;
 }

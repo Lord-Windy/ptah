@@ -16,14 +16,14 @@
 
 #include <stdio.h>
 
-#include "datazoo_tests.h"
+#include "samdata_tests.h"
 
 int main(int argc, char **argv) {
 
-  printf("STARTING DATAZOO TESTS\n");
+  printf("STARTING SAMDATA TESTS\n");
 
-  honeycomb_tests();
-  typed_honeycomb_tests();
+  samhashmap_tests();
+  typed_samhashmap_tests();
 
   return 0;
 }

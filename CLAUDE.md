@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Ptah is a CMake-based C monorepo with Bazel-like modularity. The repository contains two main libraries (`samrena` and `datazoo`) and example applications showcasing their integration. The project uses C11 standard and follows a structured approach to library development with hexagonal architecture patterns.
+Ptah is a CMake-based C monorepo with Bazel-like modularity. The repository contains two main libraries (`samrena` and `samdata`) and example applications showcasing their integration. The project uses C11 standard and follows a structured approach to library development with hexagonal architecture patterns.
 
 ## Architecture
 
@@ -16,17 +16,17 @@ Ptah is a CMake-based C monorepo with Bazel-like modularity. The repository cont
 - Cross-platform virtual memory support (Windows, macOS, Linux)
 - Includes SamrenaVector for dynamic arrays using arena allocation
 
-**datazoo** - Data Structures Collection
-- **Honeycomb**: Hash map implementation with multiple hash functions (DJB2, FNV1A, Murmur3)
-- **Pearl**: Set data structure for unique elements
-- **Starfish**: Additional data structure (in development)
+**samdata** - Data Structures Collection
+- **SamHashMap**: Hash map implementation with multiple hash functions (DJB2, FNV1A, Murmur3)
+- **SamSet**: Set data structure for unique elements
+- **SamHash**: Hash function collection (DJB2, FNV1A, Murmur3)
 - All structures are arena-backed using samrena for memory management
 
 ### Dependency Graph
 ```
-datazoo → samrena
-demo → samrena, datazoo
-examples → samrena, datazoo
+samdata → samrena
+demo → samrena, samdata
+examples → samrena, samdata
 ```
 
 ## Build System
@@ -205,7 +205,7 @@ Tests are automatically built when `BUILD_TESTING=ON` (default). Each library ca
 
 ### Test Organization
 - **Samrena tests**: Basic arena, vector operations, performance, type safety, adapters
-- **Datazoo tests**: Honeycomb (hash map) and Pearl (set) functionality, collision handling, resizing
+- **Samdata tests**: SamHashMap (hash map) and SamSet (set) functionality, collision handling, resizing
 
 ### Platform-Specific Notes
 The project includes sophisticated platform detection for virtual memory support. The Valgrind build type restricts CPU instructions to ensure compatibility with Valgrind's instruction set emulation.

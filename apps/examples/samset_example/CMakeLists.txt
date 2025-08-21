@@ -12,10 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-ptah_add_executable(pearl_example
+ptah_add_executable(samset_example
     SOURCES
-        pearl_example.c
+        samset_example.c
     DEPENDENCIES
         samrena
-        datazoo
+        samdata
 )

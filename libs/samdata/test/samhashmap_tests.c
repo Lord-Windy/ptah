@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-#include "datazoo_tests.h"
+#include "samdata_tests.h"
 #include <assert.h>
 #include <stdio.h>
 #include <string.h>
@@ -31,111 +31,111 @@ char *global_dictionary[50] = {
     "anyone",   "anything", "appear",   "apply",     "approach",  "area",
     "argue",    "arm"};
 
-void honeycomb_tests_adding_words() {
-  printf("HONEYCOMB TESTS ADDING WORDS\n");
+void samhashmap_tests_adding_words() {
+  printf("SAMHASHMAP TESTS ADDING WORDS\n");
 
   Samrena *arena = samrena_create_default();
-  Honeycomb *comb = honeycomb_create(10, arena);
+  SamHashMap *comb = samhashmap_create(10, arena);
 
   for (int i = 0; i < 50; i++) {
     int *x = samrena_push(arena, sizeof(int *));
     *x = i;
-    honeycomb_put(comb, global_dictionary[i], x);
+    samhashmap_put(comb, global_dictionary[i], x);
   }
 
-  honeycomb_print(comb);
-  honeycomb_destroy(comb);
+  samhashmap_print(comb);
+  samhashmap_destroy(comb);
   samrena_destroy(arena);
 }
 
-void honeycomb_tests_get_words() {
+void samhashmap_tests_get_words() {
 
-  printf("HONEYCOMB TESTS GET WORDS\n");
+  printf("SAMHASHMAP TESTS GET WORDS\n");
 
   Samrena *arena = samrena_create_default();
-  Honeycomb *comb = honeycomb_create(10, arena);
+  SamHashMap *comb = samhashmap_create(10, arena);
   for (int i = 0; i < 50; i++) {
     int *x = samrena_push(arena, sizeof(int *));
     *x = i;
-    honeycomb_put(comb, global_dictionary[i], x);
+    samhashmap_put(comb, global_dictionary[i], x);
   }
 
   for (int i = 0; i < 50; i++) {
-    const int *x = honeycomb_get(comb, global_dictionary[i]);
+    const int *x = samhashmap_get(comb, global_dictionary[i]);
     printf("%s: %d\n", global_dictionary[i], *x);
     assert(*x == i);
   }
 
-  honeycomb_destroy(comb);
+  samhashmap_destroy(comb);
   samrena_destroy(arena);
 }
 
-void honeycomb_tests_remove_words() {
-  printf("HONEYCOMB TESTS REMOVE WORDS\n");
+void samhashmap_tests_remove_words() {
+  printf("SAMHASHMAP TESTS REMOVE WORDS\n");
 
   Samrena *arena = samrena_create_default();
-  Honeycomb *comb = honeycomb_create(10, arena);
+  SamHashMap *comb = samhashmap_create(10, arena);
   for (int i = 0; i < 50; i++) {
     int *x = samrena_push(arena, sizeof(int *));
     *x = i;
-    honeycomb_put(comb, global_dictionary[i], x);
+    samhashmap_put(comb, global_dictionary[i], x);
   }
 
   for (int i = 0; i < 25; i++) {
-    honeycomb_remove(comb, global_dictionary[i]);
+    samhashmap_remove(comb, global_dictionary[i]);
   }
 
   for (int i = 0; i < 50; i++) {
-    const int *x = honeycomb_get(comb, global_dictionary[i]);
+    const int *x = samhashmap_get(comb, global_dictionary[i]);
     printf("%s: %d\n", global_dictionary[i], x == NULL ? -1 : *x);
   }
 
-  honeycomb_destroy(comb);
+  samhashmap_destroy(comb);
   samrena_destroy(arena);
 }
 
-void honeycomb_tests_contains_words() {
-  printf("HONEYCOMB TESTS CONTAINS WORDS\n");
+void samhashmap_tests_contains_words() {
+  printf("SAMHASHMAP TESTS CONTAINS WORDS\n");
   Samrena *arena = samrena_create_default();
-  Honeycomb *comb = honeycomb_create(10, arena);
+  SamHashMap *comb = samhashmap_create(10, arena);
 
   for (int i = 0; i < 50; i++) {
     int *x = samrena_push(arena, sizeof(int *));
     *x = i;
-    honeycomb_put(comb, global_dictionary[i], x);
+    samhashmap_put(comb, global_dictionary[i], x);
   }
 
   for (int i = 0; i < 50; i++) {
-    printf("%s: %d\n", global_dictionary[i], honeycomb_contains(comb, global_dictionary[i]));
-    assert(honeycomb_contains(comb, global_dictionary[i]));
+    printf("%s: %d\n", global_dictionary[i], samhashmap_contains(comb, global_dictionary[i]));
+    assert(samhashmap_contains(comb, global_dictionary[i]));
   }
 
-  honeycomb_destroy(comb);
+  samhashmap_destroy(comb);
   samrena_destroy(arena);
 }
 
-void honeycomb_tests_size() {
-  printf("HONEYCOMB TESTS SIZE\n");
+void samhashmap_tests_size() {
+  printf("SAMHASHMAP TESTS SIZE\n");
   Samrena *arena = samrena_create_default();
-  Honeycomb *comb = honeycomb_create(10, arena);
+  SamHashMap *comb = samhashmap_create(10, arena);
 
   for (int i = 0; i < 50; i++) {
     int *x = samrena_push(arena, sizeof(int *));
     *x = i;
-    honeycomb_put(comb, global_dictionary[i], x);
+    samhashmap_put(comb, global_dictionary[i], x);
   }
 
-  printf("size: %zu\n", honeycomb_size(comb));
-  assert(honeycomb_size(comb) == 50);
+  printf("size: %zu\n", samhashmap_size(comb));
+  assert(samhashmap_size(comb) == 50);
 
-  honeycomb_destroy(comb);
+  samhashmap_destroy(comb);
   samrena_destroy(arena);
 }
 
-void honeycomb_tests_update_words() {
-  printf("HONEYCOMB TESTS UPDATE WORDS\n");
+void samhashmap_tests_update_words() {
+  printf("SAMHASHMAP TESTS UPDATE WORDS\n");
   Samrena *arena = samrena_create_default();
-  Honeycomb *comb = honeycomb_create(10, arena);
+  SamHashMap *comb = samhashmap_create(10, arena);
   
   // Test updating existing keys
   int *original_value = samrena_push(arena, sizeof(int));
@@ -144,31 +144,31 @@ void honeycomb_tests_update_words() {
   *new_value = 200;
   
   // Insert initial value
-  honeycomb_put(comb, "test_key", original_value);
-  assert(honeycomb_size(comb) == 1);
+  samhashmap_put(comb, "test_key", original_value);
+  assert(samhashmap_size(comb) == 1);
   
   // Verify initial value
-  int *retrieved = honeycomb_get(comb, "test_key");
+  int *retrieved = samhashmap_get(comb, "test_key");
   assert(retrieved != NULL && *retrieved == 100);
   
   // Update with new value
-  honeycomb_put(comb, "test_key", new_value);
-  assert(honeycomb_size(comb) == 1);  // Size should remain the same
+  samhashmap_put(comb, "test_key", new_value);
+  assert(samhashmap_size(comb) == 1);  // Size should remain the same
   
   // Verify new value
-  retrieved = honeycomb_get(comb, "test_key");
+  retrieved = samhashmap_get(comb, "test_key");
   assert(retrieved != NULL && *retrieved == 200);
   
   printf("Update test passed!\n");
   
-  honeycomb_destroy(comb);
+  samhashmap_destroy(comb);
   samrena_destroy(arena);
 }
 
-void honeycomb_tests_key_copying() {
-  printf("HONEYCOMB TESTS KEY COPYING\n");
+void samhashmap_tests_key_copying() {
+  printf("SAMHASHMAP TESTS KEY COPYING\n");
   Samrena *arena = samrena_create_default();
-  Honeycomb *comb = honeycomb_create(10, arena);
+  SamHashMap *comb = samhashmap_create(10, arena);
   
   // Create a key in a local buffer
   char local_key[32];
@@ -177,34 +177,34 @@ void honeycomb_tests_key_copying() {
   // Insert with the local key
   int *value = samrena_push(arena, sizeof(int));
   *value = 42;
-  honeycomb_put(comb, local_key, value);
+  samhashmap_put(comb, local_key, value);
   
   // Modify the local buffer
   strcpy(local_key, "modified");
   
   // Verify the hash map still has the original key
-  int *retrieved = honeycomb_get(comb, "test_key");
+  int *retrieved = samhashmap_get(comb, "test_key");
   assert(retrieved != NULL);
   assert(*retrieved == 42);
   
   // Verify the modified key is not found
-  assert(honeycomb_get(comb, "modified") == NULL);
+  assert(samhashmap_get(comb, "modified") == NULL);
   
   printf("Key copying test passed!\n");
   
-  honeycomb_destroy(comb);
+  samhashmap_destroy(comb);
   samrena_destroy(arena);
 }
 
-void honeycomb_tests() {
+void samhashmap_tests() {
   // Original basic tests
-  honeycomb_tests_adding_words();
-  honeycomb_tests_get_words();
-  honeycomb_tests_remove_words();
-  honeycomb_tests_size();
-  honeycomb_tests_contains_words();
-  honeycomb_tests_update_words();
-  honeycomb_tests_key_copying();
+  samhashmap_tests_adding_words();
+  samhashmap_tests_get_words();
+  samhashmap_tests_remove_words();
+  samhashmap_tests_size();
+  samhashmap_tests_contains_words();
+  samhashmap_tests_update_words();
+  samhashmap_tests_key_copying();
   
   // New comprehensive test suites (Steps 16-17)
   comprehensive_edge_case_tests();
@@ -221,7 +221,7 @@ void test_string_string_map() {
   printf("TESTING string_string_map\n");
   
   Samrena *arena = samrena_create_default();
-  string_string_honeycomb *map = string_string_create(10, arena);
+  string_string_samhashmap *map = string_string_create(10, arena);
   
   // Test basic operations
   assert(string_string_is_empty(map));
@@ -262,7 +262,7 @@ void test_string_int_map() {
   printf("TESTING string_int_map\n");
   
   Samrena *arena = samrena_create_default();
-  string_int_honeycomb *map = string_int_create(10, arena);
+  string_int_samhashmap *map = string_int_create(10, arena);
   
   // Create some integers in the arena
   int *val1 = samrena_push(arena, sizeof(int));
@@ -296,7 +296,7 @@ void test_string_ptr_map() {
   printf("TESTING string_ptr_map\n");
   
   Samrena *arena = samrena_create_default();
-  string_ptr_honeycomb *map = string_ptr_create(10, arena);
+  string_ptr_samhashmap *map = string_ptr_create(10, arena);
   
   // Use different pointer types
   char *str_ptr = samrena_push(arena, 20);
@@ -334,7 +334,7 @@ void test_typed_foreach() {
   printf("TESTING typed foreach\n");
   
   Samrena *arena = samrena_create_default();
-  string_int_honeycomb *map = string_int_create(10, arena);
+  string_int_samhashmap *map = string_int_create(10, arena);
   
   // Add some test data
   for (int i = 0; i < 5; i++) {
@@ -393,13 +393,13 @@ void test_null_safety() {
 }
 
 // Define a custom type-safe map for our specific use case
-HONEYCOMB_DEFINE_TYPED(word_index, const char*, int*)
+SAMHASHMAP_DEFINE_TYPED(word_index, const char*, int*)
 
 void test_custom_typed_map() {
   printf("TESTING custom typed map definition\n");
   
   Samrena *arena = samrena_create_default();
-  word_index_honeycomb *word_map = word_index_create(10, arena);
+  word_index_samhashmap *word_map = word_index_create(10, arena);
   
   // Use it like the predefined ones
   int *index1 = samrena_push(arena, sizeof(int));
@@ -424,65 +424,65 @@ void test_custom_typed_map() {
 // COMPREHENSIVE EDGE CASE TESTS (Step 16 from planning)
 
 void test_empty_hashmap() {
-  printf("TESTING empty hashmap edge cases\n");
+  printf("TESTING empty samhashmap edge cases\n");
   
   Samrena *arena = samrena_create_default();
-  Honeycomb *comb = honeycomb_create(10, arena);
+  SamHashMap *comb = samhashmap_create(10, arena);
   
   // Test operations on empty hashmap
-  assert(honeycomb_size(comb) == 0);
-  assert(honeycomb_is_empty(comb));
-  assert(honeycomb_get(comb, "nonexistent") == NULL);
-  assert(!honeycomb_contains(comb, "nonexistent"));
-  assert(!honeycomb_remove(comb, "nonexistent"));
+  assert(samhashmap_size(comb) == 0);
+  assert(samhashmap_is_empty(comb));
+  assert(samhashmap_get(comb, "nonexistent") == NULL);
+  assert(!samhashmap_contains(comb, "nonexistent"));
+  assert(!samhashmap_remove(comb, "nonexistent"));
   
   // Clear empty hashmap should not crash
-  honeycomb_clear(comb);
-  assert(honeycomb_size(comb) == 0);
+  samhashmap_clear(comb);
+  assert(samhashmap_size(comb) == 0);
   
   // Get keys/values from empty hashmap
   const char *keys[10];
   void *values[10];
-  assert(honeycomb_get_keys(comb, keys, 10) == 0);
-  assert(honeycomb_get_values(comb, values, 10) == 0);
+  assert(samhashmap_get_keys(comb, keys, 10) == 0);
+  assert(samhashmap_get_values(comb, values, 10) == 0);
   
-  honeycomb_destroy(comb);
+  samhashmap_destroy(comb);
   samrena_destroy(arena);
-  printf("Empty hashmap tests passed!\n");
+  printf("Empty samhashmap tests passed!\n");
 }
 
 void test_single_element() {
   printf("TESTING single element edge cases\n");
   
   Samrena *arena = samrena_create_default();
-  Honeycomb *comb = honeycomb_create(1, arena);  // Very small capacity
+  SamHashMap *comb = samhashmap_create(1, arena);  // Very small capacity
   
   int *value = samrena_push(arena, sizeof(int));
   *value = 42;
   
   // Add single element
-  assert(honeycomb_put(comb, "single", value));
-  assert(honeycomb_size(comb) == 1);
-  assert(!honeycomb_is_empty(comb));
+  assert(samhashmap_put(comb, "single", value));
+  assert(samhashmap_size(comb) == 1);
+  assert(!samhashmap_is_empty(comb));
   
   // Verify retrieval
-  int *retrieved = honeycomb_get(comb, "single");
+  int *retrieved = samhashmap_get(comb, "single");
   assert(retrieved != NULL && *retrieved == 42);
-  assert(honeycomb_contains(comb, "single"));
+  assert(samhashmap_contains(comb, "single"));
   
   // Test with different key
-  assert(honeycomb_get(comb, "different") == NULL);
-  assert(!honeycomb_contains(comb, "different"));
+  assert(samhashmap_get(comb, "different") == NULL);
+  assert(!samhashmap_contains(comb, "different"));
   
   // Remove the single element
-  assert(honeycomb_remove(comb, "single"));
-  assert(honeycomb_size(comb) == 0);
-  assert(honeycomb_is_empty(comb));
+  assert(samhashmap_remove(comb, "single"));
+  assert(samhashmap_size(comb) == 0);
+  assert(samhashmap_is_empty(comb));
   
   // Try to remove again
-  assert(!honeycomb_remove(comb, "single"));
+  assert(!samhashmap_remove(comb, "single"));
   
-  honeycomb_destroy(comb);
+  samhashmap_destroy(comb);
   samrena_destroy(arena);
   printf("Single element tests passed!\n");
 }
@@ -491,24 +491,24 @@ void test_null_key_and_values() {
   printf("TESTING null key and value handling\n");
   
   Samrena *arena = samrena_create_default();
-  Honeycomb *comb = honeycomb_create(10, arena);
+  SamHashMap *comb = samhashmap_create(10, arena);
   
   int *value = samrena_push(arena, sizeof(int));
   *value = 42;
   
   // Test null key
-  assert(!honeycomb_put(comb, NULL, value));
-  assert(honeycomb_get(comb, NULL) == NULL);
-  assert(!honeycomb_contains(comb, NULL));
-  assert(!honeycomb_remove(comb, NULL));
+  assert(!samhashmap_put(comb, NULL, value));
+  assert(samhashmap_get(comb, NULL) == NULL);
+  assert(!samhashmap_contains(comb, NULL));
+  assert(!samhashmap_remove(comb, NULL));
   
   // Test null value (should be allowed)
-  assert(honeycomb_put(comb, "null_value", NULL));
-  assert(honeycomb_contains(comb, "null_value"));
-  assert(honeycomb_get(comb, "null_value") == NULL);
-  assert(honeycomb_size(comb) == 1);
+  assert(samhashmap_put(comb, "null_value", NULL));
+  assert(samhashmap_contains(comb, "null_value"));
+  assert(samhashmap_get(comb, "null_value") == NULL);
+  assert(samhashmap_size(comb) == 1);
   
-  honeycomb_destroy(comb);
+  samhashmap_destroy(comb);
   samrena_destroy(arena);
   printf("Null handling tests passed!\n");
 }
@@ -517,22 +517,22 @@ void test_empty_string_key() {
   printf("TESTING empty string key\n");
   
   Samrena *arena = samrena_create_default();
-  Honeycomb *comb = honeycomb_create(10, arena);
+  SamHashMap *comb = samhashmap_create(10, arena);
   
   int *value = samrena_push(arena, sizeof(int));
   *value = 42;
   
   // Test empty string key
-  assert(honeycomb_put(comb, "", value));
-  assert(honeycomb_contains(comb, ""));
+  assert(samhashmap_put(comb, "", value));
+  assert(samhashmap_contains(comb, ""));
   
-  int *retrieved = honeycomb_get(comb, "");
+  int *retrieved = samhashmap_get(comb, "");
   assert(retrieved != NULL && *retrieved == 42);
   
-  assert(honeycomb_remove(comb, ""));
-  assert(!honeycomb_contains(comb, ""));
+  assert(samhashmap_remove(comb, ""));
+  assert(!samhashmap_contains(comb, ""));
   
-  honeycomb_destroy(comb);
+  samhashmap_destroy(comb);
   samrena_destroy(arena);
   printf("Empty string key tests passed!\n");
 }
@@ -541,7 +541,7 @@ void test_duplicate_keys() {
   printf("TESTING duplicate key handling\n");
   
   Samrena *arena = samrena_create_default();
-  Honeycomb *comb = honeycomb_create(10, arena);
+  SamHashMap *comb = samhashmap_create(10, arena);
   
   int *value1 = samrena_push(arena, sizeof(int));
   int *value2 = samrena_push(arena, sizeof(int));
@@ -549,18 +549,18 @@ void test_duplicate_keys() {
   *value2 = 200;
   
   // Insert first value
-  assert(honeycomb_put(comb, "duplicate", value1));
-  assert(honeycomb_size(comb) == 1);
+  assert(samhashmap_put(comb, "duplicate", value1));
+  assert(samhashmap_size(comb) == 1);
   
   // Insert second value with same key
-  assert(honeycomb_put(comb, "duplicate", value2));
-  assert(honeycomb_size(comb) == 1);  // Size should not increase
+  assert(samhashmap_put(comb, "duplicate", value2));
+  assert(samhashmap_size(comb) == 1);  // Size should not increase
   
   // Should get the updated value
-  int *retrieved = honeycomb_get(comb, "duplicate");
+  int *retrieved = samhashmap_get(comb, "duplicate");
   assert(retrieved != NULL && *retrieved == 200);
   
-  honeycomb_destroy(comb);
+  samhashmap_destroy(comb);
   samrena_destroy(arena);
   printf("Duplicate key tests passed!\n");
 }
@@ -569,7 +569,7 @@ void test_very_long_keys() {
   printf("TESTING very long keys\n");
   
   Samrena *arena = samrena_create_default();
-  Honeycomb *comb = honeycomb_create(10, arena);
+  SamHashMap *comb = samhashmap_create(10, arena);
   
   // Create a very long key (1000 characters)
   char *long_key = samrena_push(arena, 1001);
@@ -582,16 +582,16 @@ void test_very_long_keys() {
   *value = 42;
   
   // Test operations with very long key
-  assert(honeycomb_put(comb, long_key, value));
-  assert(honeycomb_contains(comb, long_key));
+  assert(samhashmap_put(comb, long_key, value));
+  assert(samhashmap_contains(comb, long_key));
   
-  int *retrieved = honeycomb_get(comb, long_key);
+  int *retrieved = samhashmap_get(comb, long_key);
   assert(retrieved != NULL && *retrieved == 42);
   
-  assert(honeycomb_remove(comb, long_key));
-  assert(!honeycomb_contains(comb, long_key));
+  assert(samhashmap_remove(comb, long_key));
+  assert(!samhashmap_contains(comb, long_key));
   
-  honeycomb_destroy(comb);
+  samhashmap_destroy(comb);
   samrena_destroy(arena);
   printf("Very long key tests passed!\n");
 }
@@ -600,7 +600,7 @@ void test_similar_keys() {
   printf("TESTING similar keys (hash collision potential)\n");
   
   Samrena *arena = samrena_create_default();
-  Honeycomb *comb = honeycomb_create(10, arena);
+  SamHashMap *comb = samhashmap_create(10, arena);
   
   // Use keys that might hash to similar values
   const char *similar_keys[] = {
@@ -613,33 +613,33 @@ void test_similar_keys() {
   for (int i = 0; i < num_keys; i++) {
     int *value = samrena_push(arena, sizeof(int));
     *value = i;
-    assert(honeycomb_put(comb, similar_keys[i], value));
+    assert(samhashmap_put(comb, similar_keys[i], value));
   }
   
-  assert(honeycomb_size(comb) == (size_t)num_keys);
+  assert(samhashmap_size(comb) == (size_t)num_keys);
   
   // Verify all keys can be retrieved correctly
   for (int i = 0; i < num_keys; i++) {
-    int *retrieved = honeycomb_get(comb, similar_keys[i]);
+    int *retrieved = samhashmap_get(comb, similar_keys[i]);
     assert(retrieved != NULL && *retrieved == i);
-    assert(honeycomb_contains(comb, similar_keys[i]));
+    assert(samhashmap_contains(comb, similar_keys[i]));
   }
   
   // Remove every other key
   for (int i = 0; i < num_keys; i += 2) {
-    assert(honeycomb_remove(comb, similar_keys[i]));
+    assert(samhashmap_remove(comb, similar_keys[i]));
   }
   
   // Verify remaining keys
   for (int i = 0; i < num_keys; i++) {
     if (i % 2 == 0) {
-      assert(!honeycomb_contains(comb, similar_keys[i]));
+      assert(!samhashmap_contains(comb, similar_keys[i]));
     } else {
-      assert(honeycomb_contains(comb, similar_keys[i]));
+      assert(samhashmap_contains(comb, similar_keys[i]));
     }
   }
   
-  honeycomb_destroy(comb);
+  samhashmap_destroy(comb);
   samrena_destroy(arena);
   printf("Similar key tests passed!\n");
 }
@@ -651,7 +651,7 @@ void test_forced_collisions() {
   
   Samrena *arena = samrena_create_default();
   // Use very small capacity to force collisions
-  Honeycomb *comb = honeycomb_create(2, arena);
+  SamHashMap *comb = samhashmap_create(2, arena);
   
   // Add many items to force collisions in the small table
   const int num_items = 20;
@@ -662,20 +662,20 @@ void test_forced_collisions() {
     int *value = samrena_push(arena, sizeof(int));
     *value = i * 10;
     
-    assert(honeycomb_put(comb, key, value));
+    assert(samhashmap_put(comb, key, value));
   }
   
-  assert(honeycomb_size(comb) == num_items);
+  assert(samhashmap_size(comb) == num_items);
   
   // Verify all items can be retrieved despite collisions
   for (int i = 0; i < num_items; i++) {
     char key[32];
     sprintf(key, "key_%d", i);
     
-    int *retrieved = honeycomb_get(comb, key);
+    int *retrieved = samhashmap_get(comb, key);
     assert(retrieved != NULL);
     assert(*retrieved == i * 10);
-    assert(honeycomb_contains(comb, key));
+    assert(samhashmap_contains(comb, key));
   }
   
   // Remove items in random order and verify remaining items
@@ -685,7 +685,7 @@ void test_forced_collisions() {
   for (int i = 0; i < remove_count; i++) {
     char key[32];
     sprintf(key, "key_%d", remove_order[i]);
-    assert(honeycomb_remove(comb, key));
+    assert(samhashmap_remove(comb, key));
   }
   
   // Verify removed items are gone and remaining items are still there
@@ -699,16 +699,16 @@ void test_forced_collisions() {
     sprintf(key, "key_%d", i);
     
     if (removed[i]) {
-      assert(!honeycomb_contains(comb, key));
-      assert(honeycomb_get(comb, key) == NULL);
+      assert(!samhashmap_contains(comb, key));
+      assert(samhashmap_get(comb, key) == NULL);
     } else {
-      assert(honeycomb_contains(comb, key));
-      int *retrieved = honeycomb_get(comb, key);
+      assert(samhashmap_contains(comb, key));
+      int *retrieved = samhashmap_get(comb, key);
       assert(retrieved != NULL && *retrieved == i * 10);
     }
   }
   
-  honeycomb_destroy(comb);
+  samhashmap_destroy(comb);
   samrena_destroy(arena);
   printf("Forced collision tests passed!\n");
 }
@@ -717,7 +717,7 @@ void test_collision_chain_integrity() {
   printf("TESTING collision chain integrity\n");
   
   Samrena *arena = samrena_create_default();
-  Honeycomb *comb = honeycomb_create(1, arena);  // Force everything into one bucket
+  SamHashMap *comb = samhashmap_create(1, arena);  // Force everything into one bucket
   
   const char *test_keys[] = {
     "first", "second", "third", "fourth", "fifth"
@@ -728,35 +728,35 @@ void test_collision_chain_integrity() {
   for (int i = 0; i < num_keys; i++) {
     int *value = samrena_push(arena, sizeof(int));
     *value = i + 100;
-    assert(honeycomb_put(comb, test_keys[i], value));
+    assert(samhashmap_put(comb, test_keys[i], value));
   }
   
   // Remove middle element and verify chain remains intact
-  assert(honeycomb_remove(comb, "third"));
-  assert(!honeycomb_contains(comb, "third"));
+  assert(samhashmap_remove(comb, "third"));
+  assert(!samhashmap_contains(comb, "third"));
   
   // Verify other elements are still accessible
   for (int i = 0; i < num_keys; i++) {
     if (strcmp(test_keys[i], "third") != 0) {
-      assert(honeycomb_contains(comb, test_keys[i]));
-      int *retrieved = honeycomb_get(comb, test_keys[i]);
+      assert(samhashmap_contains(comb, test_keys[i]));
+      int *retrieved = samhashmap_get(comb, test_keys[i]);
       assert(retrieved != NULL && *retrieved == i + 100);
     }
   }
   
   // Remove first element (head of chain)
-  assert(honeycomb_remove(comb, "first"));
+  assert(samhashmap_remove(comb, "first"));
   
   // Verify remaining elements are still accessible
   for (int i = 0; i < num_keys; i++) {
     if (strcmp(test_keys[i], "first") != 0 && strcmp(test_keys[i], "third") != 0) {
-      assert(honeycomb_contains(comb, test_keys[i]));
-      int *retrieved = honeycomb_get(comb, test_keys[i]);
+      assert(samhashmap_contains(comb, test_keys[i]));
+      int *retrieved = samhashmap_get(comb, test_keys[i]);
       assert(retrieved != NULL && *retrieved == i + 100);
     }
   }
   
-  honeycomb_destroy(comb);
+  samhashmap_destroy(comb);
   samrena_destroy(arena);
   printf("Collision chain integrity tests passed!\n");
 }
@@ -765,7 +765,7 @@ void test_collision_with_updates() {
   printf("TESTING collision handling with updates\n");
   
   Samrena *arena = samrena_create_default();
-  Honeycomb *comb = honeycomb_create(3, arena);  // Small capacity for collisions
+  SamHashMap *comb = samhashmap_create(3, arena);  // Small capacity for collisions
   
   // Insert items that will likely collide
   int *value1 = samrena_push(arena, sizeof(int));
@@ -778,24 +778,24 @@ void test_collision_with_updates() {
   *value3 = 300;
   *new_value2 = 250;
   
-  assert(honeycomb_put(comb, "collide_a", value1));
-  assert(honeycomb_put(comb, "collide_b", value2));
-  assert(honeycomb_put(comb, "collide_c", value3));
+  assert(samhashmap_put(comb, "collide_a", value1));
+  assert(samhashmap_put(comb, "collide_b", value2));
+  assert(samhashmap_put(comb, "collide_c", value3));
   
   // Update middle item in collision chain
-  assert(honeycomb_put(comb, "collide_b", new_value2));
-  assert(honeycomb_size(comb) == 3);  // Size should remain the same
+  assert(samhashmap_put(comb, "collide_b", new_value2));
+  assert(samhashmap_size(comb) == 3);  // Size should remain the same
   
   // Verify all values are correct
-  int *retrieved_a = honeycomb_get(comb, "collide_a");
-  int *retrieved_b = honeycomb_get(comb, "collide_b");
-  int *retrieved_c = honeycomb_get(comb, "collide_c");
+  int *retrieved_a = samhashmap_get(comb, "collide_a");
+  int *retrieved_b = samhashmap_get(comb, "collide_b");
+  int *retrieved_c = samhashmap_get(comb, "collide_c");
   
   assert(retrieved_a != NULL && *retrieved_a == 100);
   assert(retrieved_b != NULL && *retrieved_b == 250);  // Updated value
   assert(retrieved_c != NULL && *retrieved_c == 300);
   
-  honeycomb_destroy(comb);
+  samhashmap_destroy(comb);
   samrena_destroy(arena);
   printf("Collision with updates tests passed!\n");
 }
@@ -806,7 +806,7 @@ void test_automatic_growth() {
   printf("TESTING automatic growth behavior\n");
   
   Samrena *arena = samrena_create_default();
-  Honeycomb *comb = honeycomb_create(4, arena);  // Start small
+  SamHashMap *comb = samhashmap_create(4, arena);  // Start small
   
   size_t initial_capacity = comb->capacity;
   printf("Initial capacity: %zu\n", initial_capacity);
@@ -822,13 +822,13 @@ void test_automatic_growth() {
     int *value = samrena_push(arena, sizeof(int));
     *value = i * 5;
     
-    size_t size_before = honeycomb_size(comb);
+    size_t size_before = samhashmap_size(comb);
     size_t capacity_before = comb->capacity;
     
-    assert(honeycomb_put(comb, key, value));
+    assert(samhashmap_put(comb, key, value));
     
     printf("Added item %d, size: %zu, capacity: %zu\n", 
-           i, honeycomb_size(comb), comb->capacity);
+           i, samhashmap_size(comb), comb->capacity);
     
     // Check if resize occurred
     if (comb->capacity > capacity_before) {
@@ -838,20 +838,20 @@ void test_automatic_growth() {
   
   // Verify final capacity is greater than initial
   assert(comb->capacity > initial_capacity);
-  assert(honeycomb_size(comb) == items_to_add);
+  assert(samhashmap_size(comb) == items_to_add);
   
   // Verify all items are still accessible after resizes
   for (int i = 0; i < items_to_add; i++) {
     char key[32];
     sprintf(key, "grow_key_%d", i);
     
-    int *retrieved = honeycomb_get(comb, key);
+    int *retrieved = samhashmap_get(comb, key);
     assert(retrieved != NULL);
     assert(*retrieved == i * 5);
-    assert(honeycomb_contains(comb, key));
+    assert(samhashmap_contains(comb, key));
   }
   
-  honeycomb_destroy(comb);
+  samhashmap_destroy(comb);
   samrena_destroy(arena);
   printf("Automatic growth tests passed!\n");
 }
@@ -860,7 +860,7 @@ void test_load_factor_threshold() {
   printf("TESTING load factor threshold behavior\n");
   
   Samrena *arena = samrena_create_default();
-  Honeycomb *comb = honeycomb_create(8, arena);
+  SamHashMap *comb = samhashmap_create(8, arena);
   
   // Default load factor should be 0.75
   float load_factor = comb->load_factor;
@@ -879,7 +879,7 @@ void test_load_factor_threshold() {
     int *value = samrena_push(arena, sizeof(int));
     *value = (int)i;
     
-    assert(honeycomb_put(comb, key, value));
+    assert(samhashmap_put(comb, key, value));
     assert(comb->capacity == capacity);  // Should not resize yet
   }
   
@@ -889,13 +889,13 @@ void test_load_factor_threshold() {
   int *value = samrena_push(arena, sizeof(int));
   *value = (int)threshold;
   
-  assert(honeycomb_put(comb, key, value));
+  assert(samhashmap_put(comb, key, value));
   assert(comb->capacity > capacity);  // Should have resized
   
   printf("Resize triggered at size %zu with capacity %zu\n", 
-         honeycomb_size(comb), comb->capacity);
+         samhashmap_size(comb), comb->capacity);
   
-  honeycomb_destroy(comb);
+  samhashmap_destroy(comb);
   samrena_destroy(arena);
   printf("Load factor threshold tests passed!\n");
 }
@@ -904,7 +904,7 @@ void test_resize_preserves_data() {
   printf("TESTING data preservation during resize\n");
   
   Samrena *arena = samrena_create_default();
-  Honeycomb *comb = honeycomb_create(2, arena);  // Very small for quick resize
+  SamHashMap *comb = samhashmap_create(2, arena);  // Very small for quick resize
   
   // Use test data that we know well
   const char *test_data[][2] = {
@@ -925,23 +925,23 @@ void test_resize_preserves_data() {
     char *value = samrena_push(arena, strlen(test_data[i][1]) + 1);
     strcpy(value, test_data[i][1]);
     
-    assert(honeycomb_put(comb, test_data[i][0], value));
+    assert(samhashmap_put(comb, test_data[i][0], value));
     printf("Added %s->%s (size: %zu, capacity: %zu)\n", 
            test_data[i][0], test_data[i][1], 
-           honeycomb_size(comb), comb->capacity);
+           samhashmap_size(comb), comb->capacity);
   }
   
   // Verify all data is preserved and accessible
-  assert(honeycomb_size(comb) == (size_t)num_items);
+  assert(samhashmap_size(comb) == (size_t)num_items);
   
   for (int i = 0; i < num_items; i++) {
-    char *retrieved = (char*)honeycomb_get(comb, test_data[i][0]);
+    char *retrieved = (char*)samhashmap_get(comb, test_data[i][0]);
     assert(retrieved != NULL);
     assert(strcmp(retrieved, test_data[i][1]) == 0);
     printf("Verified %s->%s\n", test_data[i][0], retrieved);
   }
   
-  honeycomb_destroy(comb);
+  samhashmap_destroy(comb);
   samrena_destroy(arena);
   printf("Data preservation during resize tests passed!\n");
 }
@@ -950,7 +950,7 @@ void test_multiple_resizes() {
   printf("TESTING multiple sequential resizes\n");
   
   Samrena *arena = samrena_create_default();
-  Honeycomb *comb = honeycomb_create(2, arena);
+  SamHashMap *comb = samhashmap_create(2, arena);
   
   size_t capacities[10];
   int capacity_count = 0;
@@ -967,7 +967,7 @@ void test_multiple_resizes() {
     *value = i;
     
     size_t old_capacity = comb->capacity;
-    assert(honeycomb_put(comb, key, value));
+    assert(samhashmap_put(comb, key, value));
     
     if (comb->capacity > old_capacity) {
       printf("Resize %d: %zu -> %zu (after adding %d items)\n", 
@@ -984,11 +984,11 @@ void test_multiple_resizes() {
     char key[32];
     sprintf(key, "multi_resize_%d", i);
     
-    int *retrieved = honeycomb_get(comb, key);
+    int *retrieved = samhashmap_get(comb, key);
     assert(retrieved != NULL && *retrieved == i);
   }
   
-  honeycomb_destroy(comb);
+  samhashmap_destroy(comb);
   samrena_destroy(arena);
   printf("Multiple resize tests passed!\n");
 }
@@ -1003,7 +1003,7 @@ void test_small_arena_exhaustion() {
   config.page_size = 2048;  // Very small pages
   config.initial_pages = 1;  // Only start with 1 page
   Samrena *small_arena = samrena_create(&config);
-  Honeycomb *comb = honeycomb_create(10, small_arena);
+  SamHashMap *comb = samhashmap_create(10, small_arena);
   
   if (comb == NULL) {
     printf("Initial creation failed due to small arena\n");
@@ -1027,7 +1027,7 @@ void test_small_arena_exhaustion() {
     }
     *value = i;
     
-    if (honeycomb_put(comb, key, value)) {
+    if (samhashmap_put(comb, key, value)) {
       successful_insertions++;
     } else {
       failed_insertions++;
@@ -1043,16 +1043,16 @@ void test_small_arena_exhaustion() {
     char key[32];
     sprintf(key, "exhaust_%d", i);
     
-    int *retrieved = honeycomb_get(comb, key);
+    int *retrieved = samhashmap_get(comb, key);
     if (retrieved == NULL || *retrieved != i) {
       printf("Data corruption detected at key %s\n", key);
       assert(false);
     }
   }
   
-  assert(honeycomb_size(comb) == (size_t)successful_insertions);
+  assert(samhashmap_size(comb) == (size_t)successful_insertions);
   
-  honeycomb_destroy(comb);
+  samhashmap_destroy(comb);
   samrena_destroy(small_arena);
   printf("Small arena exhaustion tests passed!\n");
 }
@@ -1065,7 +1065,7 @@ void test_arena_exhaustion_during_resize() {
   config.page_size = 4096;  // Small pages
   config.initial_pages = 2;  // Start with 2 pages
   Samrena *limited_arena = samrena_create(&config);
-  Honeycomb *comb = honeycomb_create(2, limited_arena);  // Small initial capacity
+  SamHashMap *comb = samhashmap_create(2, limited_arena);  // Small initial capacity
   
   if (comb == NULL) {
     printf("Initial creation failed\n");
@@ -1090,7 +1090,7 @@ void test_arena_exhaustion_during_resize() {
     sprintf(value, "value_data_%d", i);
     
     size_t old_capacity = comb->capacity;
-    bool put_result = honeycomb_put(comb, key, value);
+    bool put_result = samhashmap_put(comb, key, value);
     
     if (!put_result) {
       printf("Put failed at item %d (likely during resize)\n", i);
@@ -1114,7 +1114,7 @@ void test_arena_exhaustion_during_resize() {
     char key[64];
     sprintf(key, "resize_exhaust_with_long_key_name_%d", i);
     
-    char *retrieved = (char*)honeycomb_get(comb, key);
+    char *retrieved = (char*)samhashmap_get(comb, key);
     if (retrieved == NULL) {
       printf("Missing key: %s\n", key);
       assert(false);
@@ -1128,7 +1128,7 @@ void test_arena_exhaustion_during_resize() {
     }
   }
   
-  honeycomb_destroy(comb);
+  samhashmap_destroy(comb);
   samrena_destroy(limited_arena);
   printf("Arena exhaustion during resize tests passed!\n");
 }
@@ -1140,7 +1140,7 @@ void test_graceful_degradation() {
   config.page_size = 2048;  // Small pages
   config.initial_pages = 1;  // Start with 1 page
   Samrena *pressure_arena = samrena_create(&config);
-  Honeycomb *comb = honeycomb_create(8, pressure_arena);
+  SamHashMap *comb = samhashmap_create(8, pressure_arena);
   
   if (comb == NULL) {
     printf("Initial creation failed\n");
@@ -1158,7 +1158,7 @@ void test_graceful_degradation() {
     if (value == NULL) break;
     *value = i * 2;
     
-    if (honeycomb_put(comb, key, value)) {
+    if (samhashmap_put(comb, key, value)) {
       initial_items++;
     } else {
       break;
@@ -1175,7 +1175,7 @@ void test_graceful_degradation() {
     char key[32];
     sprintf(key, "pressure_%d", i);
     
-    int *retrieved = honeycomb_get(comb, key);
+    int *retrieved = samhashmap_get(comb, key);
     assert(retrieved != NULL && *retrieved == i * 2);
   }
   
@@ -1183,7 +1183,7 @@ void test_graceful_degradation() {
   for (int i = 0; i < initial_items; i++) {
     char key[32];
     sprintf(key, "pressure_%d", i);
-    assert(honeycomb_contains(comb, key));
+    assert(samhashmap_contains(comb, key));
   }
   
   // Test removal (should work and might free some memory)
@@ -1192,7 +1192,7 @@ void test_graceful_degradation() {
     char key[32];
     sprintf(key, "pressure_%d", i);
     
-    if (honeycomb_remove(comb, key)) {
+    if (samhashmap_remove(comb, key)) {
       removed_count++;
     }
   }
@@ -1207,12 +1207,12 @@ void test_graceful_degradation() {
     
     if (i % 2 == 0) {
       // Should be removed
-      assert(!honeycomb_contains(comb, key));
-      assert(honeycomb_get(comb, key) == NULL);
+      assert(!samhashmap_contains(comb, key));
+      assert(samhashmap_get(comb, key) == NULL);
     } else {
       // Should still exist
-      assert(honeycomb_contains(comb, key));
-      int *retrieved = honeycomb_get(comb, key);
+      assert(samhashmap_contains(comb, key));
+      int *retrieved = samhashmap_get(comb, key);
       assert(retrieved != NULL && *retrieved == i * 2);
       remaining_verified++;
     }
@@ -1220,7 +1220,7 @@ void test_graceful_degradation() {
   
   printf("Verified %d remaining items\n", remaining_verified);
   
-  honeycomb_destroy(comb);
+  samhashmap_destroy(comb);
   samrena_destroy(pressure_arena);
   printf("Graceful degradation tests passed!\n");
 }
@@ -1231,7 +1231,7 @@ void benchmark_insertion_performance() {
   printf("BENCHMARKING insertion performance\n");
   
   Samrena *arena = samrena_create_default();
-  Honeycomb *comb = honeycomb_create(1000, arena);
+  SamHashMap *comb = samhashmap_create(1000, arena);
   
   const int num_items = 10000;
   clock_t start_time = clock();
@@ -1244,7 +1244,7 @@ void benchmark_insertion_performance() {
     int *value = samrena_push(arena, sizeof(int));
     *value = i;
     
-    assert(honeycomb_put(comb, key, value));
+    assert(samhashmap_put(comb, key, value));
   }
   
   clock_t end_time = clock();
@@ -1255,15 +1255,15 @@ void benchmark_insertion_performance() {
   printf("Average time per insertion: %.6f ms\n", (elapsed * 1000) / num_items);
   
   // Print final stats
-  HoneycombStats stats = honeycomb_get_stats(comb);
+  SamHashMapStats stats = samhashmap_get_stats(comb);
   printf("Final capacity: %zu\n", comb->capacity);
-  printf("Load factor: %.3f\n", (float)honeycomb_size(comb) / comb->capacity);
+  printf("Load factor: %.3f\n", (float)samhashmap_size(comb) / comb->capacity);
   printf("Total collisions: %zu\n", stats.total_collisions);
   printf("Max chain length: %zu\n", stats.max_chain_length);
   printf("Average chain length: %.3f\n", stats.average_chain_length);
   printf("Resize count: %zu\n", stats.resize_count);
   
-  honeycomb_destroy(comb);
+  samhashmap_destroy(comb);
   samrena_destroy(arena);
   printf("Insertion performance benchmark completed!\n");
 }
@@ -1272,7 +1272,7 @@ void benchmark_lookup_performance() {
   printf("BENCHMARKING lookup performance\n");
   
   Samrena *arena = samrena_create_default();
-  Honeycomb *comb = honeycomb_create(1000, arena);
+  SamHashMap *comb = samhashmap_create(1000, arena);
   
   const int num_items = 5000;
   
@@ -1284,7 +1284,7 @@ void benchmark_lookup_performance() {
     int *value = samrena_push(arena, sizeof(int));
     *value = i * 2;
     
-    honeycomb_put(comb, key, value);
+    samhashmap_put(comb, key, value);
   }
   
   printf("Pre-populated with %d items\n", num_items);
@@ -1297,7 +1297,7 @@ void benchmark_lookup_performance() {
     char key[32];
     sprintf(key, "lookup_key_%d", i);
     
-    int *retrieved = honeycomb_get(comb, key);
+    int *retrieved = samhashmap_get(comb, key);
     if (retrieved != NULL && *retrieved == i * 2) {
       successful_lookups++;
     }
@@ -1319,7 +1319,7 @@ void benchmark_lookup_performance() {
     char key[32];
     sprintf(key, "nonexistent_key_%d", i);
     
-    if (honeycomb_get(comb, key) == NULL) {
+    if (samhashmap_get(comb, key) == NULL) {
       failed_lookups++;
     }
   }
@@ -1331,7 +1331,7 @@ void benchmark_lookup_performance() {
          failed_lookups, elapsed);
   printf("Failed lookup rate: %.0f lookups/second\n", failed_lookups / elapsed);
   
-  honeycomb_destroy(comb);
+  samhashmap_destroy(comb);
   samrena_destroy(arena);
   printf("Lookup performance benchmark completed!\n");
 }
@@ -1340,7 +1340,7 @@ void benchmark_mixed_operations() {
   printf("BENCHMARKING mixed operations\n");
   
   Samrena *arena = samrena_create_default();
-  Honeycomb *comb = honeycomb_create(100, arena);
+  SamHashMap *comb = samhashmap_create(100, arena);
   
   const int num_operations = 10000;
   int insertions = 0, lookups = 0, removals = 0;
@@ -1357,15 +1357,15 @@ void benchmark_mixed_operations() {
       int *value = samrena_push(arena, sizeof(int));
       if (value != NULL) {
         *value = i;
-        if (honeycomb_put(comb, key, value)) {
+        if (samhashmap_put(comb, key, value)) {
           insertions++;
         }
       }
     } else if (operation < 8) {  // 30% lookups
-      honeycomb_get(comb, key);
+      samhashmap_get(comb, key);
       lookups++;
     } else {  // 20% removals
-      if (honeycomb_remove(comb, key)) {
+      if (samhashmap_remove(comb, key)) {
         removals++;
       }
     }
@@ -1379,15 +1379,15 @@ void benchmark_mixed_operations() {
   printf("Operations per second: %.0f\n", num_operations / elapsed);
   printf("Breakdown: %d inserts, %d lookups, %d removals\n", 
          insertions, lookups, removals);
-  printf("Final size: %zu\n", honeycomb_size(comb));
+  printf("Final size: %zu\n", samhashmap_size(comb));
   
-  HoneycombStats stats = honeycomb_get_stats(comb);
+  SamHashMapStats stats = samhashmap_get_stats(comb);
   printf("Total operations tracked: %zu\n", stats.total_operations);
   printf("Total collisions: %zu\n", stats.total_collisions);
   printf("Collision rate: %.3f%%\n", 
          stats.total_operations > 0 ? (100.0 * stats.total_collisions) / stats.total_operations : 0.0);
   
-  honeycomb_destroy(comb);
+  samhashmap_destroy(comb);
   samrena_destroy(arena);
   printf("Mixed operations benchmark completed!\n");
 }
@@ -1396,7 +1396,7 @@ void benchmark_hash_distribution() {
   printf("BENCHMARKING hash distribution quality\n");
   
   Samrena *arena = samrena_create_default();
-  Honeycomb *comb = honeycomb_create(101, arena);  // Prime number for better distribution
+  SamHashMap *comb = samhashmap_create(101, arena);  // Prime number for better distribution
   
   const int num_items = 1000;
   
@@ -1422,16 +1422,16 @@ void benchmark_hash_distribution() {
     
     int *value = samrena_push(arena, sizeof(int));
     *value = i;
-    honeycomb_put(comb, key, value);
+    samhashmap_put(comb, key, value);
   }
   
   // Analyze distribution
-  HoneycombStats stats = honeycomb_get_stats(comb);
+  SamHashMapStats stats = samhashmap_get_stats(comb);
   
   printf("Hash distribution analysis:\n");
-  printf("Total items: %zu\n", honeycomb_size(comb));
+  printf("Total items: %zu\n", samhashmap_size(comb));
   printf("Capacity: %zu\n", comb->capacity);
-  printf("Load factor: %.3f\n", (float)honeycomb_size(comb) / comb->capacity);
+  printf("Load factor: %.3f\n", (float)samhashmap_size(comb) / comb->capacity);
   printf("Max chain length: %zu\n", stats.max_chain_length);
   printf("Average chain length: %.3f\n", stats.average_chain_length);
   printf("Total collisions: %zu\n", stats.total_collisions);
@@ -1441,15 +1441,15 @@ void benchmark_hash_distribution() {
   printf("Distribution quality: %s\n", 
          stats.max_chain_length <= (size_t)ideal_max_chain ? "Good" : "Poor");
   
-  honeycomb_destroy(comb);
+  samhashmap_destroy(comb);
   samrena_destroy(arena);
   printf("Hash distribution benchmark completed!\n");
 }
 
 // DEBUGGING SUPPORT TESTS (Step 17 from planning)
 
-// Helper function to check honeycomb invariants
-static void check_honeycomb_invariants(Honeycomb *comb) {
+// Helper function to check samhashmap invariants
+static void check_samhashmap_invariants(SamHashMap *comb) {
   // Check basic invariants
   assert(comb != NULL);
   assert(comb->cells != NULL);
@@ -1478,10 +1478,10 @@ void test_invariant_checking() {
   printf("TESTING invariant checking\n");
   
   Samrena *arena = samrena_create_default();
-  Honeycomb *comb = honeycomb_create(10, arena);
+  SamHashMap *comb = samhashmap_create(10, arena);
   
   // Test invariants during various operations
-  check_honeycomb_invariants(comb);
+  check_samhashmap_invariants(comb);
   
   // Add items and check invariants
   for (int i = 0; i < 15; i++) {
@@ -1491,8 +1491,8 @@ void test_invariant_checking() {
     int *value = samrena_push(arena, sizeof(int));
     *value = i;
     
-    honeycomb_put(comb, key, value);
-    check_honeycomb_invariants(comb);
+    samhashmap_put(comb, key, value);
+    check_samhashmap_invariants(comb);
   }
   
   // Remove items and check invariants
@@ -1500,11 +1500,11 @@ void test_invariant_checking() {
     char key[32];
     sprintf(key, "invariant_%d", i);
     
-    honeycomb_remove(comb, key);
-    check_honeycomb_invariants(comb);
+    samhashmap_remove(comb, key);
+    check_samhashmap_invariants(comb);
   }
   
-  honeycomb_destroy(comb);
+  samhashmap_destroy(comb);
   samrena_destroy(arena);
   printf("Invariant checking tests passed!\n");
 }
@@ -1524,14 +1524,14 @@ void test_memory_usage_tracking() {
     return;
   }
   
-  Honeycomb *comb = honeycomb_create(10, arena);
+  SamHashMap *comb = samhashmap_create(10, arena);
   if (comb == NULL) {
-    printf("Failed to create hashmap in small arena\n");
+    printf("Failed to create samhashmap in small arena\n");
     samrena_destroy(arena);
     return;
   }
   
-  printf("Created hashmap in limited arena\n");
+  printf("Created samhashmap in limited arena\n");
   
   // Track allocation patterns by attempting allocations
   const int num_items = 50;
@@ -1551,11 +1551,11 @@ void test_memory_usage_tracking() {
     }
     
     *value = i;
-    if (honeycomb_put(comb, key, value)) {
+    if (samhashmap_put(comb, key, value)) {
       successful_allocations++;
       if (i % 10 == 0) {
         printf("Successfully added item %d (size: %zu, capacity: %zu)\n", 
-               i, honeycomb_size(comb), comb->capacity);
+               i, samhashmap_size(comb), comb->capacity);
       }
     } else {
       failed_allocations++;
@@ -1567,10 +1567,10 @@ void test_memory_usage_tracking() {
   printf("\nMemory usage analysis:\n");
   printf("Successful allocations: %d\n", successful_allocations);
   printf("Failed allocations: %d\n", failed_allocations);
-  printf("Final hashmap size: %zu\n", honeycomb_size(comb));
-  printf("Final hashmap capacity: %zu\n", comb->capacity);
+  printf("Final samhashmap size: %zu\n", samhashmap_size(comb));
+  printf("Final samhashmap capacity: %zu\n", comb->capacity);
   
-  honeycomb_destroy(comb);
+  samhashmap_destroy(comb);
   samrena_destroy(arena);
   printf("Memory usage tracking tests passed!\n");
 }
@@ -1579,7 +1579,7 @@ void test_collision_visualization() {
   printf("TESTING collision visualization\n");
   
   Samrena *arena = samrena_create_default();
-  Honeycomb *comb = honeycomb_create(8, arena);  // Small for visible collisions
+  SamHashMap *comb = samhashmap_create(8, arena);  // Small for visible collisions
   
   // Add items to create interesting collision patterns
   const char *test_keys[] = {
@@ -1592,7 +1592,7 @@ void test_collision_visualization() {
   for (int i = 0; i < num_keys; i++) {
     int *value = samrena_push(arena, sizeof(int));
     *value = i;
-    honeycomb_put(comb, test_keys[i], value);
+    samhashmap_put(comb, test_keys[i], value);
   }
   
   // Visualize the collision chains
@@ -1675,7 +1675,7 @@ void test_collision_visualization() {
     }
   }
   
-  honeycomb_destroy(comb);
+  samhashmap_destroy(comb);
   samrena_destroy(arena);
   printf("Collision visualization tests passed!\n");
 }
@@ -1746,8 +1746,8 @@ void comprehensive_edge_case_tests() {
   printf("=== ALL EDGE CASE TESTS PASSED ===\n\n");
 }
 
-void typed_honeycomb_tests() {
-  printf("\n=== STARTING TYPED HONEYCOMB TESTS ===\n");
+void typed_samhashmap_tests() {
+  printf("\n=== STARTING TYPED SAMHASHMAP TESTS ===\n");
   
   test_string_string_map();
   test_string_int_map();
@@ -1756,5 +1756,5 @@ void typed_honeycomb_tests() {
   test_null_safety();
   test_custom_typed_map();
   
-  printf("=== ALL TYPED HONEYCOMB TESTS PASSED ===\n\n");
+  printf("=== ALL TYPED SAMHASHMAP TESTS PASSED ===\n\n");
 }

@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef PEARL_H
-#define PEARL_H
+#ifndef SAMSET_H
+#define SAMSET_H
 
 // =============================================================================
 // STANDARD INCLUDES
@@ -32,7 +32,7 @@
 #include <samrena.h>
 
 // =============================================================================
-// PEARL - Set Data Structure for Unique Elements
+// SAMSET - Set Data Structure for Unique Elements
 // =============================================================================
 
 // =============================================================================
@@ -41,27 +41,27 @@
 
 // Error types
 typedef enum {
-    PEARL_ERROR_NONE = 0,
-    PEARL_ERROR_NULL_PARAM,
-    PEARL_ERROR_MEMORY_EXHAUSTED,
-    PEARL_ERROR_RESIZE_FAILED,
-    PEARL_ERROR_ELEMENT_NOT_FOUND,
-    PEARL_ERROR_ELEMENT_EXISTS
-} PearlError;
+    SAMSET_ERROR_NONE = 0,
+    SAMSET_ERROR_NULL_PARAM,
+    SAMSET_ERROR_MEMORY_EXHAUSTED,
+    SAMSET_ERROR_RESIZE_FAILED,
+    SAMSET_ERROR_ELEMENT_NOT_FOUND,
+    SAMSET_ERROR_ELEMENT_EXISTS
+} SamSetError;
 
-// Hash function type (reuse from honeycomb)
+// Hash function type (reuse from samhashmap)
 typedef enum {
-    PEARL_HASH_DJB2,
-    PEARL_HASH_FNV1A,
-    PEARL_HASH_MURMUR3
-} PearlHashFunction;
+    SAMSET_HASH_DJB2,
+    SAMSET_HASH_FNV1A,
+    SAMSET_HASH_MURMUR3
+} SamSetHashFunction;
 
 // =============================================================================
 // CALLBACK FUNCTION TYPES
 // =============================================================================
 
 // Error callback function type
-typedef void (*PearlErrorCallback)(PearlError error, const char *message, void *user_data);
+typedef void (*SamSetErrorCallback)(SamSetError error, const char *message, void *user_data);
 
 // =============================================================================
 // PERFORMANCE STRUCTURES
@@ -75,211 +75,211 @@ typedef struct {
     double average_chain_length;
     size_t total_operations;
     size_t failed_allocations;
-} PearlStats;
+} SamSetStats;
 
 // =============================================================================
 // CORE STRUCTURES
 // =============================================================================
 
 // Element node for chaining
-typedef struct PearlNode {
+typedef struct SamSetNode {
     void *element;
     size_t element_size;
     uint32_t hash;
-    struct PearlNode *next;
-} PearlNode;
+    struct SamSetNode *next;
+} SamSetNode;
 
 // Main set structure
 typedef struct {
-    PearlNode **buckets;
+    SamSetNode **buckets;
     size_t size;                    // Current number of elements
     size_t capacity;                // Number of buckets
     size_t element_size;            // Size of each element
     Samrena *arena;                 // Arena for memory allocation
     float load_factor;              // Threshold for resizing (default 0.75)
-    PearlHashFunction hash_func;    // Hash function to use
+    SamSetHashFunction hash_func;   // Hash function to use
     
     // Function pointers for custom operations
     uint32_t (*hash)(const void *element, size_t size);
     bool (*equals)(const void *a, const void *b, size_t size);
     
     // Statistics and error handling
-    PearlStats stats;
-    PearlErrorCallback error_callback;
+    SamSetStats stats;
+    SamSetErrorCallback error_callback;
     void *error_callback_data;
-    PearlError last_error;
-} Pearl;
+    SamSetError last_error;
+} SamSet;
 
 // =============================================================================
-// CORE API - Pearl Management
+// CORE API - SamSet Management
 // =============================================================================
 
 /**
- * Creates a new pearl set with default hash function.
+ * Creates a new samset set with default hash function.
  * @param element_size Size of each element in bytes
  * @param initial_capacity Initial number of buckets
  * @param samrena Memory arena to use - REQUIRED (non-null)
- * @return New pearl instance or NULL if samrena is NULL
+ * @return New samset instance or NULL if samrena is NULL
  */
-Pearl *pearl_create(size_t element_size, size_t initial_capacity, Samrena *samrena);
+SamSet *samset_create(size_t element_size, size_t initial_capacity, Samrena *samrena);
 
 /**
- * Creates a new pearl set with specified hash function.
+ * Creates a new samset set with specified hash function.
  * @param element_size Size of each element in bytes
  * @param initial_capacity Initial number of buckets
  * @param samrena Memory arena to use - REQUIRED (non-null)
  * @param hash_func Hash function to use
- * @return New pearl instance or NULL if samrena is NULL
+ * @return New samset instance or NULL if samrena is NULL
  */
-Pearl *pearl_create_with_hash(size_t element_size, size_t initial_capacity, 
-                              Samrena *samrena, PearlHashFunction hash_func);
+SamSet *samset_create_with_hash(size_t element_size, size_t initial_capacity, 
+                                Samrena *samrena, SamSetHashFunction hash_func);
 
 /**
- * Creates a new pearl set with custom hash and equality functions.
+ * Creates a new samset set with custom hash and equality functions.
  * @param element_size Size of each element in bytes
  * @param initial_capacity Initial number of buckets
  * @param samrena Memory arena to use - REQUIRED (non-null)
  * @param hash_fn Custom hash function
  * @param equals_fn Custom equality function
- * @return New pearl instance or NULL if samrena is NULL
+ * @return New samset instance or NULL if samrena is NULL
  */
-Pearl *pearl_create_custom(size_t element_size, size_t initial_capacity, Samrena *samrena,
-                          uint32_t (*hash_fn)(const void *, size_t),
-                          bool (*equals_fn)(const void *, const void *, size_t));
+SamSet *samset_create_custom(size_t element_size, size_t initial_capacity, Samrena *samrena,
+                             uint32_t (*hash_fn)(const void *, size_t),
+                             bool (*equals_fn)(const void *, const void *, size_t));
 
-void pearl_destroy(Pearl *pearl);
+void samset_destroy(SamSet *samset);
 
 // =============================================================================
 // CORE SET OPERATIONS API
 // =============================================================================
 
-bool pearl_add(Pearl *pearl, const void *element);
-bool pearl_remove(Pearl *pearl, const void *element);
-bool pearl_contains(const Pearl *pearl, const void *element);
-void pearl_clear(Pearl *pearl);
+bool samset_add(SamSet *samset, const void *element);
+bool samset_remove(SamSet *samset, const void *element);
+bool samset_contains(const SamSet *samset, const void *element);
+void samset_clear(SamSet *samset);
 
 
 // =============================================================================
 // INFORMATION API
 // =============================================================================
 
-size_t pearl_size(const Pearl *pearl);
-bool pearl_is_empty(const Pearl *pearl);
+size_t samset_size(const SamSet *samset);
+bool samset_is_empty(const SamSet *samset);
 
 // =============================================================================
 // COPY API  
 // =============================================================================
 
-Pearl *pearl_copy(const Pearl *pearl, Samrena *samrena);
+SamSet *samset_copy(const SamSet *samset, Samrena *samrena);
 
 // =============================================================================
 // COLLECTION API
 // =============================================================================
 
-size_t pearl_to_array(const Pearl *pearl, void *array, size_t max_elements);
-Pearl *pearl_from_array(const void *array, size_t count, size_t element_size, Samrena *samrena);
+size_t samset_to_array(const SamSet *samset, void *array, size_t max_elements);
+SamSet *samset_from_array(const void *array, size_t count, size_t element_size, Samrena *samrena);
 
 // =============================================================================
 // ITERATOR API
 // =============================================================================
 
-typedef void (*PearlIterator)(const void *element, void *user_data);
-void pearl_foreach(const Pearl *pearl, PearlIterator iterator, void *user_data);
+typedef void (*SamSetIterator)(const void *element, void *user_data);
+void samset_foreach(const SamSet *samset, SamSetIterator iterator, void *user_data);
 
 // =============================================================================
 // FUNCTIONAL PROGRAMMING API
 // =============================================================================
 
-Pearl *pearl_filter(const Pearl *pearl, bool (*predicate)(const void *, void *), 
-                   void *user_data, Samrena *samrena);
-Pearl *pearl_map(const Pearl *pearl, void (*transform)(const void *, void *, void *),
-                size_t new_element_size, void *user_data, Samrena *samrena);
+SamSet *samset_filter(const SamSet *samset, bool (*predicate)(const void *, void *), 
+                      void *user_data, Samrena *samrena);
+SamSet *samset_map(const SamSet *samset, void (*transform)(const void *, void *, void *),
+                   size_t new_element_size, void *user_data, Samrena *samrena);
 
 // =============================================================================
 // PERFORMANCE AND DEBUGGING API
 // =============================================================================
 
-PearlStats pearl_get_stats(const Pearl *pearl);
-void pearl_reset_stats(Pearl *pearl);
-void pearl_print_stats(const Pearl *pearl);
+SamSetStats samset_get_stats(const SamSet *samset);
+void samset_reset_stats(SamSet *samset);
+void samset_print_stats(const SamSet *samset);
 
 // =============================================================================
 // ERROR HANDLING API
 // =============================================================================
 
-void pearl_set_error_callback(Pearl *pearl, PearlErrorCallback callback, void *user_data);
-PearlError pearl_get_last_error(const Pearl *pearl);
-const char *pearl_error_string(PearlError error);
+void samset_set_error_callback(SamSet *samset, SamSetErrorCallback callback, void *user_data);
+SamSetError samset_get_last_error(const SamSet *samset);
+const char *samset_error_string(SamSetError error);
 
 // =============================================================================
 // TYPE-SAFE WRAPPER MACROS
 // =============================================================================
-#define PEARL_DEFINE_TYPED(name, type) \
-    typedef struct name##_pearl { \
-        Pearl *base; \
-    } name##_pearl; \
+#define SAMSET_DEFINE_TYPED(name, type) \
+    typedef struct name##_samset { \
+        SamSet *base; \
+    } name##_samset; \
     \
-    static inline name##_pearl *name##_create(size_t initial_capacity, Samrena *samrena) { \
-        name##_pearl *typed_set = samrena_push(samrena, sizeof(name##_pearl)); \
+    static inline name##_samset *name##_create(size_t initial_capacity, Samrena *samrena) { \
+        name##_samset *typed_set = samrena_push(samrena, sizeof(name##_samset)); \
         if (typed_set == NULL) return NULL; \
-        typed_set->base = pearl_create(sizeof(type), initial_capacity, samrena); \
+        typed_set->base = samset_create(sizeof(type), initial_capacity, samrena); \
         if (typed_set->base == NULL) return NULL; \
         return typed_set; \
     } \
     \
-    static inline void name##_destroy(name##_pearl *p) { \
+    static inline void name##_destroy(name##_samset *p) { \
         if (p != NULL && p->base != NULL) { \
-            pearl_destroy(p->base); \
+            samset_destroy(p->base); \
         } \
     } \
     \
-    static inline bool name##_add(name##_pearl *p, type element) { \
+    static inline bool name##_add(name##_samset *p, type element) { \
         if (p == NULL || p->base == NULL) return false; \
-        return pearl_add(p->base, &element); \
+        return samset_add(p->base, &element); \
     } \
     \
-    static inline bool name##_remove(name##_pearl *p, type element) { \
+    static inline bool name##_remove(name##_samset *p, type element) { \
         if (p == NULL || p->base == NULL) return false; \
-        return pearl_remove(p->base, &element); \
+        return samset_remove(p->base, &element); \
     } \
     \
-    static inline bool name##_contains(const name##_pearl *p, type element) { \
+    static inline bool name##_contains(const name##_samset *p, type element) { \
         if (p == NULL || p->base == NULL) return false; \
-        return pearl_contains(p->base, &element); \
+        return samset_contains(p->base, &element); \
     } \
     \
-    static inline void name##_clear(name##_pearl *p) { \
+    static inline void name##_clear(name##_samset *p) { \
         if (p != NULL && p->base != NULL) { \
-            pearl_clear(p->base); \
+            samset_clear(p->base); \
         } \
     } \
     \
-    static inline size_t name##_size(const name##_pearl *p) { \
+    static inline size_t name##_size(const name##_samset *p) { \
         if (p == NULL || p->base == NULL) return 0; \
-        return pearl_size(p->base); \
+        return samset_size(p->base); \
     } \
     \
-    static inline bool name##_is_empty(const name##_pearl *p) { \
+    static inline bool name##_is_empty(const name##_samset *p) { \
         if (p == NULL || p->base == NULL) return true; \
-        return pearl_is_empty(p->base); \
+        return samset_is_empty(p->base); \
     } \
     \
     typedef void (*name##_iterator)(type element, void *user_data); \
     \
-    static inline void name##_foreach(const name##_pearl *p, name##_iterator iterator, void *user_data) { \
+    static inline void name##_foreach(const name##_samset *p, name##_iterator iterator, void *user_data) { \
         if (p == NULL || p->base == NULL || iterator == NULL) return; \
-        pearl_foreach(p->base, (PearlIterator)iterator, user_data); \
+        samset_foreach(p->base, (SamSetIterator)iterator, user_data); \
     }
 
 // =============================================================================
 // COMMON TYPE-SAFE INSTANTIATIONS
 // =============================================================================
 
-PEARL_DEFINE_TYPED(int_set, int)
-PEARL_DEFINE_TYPED(uint_set, unsigned int)
-PEARL_DEFINE_TYPED(long_set, long)
-PEARL_DEFINE_TYPED(ulong_set, unsigned long)
-PEARL_DEFINE_TYPED(ptr_set, void*)
+SAMSET_DEFINE_TYPED(int_set, int)
+SAMSET_DEFINE_TYPED(uint_set, unsigned int)
+SAMSET_DEFINE_TYPED(long_set, long)
+SAMSET_DEFINE_TYPED(ulong_set, unsigned long)
+SAMSET_DEFINE_TYPED(ptr_set, void*)
 
 
-#endif // PEARL_H
+#endif // SAMSET_H

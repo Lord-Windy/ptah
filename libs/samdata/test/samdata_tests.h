@@ -14,13 +14,13 @@
  * limitations under the License.
  */
 
-#ifndef HONEYCOMB_TESTS_H
-#define HONEYCOMB_TESTS_H
+#ifndef SAMDATA_TESTS_H
+#define SAMDATA_TESTS_H
 
-#include "datazoo.h"
+#include "samdata.h"
 
-void honeycomb_tests();
-void typed_honeycomb_tests();
+void samhashmap_tests();
+void typed_samhashmap_tests();
 
 // Comprehensive test suites (Steps 16-17 from planning)
 void comprehensive_edge_case_tests();
@@ -30,4 +30,4 @@ void memory_exhaustion_tests();
 void performance_benchmark_tests();
 void debugging_support_tests();
 
-#endif // HONEYCOMB_TESTS_H
+#endif // SAMDATA_TESTS_H

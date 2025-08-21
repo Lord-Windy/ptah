@@ -14,10 +14,10 @@
  * limitations under the License.
  */
 
-#include <datazoo/starfish.h>
+#include <samdata/samhash.h>
 #include <string.h>
 
-uint32_t starfish_hash_djb2(const void *data, size_t size) {
+uint32_t samhash_djb2(const void *data, size_t size) {
     const unsigned char *bytes = (const unsigned char *)data;
     uint32_t hash = 5381;
     
@@ -28,7 +28,7 @@ uint32_t starfish_hash_djb2(const void *data, size_t size) {
     return hash;
 }
 
-uint32_t starfish_hash_fnv1a(const void *data, size_t size) {
+uint32_t samhash_fnv1a(const void *data, size_t size) {
     const unsigned char *bytes = (const unsigned char *)data;
     uint32_t hash = 2166136261u;
     
@@ -40,7 +40,7 @@ uint32_t starfish_hash_fnv1a(const void *data, size_t size) {
     return hash;
 }
 
-uint32_t starfish_hash_murmur3(const void *data, size_t size) {
+uint32_t samhash_murmur3(const void *data, size_t size) {
     const unsigned char *bytes = (const unsigned char *)data;
     const uint32_t c1 = 0xcc9e2d51;
     const uint32_t c2 = 0x1b873593;
@@ -88,7 +88,7 @@ uint32_t starfish_hash_murmur3(const void *data, size_t size) {
     return hash;
 }
 
-uint32_t starfish_hash_string_djb2(const char *str) {
+uint32_t samhash_string_djb2(const char *str) {
     uint32_t hash = 5381;
     int c;
     
@@ -99,7 +99,7 @@ uint32_t starfish_hash_string_djb2(const char *str) {
     return hash;
 }
 
-uint32_t starfish_hash_string_fnv1a(const char *str) {
+uint32_t samhash_string_fnv1a(const char *str) {
     uint32_t hash = 2166136261u;
     
     while (*str) {
@@ -110,32 +110,32 @@ uint32_t starfish_hash_string_fnv1a(const char *str) {
     return hash;
 }
 
-uint32_t starfish_hash_string_murmur3(const char *str) {
-    return starfish_hash_murmur3(str, strlen(str));
+uint32_t samhash_string_murmur3(const char *str) {
+    return samhash_murmur3(str, strlen(str));
 }
 
-uint32_t starfish_hash(const void *data, size_t size, StarfishHashFunction func) {
+uint32_t samhash_hash(const void *data, size_t size, SamHashFunction func) {
     switch (func) {
-        case STARFISH_HASH_DJB2:
-            return starfish_hash_djb2(data, size);
-        case STARFISH_HASH_FNV1A:
-            return starfish_hash_fnv1a(data, size);
-        case STARFISH_HASH_MURMUR3:
-            return starfish_hash_murmur3(data, size);
+        case SAMHASH_DJB2:
+            return samhash_djb2(data, size);
+        case SAMHASH_FNV1A:
+            return samhash_fnv1a(data, size);
+        case SAMHASH_MURMUR3:
+            return samhash_murmur3(data, size);
         default:
-            return starfish_hash_djb2(data, size);
+            return samhash_djb2(data, size);
     }
 }
 
-uint32_t starfish_hash_string(const char *str, StarfishHashFunction func) {
+uint32_t samhash_string(const char *str, SamHashFunction func) {
     switch (func) {
-        case STARFISH_HASH_DJB2:
-            return starfish_hash_string_djb2(str);
-        case STARFISH_HASH_FNV1A:
-            return starfish_hash_string_fnv1a(str);
-        case STARFISH_HASH_MURMUR3:
-            return starfish_hash_string_murmur3(str);
+        case SAMHASH_DJB2:
+            return samhash_string_djb2(str);
+        case SAMHASH_FNV1A:
+            return samhash_string_fnv1a(str);
+        case SAMHASH_MURMUR3:
+            return samhash_string_murmur3(str);
         default:
-            return starfish_hash_string_djb2(str);
+            return samhash_string_djb2(str);
     }
 }

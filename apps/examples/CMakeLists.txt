@@ -14,5 +14,5 @@
 
 add_subdirectory(typesafe_example)
 add_subdirectory(iterator_example)
-add_subdirectory(pearl_example)
+add_subdirectory(samset_example)
 add_subdirectory(sdl_example)

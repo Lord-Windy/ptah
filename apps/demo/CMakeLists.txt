@@ -17,5 +17,5 @@ ptah_add_executable(demo
         src/main.c
     DEPENDENCIES
         samrena
-        datazoo
+        samdata
 )

@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef DATAZOO_H
-#define DATAZOO_H
+#ifndef SAMDATA_H
+#define SAMDATA_H
 
 // =============================================================================
 // STANDARD INCLUDES
@@ -35,8 +35,8 @@
 // DATA STRUCTURE HEADERS
 // =============================================================================
 
-#include "datazoo/starfish.h"  
-#include "datazoo/honeycomb.h"
-#include "datazoo/pearl.h"
+#include "samdata/samhash.h"  
+#include "samdata/samhashmap.h"
+#include "samdata/samset.h"
 
-#endif // DATAZOO_H
+#endif // SAMDATA_H

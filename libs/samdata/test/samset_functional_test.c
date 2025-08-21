@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-#include <datazoo/pearl.h>
+#include <samdata/samset.h>
 #include <samrena.h>
 #include <stdio.h>
 #include <assert.h>
@@ -62,125 +62,125 @@ void string_to_length_transform(const void *input, void *output, void *user_data
     *(size_t *)output = strlen(str);
 }
 
-void test_pearl_filter_basic() {
-    printf("Testing pearl_filter with basic predicate...\n");
+void test_samset_filter_basic() {
+    printf("Testing samset_filter with basic predicate...\n");
     
     SamrenaConfig config = samrena_default_config();
     Samrena *arena = samrena_create(&config);
     assert(arena != NULL);
     
-    Pearl *original = pearl_create(sizeof(int), 16, arena);
+    SamSet *original = samset_create(sizeof(int), 16, arena);
     assert(original != NULL);
     
     // Add test data: 1, 2, 3, 4, 5, 6
     for (int i = 1; i <= 6; i++) {
-        assert(pearl_add(original, &i));
+        assert(samset_add(original, &i));
     }
     
-    assert(pearl_size(original) == 6);
+    assert(samset_size(original) == 6);
     
     // Filter even numbers
-    Pearl *filtered = pearl_filter(original, is_even, NULL, arena);
+    SamSet *filtered = samset_filter(original, is_even, NULL, arena);
     assert(filtered != NULL);
-    assert(pearl_size(filtered) == 3); // Should contain 2, 4, 6
+    assert(samset_size(filtered) == 3); // Should contain 2, 4, 6
     
     // Verify filtered content
     for (int i = 2; i <= 6; i += 2) {
-        assert(pearl_contains(filtered, &i));
+        assert(samset_contains(filtered, &i));
     }
     
     // Verify odd numbers are not present
     for (int i = 1; i <= 5; i += 2) {
-        assert(!pearl_contains(filtered, &i));
+        assert(!samset_contains(filtered, &i));
     }
     
     samrena_destroy(arena);
     printf("✓ Basic filter test passed\n");
 }
 
-void test_pearl_filter_with_user_data() {
-    printf("Testing pearl_filter with user data...\n");
+void test_samset_filter_with_user_data() {
+    printf("Testing samset_filter with user data...\n");
     
     SamrenaConfig config = samrena_default_config();
     Samrena *arena = samrena_create(&config);
     assert(arena != NULL);
     
-    Pearl *original = pearl_create(sizeof(int), 16, arena);
+    SamSet *original = samset_create(sizeof(int), 16, arena);
     assert(original != NULL);
     
     // Add test data: 1, 2, 3, 4, 5, 6, 7, 8, 9, 10
     for (int i = 1; i <= 10; i++) {
-        assert(pearl_add(original, &i));
+        assert(samset_add(original, &i));
     }
     
     int threshold = 5;
-    Pearl *filtered = pearl_filter(original, greater_than_threshold, &threshold, arena);
+    SamSet *filtered = samset_filter(original, greater_than_threshold, &threshold, arena);
     assert(filtered != NULL);
-    assert(pearl_size(filtered) == 5); // Should contain 6, 7, 8, 9, 10
+    assert(samset_size(filtered) == 5); // Should contain 6, 7, 8, 9, 10
     
     // Verify filtered content
     for (int i = 6; i <= 10; i++) {
-        assert(pearl_contains(filtered, &i));
+        assert(samset_contains(filtered, &i));
     }
     
     samrena_destroy(arena);
     printf("✓ Filter with user data test passed\n");
 }
 
-void test_pearl_map_basic() {
-    printf("Testing pearl_map with basic transform...\n");
+void test_samset_map_basic() {
+    printf("Testing samset_map with basic transform...\n");
     
     SamrenaConfig config = samrena_default_config();
     Samrena *arena = samrena_create(&config);
     assert(arena != NULL);
     
-    Pearl *original = pearl_create(sizeof(int), 16, arena);
+    SamSet *original = samset_create(sizeof(int), 16, arena);
     assert(original != NULL);
     
     // Add test data: 1, 2, 3, 4
     for (int i = 1; i <= 4; i++) {
-        assert(pearl_add(original, &i));
+        assert(samset_add(original, &i));
     }
     
     // Map to squares
-    Pearl *mapped = pearl_map(original, square_transform, sizeof(int), NULL, arena);
+    SamSet *mapped = samset_map(original, square_transform, sizeof(int), NULL, arena);
     assert(mapped != NULL);
-    assert(pearl_size(mapped) == 4); // Should contain 1, 4, 9, 16
+    assert(samset_size(mapped) == 4); // Should contain 1, 4, 9, 16
     
     // Verify mapped content
     int expected[] = {1, 4, 9, 16};
     for (size_t i = 0; i < sizeof(expected) / sizeof(expected[0]); i++) {
-        assert(pearl_contains(mapped, &expected[i]));
+        assert(samset_contains(mapped, &expected[i]));
     }
     
     samrena_destroy(arena);
     printf("✓ Basic map test passed\n");
 }
 
-void test_pearl_map_with_user_data() {
-    printf("Testing pearl_map with user data...\n");
+void test_samset_map_with_user_data() {
+    printf("Testing samset_map with user data...\n");
     
     SamrenaConfig config = samrena_default_config();
     Samrena *arena = samrena_create(&config);
     assert(arena != NULL);
     
-    Pearl *original = pearl_create(sizeof(int), 16, arena);
+    SamSet *original = samset_create(sizeof(int), 16, arena);
     assert(original != NULL);
     
     // Add test data: 1, 2, 3
     for (int i = 1; i <= 3; i++) {
-        assert(pearl_add(original, &i));
+        assert(samset_add(original, &i));
     }
     
     int factor = 10;
-    Pearl *mapped = pearl_map(original, multiply_transform, sizeof(int), &factor, arena);
+    SamSet *mapped = samset_map(original, multiply_transform, sizeof(int), &factor, arena);
     assert(mapped != NULL);
-    assert(pearl_size(mapped) == 3); // Should contain 10, 20, 30
+    assert(samset_size(mapped) == 3); // Should contain 10, 20, 30
     
     // Verify mapped content
     int expected[] = {10, 20, 30};
     for (size_t i = 0; i < sizeof(expected) / sizeof(expected[0]); i++) {
-        assert(pearl_contains(mapped, &expected[i]));
+        assert(samset_contains(mapped, &expected[i]));
     }
     
     samrena_destroy(arena);
@@ -195,19 +195,19 @@ void test_simple_map_debug() {
     Samrena *arena = samrena_create(&config);
     assert(arena != NULL);
     
-    Pearl *original = pearl_create(sizeof(char *), 4, arena);
+    SamSet *original = samset_create(sizeof(char *), 4, arena);
     assert(original != NULL);
     
     const char *test_str = "hello";
-    assert(pearl_add(original, &test_str));
-    printf("Added one string, set size: %zu\n", pearl_size(original));
+    assert(samset_add(original, &test_str));
+    printf("Added one string, set size: %zu\n", samset_size(original));
     
     // Try to map to lengths
-    Pearl *lengths = pearl_map(original, string_to_length_transform, sizeof(size_t), NULL, arena);
+    SamSet *lengths = samset_map(original, string_to_length_transform, sizeof(size_t), NULL, arena);
     if (lengths == NULL) {
         printf("ERROR: Map operation failed!\n");
     } else {
-        printf("Map succeeded, size: %zu\n", pearl_size(lengths));
+        printf("Map succeeded, size: %zu\n", samset_size(lengths));
     }
     
     samrena_destroy(arena);
@@ -222,7 +222,7 @@ void test_complex_predicates() {
     Samrena *arena = samrena_create(&config);
     assert(arena != NULL);
     
-    Pearl *original = pearl_create(sizeof(char *), 16, arena);
+    SamSet *original = samset_create(sizeof(char *), 16, arena);
     assert(original != NULL);
     
     // Add test strings
@@ -230,32 +230,32 @@ void test_complex_predicates() {
     size_t num_strings = sizeof(strings) / sizeof(strings[0]);
     
     for (size_t i = 0; i < num_strings; i++) {
-        assert(pearl_add(original, &strings[i]));
+        assert(samset_add(original, &strings[i]));
     }
     
-    printf("Original set size: %zu\n", pearl_size(original));
+    printf("Original set size: %zu\n", samset_size(original));
     
     // Filter strings with length >= 5
     size_t min_length = 5;
-    Pearl *filtered = pearl_filter(original, string_length_filter, &min_length, arena);
+    SamSet *filtered = samset_filter(original, string_length_filter, &min_length, arena);
     assert(filtered != NULL);
-    printf("Filtered set size: %zu\n", pearl_size(filtered));
-    assert(pearl_size(filtered) == 1); // "hello"
+    printf("Filtered set size: %zu\n", samset_size(filtered));
+    assert(samset_size(filtered) == 1); // "hello"
     
     // Test simple map operation first
     printf("Testing simple map to lengths...\n");
-    Pearl *lengths = pearl_map(original, string_to_length_transform, sizeof(size_t), NULL, arena);
+    SamSet *lengths = samset_map(original, string_to_length_transform, sizeof(size_t), NULL, arena);
     if (lengths == NULL) {
         printf("ERROR: Map operation failed!\n");
         assert(false);
     }
-    printf("Mapped set size: %zu\n", pearl_size(lengths));
-    assert(pearl_size(lengths) == num_strings);
+    printf("Mapped set size: %zu\n", samset_size(lengths));
+    assert(samset_size(lengths) == num_strings);
     
     // Verify some lengths are present (but skip duplicates due to set nature)
     size_t expected_lengths[] = {1, 5}; // unique lengths of the strings
     for (size_t i = 0; i < sizeof(expected_lengths) / sizeof(expected_lengths[0]); i++) {
-        assert(pearl_contains(lengths, &expected_lengths[i]));
+        assert(samset_contains(lengths, &expected_lengths[i]));
     }
     
     samrena_destroy(arena);
@@ -269,32 +269,32 @@ void test_empty_set_operations() {
     Samrena *arena = samrena_create(&config);
     assert(arena != NULL);
     
-    Pearl *empty = pearl_create(sizeof(int), 16, arena);
+    SamSet *empty = samset_create(sizeof(int), 16, arena);
     assert(empty != NULL);
-    assert(pearl_is_empty(empty));
+    assert(samset_is_empty(empty));
     
     // Filter empty set
-    Pearl *filtered = pearl_filter(empty, is_even, NULL, arena);
+    SamSet *filtered = samset_filter(empty, is_even, NULL, arena);
     assert(filtered != NULL);
-    assert(pearl_is_empty(filtered));
+    assert(samset_is_empty(filtered));
     
     // Map empty set
-    Pearl *mapped = pearl_map(empty, square_transform, sizeof(int), NULL, arena);
+    SamSet *mapped = samset_map(empty, square_transform, sizeof(int), NULL, arena);
     assert(mapped != NULL);
-    assert(pearl_is_empty(mapped));
+    assert(samset_is_empty(mapped));
     
     samrena_destroy(arena);
     printf("✓ Empty set operations test passed\n");
 }
 
 int main() {
-    printf("Starting Pearl Functional Programming Tests\n");
+    printf("Starting SamSet Functional Programming Tests\n");
     printf("==========================================\n");
     
-    test_pearl_filter_basic();
-    test_pearl_filter_with_user_data();
-    test_pearl_map_basic();
-    test_pearl_map_with_user_data();
+    test_samset_filter_basic();
+    test_samset_filter_with_user_data();
+    test_samset_map_basic();
+    test_samset_map_with_user_data();
     test_simple_map_debug();
     test_complex_predicates();
     test_empty_set_operations();

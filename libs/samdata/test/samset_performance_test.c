@@ -15,7 +15,7 @@
  */
 
 #define _POSIX_C_SOURCE 200112L
-#include <datazoo/pearl.h>
+#include <samdata/samset.h>
 #include <samrena.h>
 #include <assert.h>
 #include <stdio.h>
@@ -26,15 +26,15 @@ static double get_time_diff(struct timespec start, struct timespec end) {
     return (end.tv_sec - start.tv_sec) + (end.tv_nsec - start.tv_nsec) / 1e9;
 }
 
-static void test_pearl_large_scale_operations(void) {
+static void test_samset_large_scale_operations(void) {
     printf("Testing large scale operations...\n");
     
     SamrenaConfig config = samrena_default_config();
     Samrena *arena = samrena_create(&config);
     assert(arena != NULL);
     
-    Pearl *pearl = pearl_create(sizeof(int), 1024, arena);
-    assert(pearl != NULL);
+    SamSet *samset = samset_create(sizeof(int), 1024, arena);
+    assert(samset != NULL);
     
     const int num_elements = 10000;
     struct timespec start, end;
@@ -42,19 +42,19 @@ static void test_pearl_large_scale_operations(void) {
     clock_gettime(CLOCK_MONOTONIC, &start);
     
     for (int i = 0; i < num_elements; i++) {
-        bool result = pearl_add(pearl, &i);
+        bool result = samset_add(samset, &i);
         assert(result == true);
     }
     
     clock_gettime(CLOCK_MONOTONIC, &end);
     double add_time = get_time_diff(start, end);
     
-    assert(pearl_size(pearl) == (size_t)num_elements);
+    assert(samset_size(samset) == (size_t)num_elements);
     
     clock_gettime(CLOCK_MONOTONIC, &start);
     
     for (int i = 0; i < num_elements; i++) {
-        bool result = pearl_contains(pearl, &i);
+        bool result = samset_contains(samset, &i);
         assert(result == true);
     }
     
@@ -64,59 +64,59 @@ static void test_pearl_large_scale_operations(void) {
     clock_gettime(CLOCK_MONOTONIC, &start);
     
     for (int i = 0; i < num_elements / 2; i++) {
-        bool result = pearl_remove(pearl, &i);
+        bool result = samset_remove(samset, &i);
         assert(result == true);
     }
     
     clock_gettime(CLOCK_MONOTONIC, &end);
     double remove_time = get_time_diff(start, end);
     
-    assert(pearl_size(pearl) == (size_t)(num_elements / 2));
+    assert(samset_size(samset) == (size_t)(num_elements / 2));
     
     printf("  Performance results for %d elements:\n", num_elements);
     printf("    Add time: %.6f seconds (%.1f ops/sec)\n", add_time, num_elements / add_time);
     printf("    Lookup time: %.6f seconds (%.1f ops/sec)\n", lookup_time, num_elements / lookup_time);
     printf("    Remove time: %.6f seconds (%.1f ops/sec)\n", remove_time, (num_elements / 2) / remove_time);
     
-    PearlStats stats = pearl_get_stats(pearl);
+    SamSetStats stats = samset_get_stats(samset);
     printf("    Total collisions: %zu\n", stats.total_collisions);
     printf("    Max chain length: %zu\n", stats.max_chain_length);
     printf("    Average chain length: %.2f\n", stats.average_chain_length);
     printf("    Resize count: %zu\n", stats.resize_count);
     
-    pearl_destroy(pearl);
+    samset_destroy(samset);
     samrena_destroy(arena);
     printf("✓ Large scale operations test passed\n");
 }
 
-static void test_pearl_hash_function_performance(void) {
+static void test_samset_hash_function_performance(void) {
     printf("Testing hash function performance comparison...\n");
     
     SamrenaConfig config = samrena_default_config();
     Samrena *arena = samrena_create(&config);
     assert(arena != NULL);
     
-    PearlHashFunction functions[] = {PEARL_HASH_DJB2, PEARL_HASH_FNV1A, PEARL_HASH_MURMUR3};
+    SamSetHashFunction functions[] = {SAMSET_HASH_DJB2, SAMSET_HASH_FNV1A, SAMSET_HASH_MURMUR3};
     const char *function_names[] = {"DJB2", "FNV1A", "MURMUR3"};
     int num_functions = sizeof(functions) / sizeof(functions[0]);
     
     const int num_elements = 5000;
     
     for (int f = 0; f < num_functions; f++) {
-        Pearl *pearl = pearl_create_with_hash(sizeof(int), 512, arena, functions[f]);
-        assert(pearl != NULL);
+        SamSet *samset = samset_create_with_hash(sizeof(int), 512, arena, functions[f]);
+        assert(samset != NULL);
         
         struct timespec start, end;
         clock_gettime(CLOCK_MONOTONIC, &start);
         
         for (int i = 0; i < num_elements; i++) {
-            pearl_add(pearl, &i);
+            samset_add(samset, &i);
         }
         
         clock_gettime(CLOCK_MONOTONIC, &end);
         double add_time = get_time_diff(start, end);
         
-        PearlStats stats = pearl_get_stats(pearl);
+        SamSetStats stats = samset_get_stats(samset);
         
         printf("  %s hash function:\n", function_names[f]);
         printf("    Add time: %.6f seconds\n", add_time);
@@ -124,7 +124,7 @@ static void test_pearl_hash_function_performance(void) {
         printf("    Max chain length: %zu\n", stats.max_chain_length);
         printf("    Average chain length: %.2f\n", stats.average_chain_length);
         
-        pearl_destroy(pearl);
+        samset_destroy(samset);
     }
     
     samrena_destroy(arena);
@@ -137,15 +137,15 @@ static uint32_t bad_hash(const void *element, size_t size) {
     return 1;
 }
 
-static void test_pearl_collision_heavy_scenario(void) {
+static void test_samset_collision_heavy_scenario(void) {
     printf("Testing collision-heavy scenario...\n");
     
     SamrenaConfig config = samrena_default_config();
     Samrena *arena = samrena_create(&config);
     assert(arena != NULL);
     
-    Pearl *pearl = pearl_create_custom(sizeof(int), 16, arena, bad_hash, NULL);
-    assert(pearl != NULL);
+    SamSet *samset = samset_create_custom(sizeof(int), 16, arena, bad_hash, NULL);
+    assert(samset != NULL);
     
     const int num_elements = 1000;
     struct timespec start, end;
@@ -153,7 +153,7 @@ static void test_pearl_collision_heavy_scenario(void) {
     clock_gettime(CLOCK_MONOTONIC, &start);
     
     for (int i = 0; i < num_elements; i++) {
-        bool result = pearl_add(pearl, &i);
+        bool result = samset_add(samset, &i);
         assert(result == true);
     }
     
@@ -163,14 +163,14 @@ static void test_pearl_collision_heavy_scenario(void) {
     clock_gettime(CLOCK_MONOTONIC, &start);
     
     for (int i = 0; i < num_elements; i++) {
-        bool result = pearl_contains(pearl, &i);
+        bool result = samset_contains(samset, &i);
         assert(result == true);
     }
     
     clock_gettime(CLOCK_MONOTONIC, &end);
     double lookup_time = get_time_diff(start, end);
     
-    PearlStats stats = pearl_get_stats(pearl);
+    SamSetStats stats = samset_get_stats(samset);
     
     printf("  Collision-heavy scenario results:\n");
     printf("    Add time: %.6f seconds\n", add_time);
@@ -182,20 +182,20 @@ static void test_pearl_collision_heavy_scenario(void) {
     assert(stats.total_collisions > 0);
     assert(stats.max_chain_length > 1);
     
-    pearl_destroy(pearl);
+    samset_destroy(samset);
     samrena_destroy(arena);
     printf("✓ Collision-heavy scenario test passed\n");
 }
 
-static void test_pearl_resize_performance(void) {
+static void test_samset_resize_performance(void) {
     printf("Testing resize performance...\n");
     
     SamrenaConfig config = samrena_default_config();
     Samrena *arena = samrena_create(&config);
     assert(arena != NULL);
     
-    Pearl *pearl = pearl_create(sizeof(int), 4, arena);
-    assert(pearl != NULL);
+    SamSet *samset = samset_create(sizeof(int), 4, arena);
+    assert(samset != NULL);
     
     const int num_elements = 2000;
     struct timespec start, end;
@@ -203,13 +203,13 @@ static void test_pearl_resize_performance(void) {
     clock_gettime(CLOCK_MONOTONIC, &start);
     
     for (int i = 0; i < num_elements; i++) {
-        pearl_add(pearl, &i);
+        samset_add(samset, &i);
     }
     
     clock_gettime(CLOCK_MONOTONIC, &end);
     double total_time = get_time_diff(start, end);
     
-    PearlStats stats = pearl_get_stats(pearl);
+    SamSetStats stats = samset_get_stats(samset);
     
     printf("  Resize performance results:\n");
     printf("    Total time for %d additions: %.6f seconds\n", num_elements, total_time);
@@ -219,15 +219,15 @@ static void test_pearl_resize_performance(void) {
            (double)num_elements / 4.0);
     
     for (int i = 0; i < num_elements; i++) {
-        assert(pearl_contains(pearl, &i) == true);
+        assert(samset_contains(samset, &i) == true);
     }
     
-    pearl_destroy(pearl);
+    samset_destroy(samset);
     samrena_destroy(arena);
     printf("✓ Resize performance test passed\n");
 }
 
-static void test_pearl_memory_efficiency(void) {
+static void test_samset_memory_efficiency(void) {
     printf("Testing memory efficiency...\n");
     
     SamrenaConfig config = samrena_default_config();
@@ -236,15 +236,15 @@ static void test_pearl_memory_efficiency(void) {
     
     size_t initial_allocated = samrena_allocated(arena);
     
-    Pearl *pearl = pearl_create(sizeof(int), 1024, arena);
-    assert(pearl != NULL);
+    SamSet *samset = samset_create(sizeof(int), 1024, arena);
+    assert(samset != NULL);
     
     size_t after_creation = samrena_allocated(arena);
     
     const int num_elements = 10000;
     
     for (int i = 0; i < num_elements; i++) {
-        pearl_add(pearl, &i);
+        samset_add(samset, &i);
     }
     
     size_t after_additions = samrena_allocated(arena);
@@ -257,25 +257,25 @@ static void test_pearl_memory_efficiency(void) {
     printf("    Bytes per element: %.1f\n", 
            (double)(after_additions - after_creation) / num_elements);
     
-    PearlStats stats = pearl_get_stats(pearl);
+    SamSetStats stats = samset_get_stats(samset);
     printf("    Failed allocations: %zu\n", stats.failed_allocations);
     
     assert(stats.failed_allocations == 0);
     
-    pearl_destroy(pearl);
+    samset_destroy(samset);
     samrena_destroy(arena);
     printf("✓ Memory efficiency test passed\n");
 }
 
 int main(void) {
-    printf("=== Pearl Performance Tests ===\n");
+    printf("=== SamSet Performance Tests ===\n");
     
-    test_pearl_large_scale_operations();
-    test_pearl_hash_function_performance();
-    test_pearl_collision_heavy_scenario();
-    test_pearl_resize_performance();
-    test_pearl_memory_efficiency();
+    test_samset_large_scale_operations();
+    test_samset_hash_function_performance();
+    test_samset_collision_heavy_scenario();
+    test_samset_resize_performance();
+    test_samset_memory_efficiency();
     
-    printf("\n✅ All Pearl performance tests completed!\n");
+    printf("\n✅ All SamSet performance tests completed!\n");
     return 0;
 }

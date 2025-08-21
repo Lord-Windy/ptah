@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef DATAZOO_STARFISH_H
-#define DATAZOO_STARFISH_H
+#ifndef SAMDATA_SAMHASH_H
+#define SAMDATA_SAMHASH_H
 
 #include <stdint.h>
 #include <stddef.h>
@@ -25,29 +25,29 @@ extern "C" {
 #endif
 
 typedef enum {
-    STARFISH_HASH_DJB2,
-    STARFISH_HASH_FNV1A,
-    STARFISH_HASH_MURMUR3
-} StarfishHashFunction;
+    SAMHASH_DJB2,
+    SAMHASH_FNV1A,
+    SAMHASH_MURMUR3
+} SamHashFunction;
 
-uint32_t starfish_hash_djb2(const void *data, size_t size);
+uint32_t samhash_djb2(const void *data, size_t size);
 
-uint32_t starfish_hash_fnv1a(const void *data, size_t size);
+uint32_t samhash_fnv1a(const void *data, size_t size);
 
-uint32_t starfish_hash_murmur3(const void *data, size_t size);
+uint32_t samhash_murmur3(const void *data, size_t size);
 
-uint32_t starfish_hash_string_djb2(const char *str);
+uint32_t samhash_string_djb2(const char *str);
 
-uint32_t starfish_hash_string_fnv1a(const char *str);
+uint32_t samhash_string_fnv1a(const char *str);
 
-uint32_t starfish_hash_string_murmur3(const char *str);
+uint32_t samhash_string_murmur3(const char *str);
 
-uint32_t starfish_hash(const void *data, size_t size, StarfishHashFunction func);
+uint32_t samhash(const void *data, size_t size, SamHashFunction func);
 
-uint32_t starfish_hash_string(const char *str, StarfishHashFunction func);
+uint32_t samhash_string(const char *str, SamHashFunction func);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* DATAZOO_STARFISH_H */
+#endif /* SAMDATA_SAMHASH_H */

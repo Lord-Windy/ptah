@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef HONEYCOMB_H
-#define HONEYCOMB_H
+#ifndef SAMHASHMAP_H
+#define SAMHASHMAP_H
 
 // =============================================================================
 // STANDARD INCLUDES
@@ -32,7 +32,7 @@
 #include <samrena.h>
 
 // =============================================================================
-// HONEYCOMB - Hash Map Data Structure
+// SAMHASHMAP - Hash Map Data Structure
 // =============================================================================
 
 // =============================================================================
@@ -41,26 +41,26 @@
 
 // Hash function type
 typedef enum {
-    HASH_DJB2,
-    HASH_FNV1A,
-    HASH_MURMUR3
-} HashFunction;
+    SAMHASHMAP_HASH_DJB2,
+    SAMHASHMAP_HASH_FNV1A,
+    SAMHASHMAP_HASH_MURMUR3
+} SamHashMapHashFunction;
 
 // Error types
 typedef enum {
-    HONEYCOMB_ERROR_NONE = 0,
-    HONEYCOMB_ERROR_NULL_PARAM,
-    HONEYCOMB_ERROR_MEMORY_EXHAUSTED,
-    HONEYCOMB_ERROR_RESIZE_FAILED,
-    HONEYCOMB_ERROR_KEY_NOT_FOUND
-} HoneycombError;
+    SAMHASHMAP_ERROR_NONE = 0,
+    SAMHASHMAP_ERROR_NULL_PARAM,
+    SAMHASHMAP_ERROR_MEMORY_EXHAUSTED,
+    SAMHASHMAP_ERROR_RESIZE_FAILED,
+    SAMHASHMAP_ERROR_KEY_NOT_FOUND
+} SamHashMapError;
 
 // =============================================================================
 // CALLBACK FUNCTION TYPES
 // =============================================================================
 
 // Error callback function type
-typedef void (*HoneycombErrorCallback)(HoneycombError error, const char *message, void *user_data);
+typedef void (*SamHashMapErrorCallback)(SamHashMapError error, const char *message, void *user_data);
 
 // =============================================================================
 // PERFORMANCE STRUCTURES
@@ -74,7 +74,7 @@ typedef struct {
     double average_chain_length;
     size_t total_operations;
     size_t failed_allocations;
-} HoneycombStats;
+} SamHashMapStats;
 
 // =============================================================================
 // CORE STRUCTURES
@@ -94,157 +94,157 @@ typedef struct {
   size_t capacity; // Number of buckets
   Samrena *arena; // Arena for memory allocation
   float load_factor; // Threshold for resizing (default 0.75)
-  HashFunction hash_func; // Hash function to use
-  HoneycombStats stats; // Performance metrics
-  HoneycombErrorCallback error_callback; // Error callback function
+  SamHashMapHashFunction hash_func; // Hash function to use
+  SamHashMapStats stats; // Performance metrics
+  SamHashMapErrorCallback error_callback; // Error callback function
   void *error_callback_data; // User data for error callback
-  HoneycombError last_error; // Last error that occurred
-} Honeycomb;
+  SamHashMapError last_error; // Last error that occurred
+} SamHashMap;
 
 // =============================================================================
-// CORE API - Honeycomb Management
+// CORE API - SamHashMap Management
 // =============================================================================
 
 /**
- * Creates a new honeycomb hash map with default hash function.
+ * Creates a new samhashmap hash map with default hash function.
  * @param initial_capacity Initial number of buckets
  * @param samrena Memory arena to use - REQUIRED (non-null)
- * @return New honeycomb instance or NULL if samrena is NULL
+ * @return New samhashmap instance or NULL if samrena is NULL
  */
-Honeycomb *honeycomb_create(size_t initial_capacity, Samrena *samrena);
+SamHashMap *samhashmap_create(size_t initial_capacity, Samrena *samrena);
 
 /**
- * Creates a new honeycomb hash map with specified hash function.
+ * Creates a new samhashmap hash map with specified hash function.
  * @param initial_capacity Initial number of buckets
  * @param samrena Memory arena to use - REQUIRED (non-null)
  * @param hash_func Hash function to use
- * @return New honeycomb instance or NULL if samrena is NULL
+ * @return New samhashmap instance or NULL if samrena is NULL
  */
-Honeycomb *honeycomb_create_with_hash(size_t initial_capacity, Samrena *samrena, HashFunction hash_func);
+SamHashMap *samhashmap_create_with_hash(size_t initial_capacity, Samrena *samrena, SamHashMapHashFunction hash_func);
 
-void honeycomb_destroy(Honeycomb *comb);
+void samhashmap_destroy(SamHashMap *comb);
 
 // =============================================================================
 // CORE OPERATIONS API
 // =============================================================================
 
-bool honeycomb_put(Honeycomb *comb, const char *key, void *value);
-void *honeycomb_get(const Honeycomb *comb, const char *key);
+bool samhashmap_put(SamHashMap *comb, const char *key, void *value);
+void *samhashmap_get(const SamHashMap *comb, const char *key);
 
-bool honeycomb_remove(Honeycomb *comb, const char *key);
-bool honeycomb_contains(const Honeycomb *comb, const char *key);
+bool samhashmap_remove(SamHashMap *comb, const char *key);
+bool samhashmap_contains(const SamHashMap *comb, const char *key);
 
-void honeycomb_clear(Honeycomb *comb);
-void honeycomb_print(const Honeycomb *comb);
+void samhashmap_clear(SamHashMap *comb);
+void samhashmap_print(const SamHashMap *comb);
 
 // =============================================================================
 // INFORMATION API
 // =============================================================================
 
-size_t honeycomb_size(const Honeycomb *comb);
-bool honeycomb_is_empty(const Honeycomb *comb);
+size_t samhashmap_size(const SamHashMap *comb);
+bool samhashmap_is_empty(const SamHashMap *comb);
 
 // =============================================================================
 // COLLECTION API
 // =============================================================================
 
-size_t honeycomb_get_keys(const Honeycomb *comb, const char **keys, size_t max_keys);
-size_t honeycomb_get_values(const Honeycomb *comb, void **values, size_t max_values);
+size_t samhashmap_get_keys(const SamHashMap *comb, const char **keys, size_t max_keys);
+size_t samhashmap_get_values(const SamHashMap *comb, void **values, size_t max_values);
 
 // =============================================================================
 // ITERATOR API
 // =============================================================================
 
-typedef void (*HoneycombIterator)(const char *key, void *value, void *user_data);
-void honeycomb_foreach(const Honeycomb *map, HoneycombIterator iterator, void *user_data);
+typedef void (*SamHashMapIterator)(const char *key, void *value, void *user_data);
+void samhashmap_foreach(const SamHashMap *map, SamHashMapIterator iterator, void *user_data);
 
 // =============================================================================
 // PERFORMANCE AND DEBUGGING API
 // =============================================================================
 
-HoneycombStats honeycomb_get_stats(const Honeycomb *comb);
-void honeycomb_reset_stats(Honeycomb *comb);
-void honeycomb_print_stats(const Honeycomb *comb);
+SamHashMapStats samhashmap_get_stats(const SamHashMap *comb);
+void samhashmap_reset_stats(SamHashMap *comb);
+void samhashmap_print_stats(const SamHashMap *comb);
 
 // =============================================================================
 // ERROR HANDLING API
 // =============================================================================
 
-void honeycomb_set_error_callback(Honeycomb *comb, HoneycombErrorCallback callback, void *user_data);
-HoneycombError honeycomb_get_last_error(const Honeycomb *comb);
-const char *honeycomb_error_string(HoneycombError error);
+void samhashmap_set_error_callback(SamHashMap *comb, SamHashMapErrorCallback callback, void *user_data);
+SamHashMapError samhashmap_get_last_error(const SamHashMap *comb);
+const char *samhashmap_error_string(SamHashMapError error);
 
 // =============================================================================
 // TYPE-SAFE WRAPPER MACROS
 // =============================================================================
-#define HONEYCOMB_DEFINE_TYPED(name, key_type, value_type) \
-    typedef struct name##_honeycomb { \
-        Honeycomb *base; \
-    } name##_honeycomb; \
+#define SAMHASHMAP_DEFINE_TYPED(name, key_type, value_type) \
+    typedef struct name##_samhashmap { \
+        SamHashMap *base; \
+    } name##_samhashmap; \
     \
-    static inline name##_honeycomb *name##_create(size_t initial_capacity, Samrena *samrena) { \
-        name##_honeycomb *typed_map = samrena_push(samrena, sizeof(name##_honeycomb)); \
+    static inline name##_samhashmap *name##_create(size_t initial_capacity, Samrena *samrena) { \
+        name##_samhashmap *typed_map = samrena_push(samrena, sizeof(name##_samhashmap)); \
         if (typed_map == NULL) return NULL; \
-        typed_map->base = honeycomb_create(initial_capacity, samrena); \
+        typed_map->base = samhashmap_create(initial_capacity, samrena); \
         if (typed_map->base == NULL) return NULL; \
         return typed_map; \
     } \
     \
-    static inline void name##_destroy(name##_honeycomb *h) { \
+    static inline void name##_destroy(name##_samhashmap *h) { \
         if (h != NULL && h->base != NULL) { \
-            honeycomb_destroy(h->base); \
+            samhashmap_destroy(h->base); \
         } \
     } \
     \
-    static inline bool name##_put(name##_honeycomb *h, key_type key, value_type value) { \
+    static inline bool name##_put(name##_samhashmap *h, key_type key, value_type value) { \
         if (h == NULL || h->base == NULL) return false; \
-        return honeycomb_put(h->base, (const char*)key, (void*)value); \
+        return samhashmap_put(h->base, (const char*)key, (void*)value); \
     } \
     \
-    static inline value_type name##_get(const name##_honeycomb *h, key_type key) { \
+    static inline value_type name##_get(const name##_samhashmap *h, key_type key) { \
         if (h == NULL || h->base == NULL) return (value_type)0; \
-        return (value_type)honeycomb_get(h->base, (const char*)key); \
+        return (value_type)samhashmap_get(h->base, (const char*)key); \
     } \
     \
-    static inline bool name##_remove(name##_honeycomb *h, key_type key) { \
+    static inline bool name##_remove(name##_samhashmap *h, key_type key) { \
         if (h == NULL || h->base == NULL) return false; \
-        return honeycomb_remove(h->base, (const char*)key); \
+        return samhashmap_remove(h->base, (const char*)key); \
     } \
     \
-    static inline bool name##_contains(const name##_honeycomb *h, key_type key) { \
+    static inline bool name##_contains(const name##_samhashmap *h, key_type key) { \
         if (h == NULL || h->base == NULL) return false; \
-        return honeycomb_contains(h->base, (const char*)key); \
+        return samhashmap_contains(h->base, (const char*)key); \
     } \
     \
-    static inline void name##_clear(name##_honeycomb *h) { \
+    static inline void name##_clear(name##_samhashmap *h) { \
         if (h != NULL && h->base != NULL) { \
-            honeycomb_clear(h->base); \
+            samhashmap_clear(h->base); \
         } \
     } \
     \
-    static inline size_t name##_size(const name##_honeycomb *h) { \
+    static inline size_t name##_size(const name##_samhashmap *h) { \
         if (h == NULL || h->base == NULL) return 0; \
-        return honeycomb_size(h->base); \
+        return samhashmap_size(h->base); \
     } \
     \
-    static inline bool name##_is_empty(const name##_honeycomb *h) { \
+    static inline bool name##_is_empty(const name##_samhashmap *h) { \
         if (h == NULL || h->base == NULL) return true; \
-        return honeycomb_is_empty(h->base); \
+        return samhashmap_is_empty(h->base); \
     } \
     \
     typedef void (*name##_iterator)(key_type key, value_type value, void *user_data); \
     \
-    static inline void name##_foreach(const name##_honeycomb *h, name##_iterator iterator, void *user_data) { \
+    static inline void name##_foreach(const name##_samhashmap *h, name##_iterator iterator, void *user_data) { \
         if (h == NULL || h->base == NULL || iterator == NULL) return; \
-        honeycomb_foreach(h->base, (HoneycombIterator)iterator, user_data); \
+        samhashmap_foreach(h->base, (SamHashMapIterator)iterator, user_data); \
     }
 
 // =============================================================================
 // COMMON TYPE-SAFE INSTANTIATIONS
 // =============================================================================
 
-HONEYCOMB_DEFINE_TYPED(string_string, const char*, const char*)
-HONEYCOMB_DEFINE_TYPED(string_int, const char*, int*)
-HONEYCOMB_DEFINE_TYPED(string_ptr, const char*, void*)
+SAMHASHMAP_DEFINE_TYPED(string_string, const char*, const char*)
+SAMHASHMAP_DEFINE_TYPED(string_int, const char*, int*)
+SAMHASHMAP_DEFINE_TYPED(string_ptr, const char*, void*)
 
-#endif // HONEYCOMB_H
+#endif // SAMHASHMAP_H
