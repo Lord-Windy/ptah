@@ -19,6 +19,8 @@
 
 #include <samrena.h>
 #include <samdata.h>
+#include "samneural/layers.h"
+#include "samneural/activations.h"
 
 #ifdef __cplusplus
 extern "C" {

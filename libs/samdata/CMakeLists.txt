@@ -16,6 +16,7 @@ ptah_add_library(samdata
     SOURCES
         src/samhash.c
         src/samhashmap.c
+        src/samrng.c
         src/samset.c
     PUBLIC_HEADERS
         include/samdata.h
@@ -82,4 +83,10 @@ if(BUILD_TESTING)
     )
     target_link_libraries(samset_functional_test PRIVATE samdata samrena)
     add_test(NAME samset_functional_test COMMAND samset_functional_test)
+    
+    add_executable(samrng_test
+        test/samrng_test.c
+    )
+    target_link_libraries(samrng_test PRIVATE samdata samrena m)
+    add_test(NAME samrng_test COMMAND samrng_test)
 endif()

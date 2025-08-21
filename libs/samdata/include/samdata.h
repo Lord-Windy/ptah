@@ -37,6 +37,7 @@
 
 #include "samdata/samhash.h"  
 #include "samdata/samhashmap.h"
+#include "samdata/samrng.h"
 #include "samdata/samset.h"
 
 #endif // SAMDATA_H
