@@ -17,6 +17,4 @@
 #include <samneural.h>
 #include <stdio.h>
 
-void samneural_hello(void) {
-    printf("Hello from samneural!\n");
-}
+void samneural_hello(void) { printf("Hello from samneural!\n"); }

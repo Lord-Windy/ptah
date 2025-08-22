@@ -271,7 +271,7 @@ void test_element_access() {
   SamrenaVector *vec = samrena_vector_init(arena, sizeof(int), 10);
 
   int values[] = {10, 20, 30, 40, 50};
-  
+
   // Push 5 elements
   for (int i = 0; i < 5; i++) {
     samrena_vector_push(vec, &values[i]);
@@ -285,11 +285,11 @@ void test_element_access() {
   assert(retrieved == 30);
   assert(samrena_vector_get(vec, 4, &retrieved) == SAMRENA_VECTOR_SUCCESS);
   assert(retrieved == 50);
-  
+
   // Test out of bounds
   assert(samrena_vector_get(vec, 5, &retrieved) == SAMRENA_VECTOR_ERROR_OUT_OF_BOUNDS);
   assert(samrena_vector_get(vec, 10, &retrieved) == SAMRENA_VECTOR_ERROR_OUT_OF_BOUNDS);
-  
+
   // Test NULL parameters
   assert(samrena_vector_get(NULL, 0, &retrieved) == SAMRENA_VECTOR_ERROR_NULL_POINTER);
   assert(samrena_vector_get(vec, 0, NULL) == SAMRENA_VECTOR_ERROR_NULL_POINTER);
@@ -299,10 +299,10 @@ void test_element_access() {
   assert(samrena_vector_set(vec, 2, &new_value) == SAMRENA_VECTOR_SUCCESS);
   assert(samrena_vector_get(vec, 2, &retrieved) == SAMRENA_VECTOR_SUCCESS);
   assert(retrieved == 99);
-  
+
   // Test set out of bounds
   assert(samrena_vector_set(vec, 5, &new_value) == SAMRENA_VECTOR_ERROR_OUT_OF_BOUNDS);
-  
+
   // Test NULL parameters
   assert(samrena_vector_set(NULL, 0, &new_value) == SAMRENA_VECTOR_ERROR_NULL_POINTER);
   assert(samrena_vector_set(vec, 0, NULL) == SAMRENA_VECTOR_ERROR_NULL_POINTER);
@@ -319,42 +319,42 @@ void test_pointer_access() {
   SamrenaVector *vec = samrena_vector_init(arena, sizeof(int), 10);
 
   int values[] = {100, 200, 300, 400, 500};
-  
+
   // Push 5 elements
   for (int i = 0; i < 5; i++) {
     samrena_vector_push(vec, &values[i]);
   }
 
   // Test samrena_vector_at
-  int *ptr = (int*)samrena_vector_at(vec, 0);
+  int *ptr = (int *)samrena_vector_at(vec, 0);
   assert(ptr != NULL);
   assert(*ptr == 100);
-  
-  ptr = (int*)samrena_vector_at(vec, 3);
+
+  ptr = (int *)samrena_vector_at(vec, 3);
   assert(ptr != NULL);
   assert(*ptr == 400);
-  
+
   // Test out of bounds
-  ptr = (int*)samrena_vector_at(vec, 5);
+  ptr = (int *)samrena_vector_at(vec, 5);
   assert(ptr == NULL);
-  
+
   // Test NULL vector
-  ptr = (int*)samrena_vector_at(NULL, 0);
+  ptr = (int *)samrena_vector_at(NULL, 0);
   assert(ptr == NULL);
 
   // Test const version
-  const int *const_ptr = (const int*)samrena_vector_at_const(vec, 1);
+  const int *const_ptr = (const int *)samrena_vector_at_const(vec, 1);
   assert(const_ptr != NULL);
   assert(*const_ptr == 200);
-  
-  const_ptr = (const int*)samrena_vector_at_const(vec, 5);
+
+  const_ptr = (const int *)samrena_vector_at_const(vec, 5);
   assert(const_ptr == NULL);
 
   samrena_destroy(arena);
   printf("PASSED\n");
 }
 
-// Test element access convenience functions  
+// Test element access convenience functions
 void test_convenience_access() {
   printf("Testing element access functions... ");
 
@@ -366,34 +366,34 @@ void test_convenience_access() {
   assert(samrena_vector_at_const(vec, 0) == NULL);
 
   int values[] = {111, 222, 333, 444, 555};
-  
+
   // Push 5 elements
   for (int i = 0; i < 5; i++) {
     samrena_vector_push(vec, &values[i]);
   }
 
   // Test first element (front)
-  int *front_ptr = (int*)samrena_vector_at(vec, 0);
+  int *front_ptr = (int *)samrena_vector_at(vec, 0);
   assert(front_ptr != NULL);
   assert(*front_ptr == 111);
-  
-  const int *const_front_ptr = (const int*)samrena_vector_at_const(vec, 0);
+
+  const int *const_front_ptr = (const int *)samrena_vector_at_const(vec, 0);
   assert(const_front_ptr != NULL);
   assert(*const_front_ptr == 111);
 
   // Test last element (back)
-  int *back_ptr = (int*)samrena_vector_at(vec, 4);
+  int *back_ptr = (int *)samrena_vector_at(vec, 4);
   assert(back_ptr != NULL);
   assert(*back_ptr == 555);
-  
-  const int *const_back_ptr = (const int*)samrena_vector_at_const(vec, 4);
+
+  const int *const_back_ptr = (const int *)samrena_vector_at_const(vec, 4);
   assert(const_back_ptr != NULL);
   assert(*const_back_ptr == 555);
 
   // Test all elements using direct access
   for (int i = 0; i < 5; i++) {
-    int *ptr = (int*)samrena_vector_at(vec, i);
-    const int *const_ptr = (const int*)samrena_vector_at_const(vec, i);
+    int *ptr = (int *)samrena_vector_at(vec, i);
+    const int *const_ptr = (const int *)samrena_vector_at_const(vec, i);
     assert(ptr != NULL);
     assert(const_ptr != NULL);
     assert(*ptr == values[i]);
@@ -418,34 +418,34 @@ void test_unsafe_access() {
   SamrenaVector *vec = samrena_vector_init(arena, sizeof(int), 10);
 
   int values[] = {123, 456, 789, 321, 654};
-  
+
   // Push 5 elements
   for (int i = 0; i < 5; i++) {
     samrena_vector_push(vec, &values[i]);
   }
 
   // Test unchecked access
-  int *unchecked_ptr = (int*)samrena_vector_at_unchecked(vec, 0);
+  int *unchecked_ptr = (int *)samrena_vector_at_unchecked(vec, 0);
   assert(*unchecked_ptr == 123);
-  
-  unchecked_ptr = (int*)samrena_vector_at_unchecked(vec, 2);
+
+  unchecked_ptr = (int *)samrena_vector_at_unchecked(vec, 2);
   assert(*unchecked_ptr == 789);
-  
-  unchecked_ptr = (int*)samrena_vector_at_unchecked(vec, 4);
+
+  unchecked_ptr = (int *)samrena_vector_at_unchecked(vec, 4);
   assert(*unchecked_ptr == 654);
 
   // Test const unchecked access
-  const int *const_unchecked_ptr = (const int*)samrena_vector_at_unchecked_const(vec, 1);
+  const int *const_unchecked_ptr = (const int *)samrena_vector_at_unchecked_const(vec, 1);
   assert(*const_unchecked_ptr == 456);
-  
-  const_unchecked_ptr = (const int*)samrena_vector_at_unchecked_const(vec, 3);
+
+  const_unchecked_ptr = (const int *)samrena_vector_at_unchecked_const(vec, 3);
   assert(*const_unchecked_ptr == 321);
 
   // Test macro access
   assert(SAMRENA_VECTOR_ELEM(vec, int, 0) == 123);
   assert(SAMRENA_VECTOR_ELEM(vec, int, 2) == 789);
   assert(SAMRENA_VECTOR_ELEM(vec, int, 4) == 654);
-  
+
   // Modify through macro
   SAMRENA_VECTOR_ELEM(vec, int, 1) = 999;
   assert(SAMRENA_VECTOR_ELEM(vec, int, 1) == 999);

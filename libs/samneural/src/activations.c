@@ -6,13 +6,9 @@
 
 #include <math.h>
 
-float samneural_activation_leaky_relu(float x, float alpha) {
-  return x > 0 ? x : alpha * x;
-}
+float samneural_activation_leaky_relu(float x, float alpha) { return x > 0 ? x : alpha * x; }
 
-float samneural_activation_derivative_leaky_relu(float x, float alpha) {
-  return x > 0 ? 1 : alpha;
-}
+float samneural_activation_derivative_leaky_relu(float x, float alpha) { return x > 0 ? 1 : alpha; }
 
 void samneural_activation_softmax(uint64_t input_length, float *inputs, float *outputs) {
 
@@ -35,7 +31,6 @@ void samneural_activation_softmax(uint64_t input_length, float *inputs, float *o
   for (uint64_t i = 0; i < input_length; i++) {
     outputs[i] /= sum;
   }
-
 }
 
 void samneural_activation_derivative_softmax(uint64_t input_length, float *inputs, float *outputs) {

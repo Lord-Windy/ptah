@@ -17,18 +17,14 @@
 #ifndef SAMDATA_SAMHASH_H
 #define SAMDATA_SAMHASH_H
 
-#include <stdint.h>
 #include <stddef.h>
+#include <stdint.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-typedef enum {
-    SAMHASH_DJB2,
-    SAMHASH_FNV1A,
-    SAMHASH_MURMUR3
-} SamHashFunction;
+typedef enum { SAMHASH_DJB2, SAMHASH_FNV1A, SAMHASH_MURMUR3 } SamHashFunction;
 
 uint32_t samhash_djb2(const void *data, size_t size);
 

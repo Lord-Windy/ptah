@@ -119,7 +119,7 @@ void test_zero_page_allocation() {
   printf("Default allocation correctly returns valid arena\n");
   printf("Arena capacity: %lu bytes\n", samrena_capacity(samrena));
   printf("Arena allocated: %lu bytes\n", samrena_allocated(samrena));
-  
+
   samrena_destroy(samrena);
 }
 

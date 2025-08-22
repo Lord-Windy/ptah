@@ -24,8 +24,9 @@
 #define DEFAULT_PAGE_COUNT 64
 
 static void samhashmap_report_error(SamHashMap *map, SamHashMapError error, const char *message) {
-  if (map == NULL) return;
-  
+  if (map == NULL)
+    return;
+
   map->last_error = error;
   if (map->error_callback != NULL) {
     map->error_callback(error, message, map->error_callback_data);
@@ -57,9 +58,10 @@ SamHashMap *samhashmap_create(size_t initial_capacity, Samrena *samrena) {
   return samhashmap_create_with_hash(initial_capacity, samrena, SAMHASHMAP_HASH_DJB2);
 }
 
-SamHashMap *samhashmap_create_with_hash(size_t initial_capacity, Samrena *samrena, SamHashMapHashFunction hash_func) {
+SamHashMap *samhashmap_create_with_hash(size_t initial_capacity, Samrena *samrena,
+                                        SamHashMapHashFunction hash_func) {
   if (samrena == NULL) {
-    return NULL;  // Samrena instance is required
+    return NULL; // Samrena instance is required
   }
 
   SamHashMap *map = samrena_push(samrena, sizeof(SamHashMap));
@@ -71,7 +73,7 @@ SamHashMap *samhashmap_create_with_hash(size_t initial_capacity, Samrena *samren
   if (map->cells == NULL) {
     return NULL;
   }
-  
+
   map->size = 0;
   map->capacity = initial_capacity;
   map->arena = samrena;
@@ -80,7 +82,7 @@ SamHashMap *samhashmap_create_with_hash(size_t initial_capacity, Samrena *samren
   map->error_callback = NULL;
   map->error_callback_data = NULL;
   map->last_error = SAMHASHMAP_ERROR_NONE;
-  
+
   // Initialize stats
   memset(&map->stats, 0, sizeof(SamHashMapStats));
 
@@ -91,7 +93,6 @@ void samhashmap_destroy(SamHashMap *map) {
   // Memory is managed by the caller through samrena
   // No cleanup needed here
 }
-
 
 static size_t hash_function(const char *key, size_t capacity, SamHashMapHashFunction func) {
   SamHashFunction samhash_func;
@@ -117,8 +118,8 @@ static bool samhashmap_resize(SamHashMap *map) {
   Cell **new_cells = samrena_push_zero(map->arena, sizeof(Cell *) * new_capacity);
   if (new_cells == NULL) {
     map->stats.failed_allocations++;
-    samhashmap_report_error(map, SAMHASHMAP_ERROR_MEMORY_EXHAUSTED, 
-                          "Failed to allocate memory for hashmap resize");
+    samhashmap_report_error(map, SAMHASHMAP_ERROR_MEMORY_EXHAUSTED,
+                            "Failed to allocate memory for hashmap resize");
     return false; // Arena exhausted
   }
 
@@ -127,12 +128,12 @@ static bool samhashmap_resize(SamHashMap *map) {
     Cell *current = map->cells[i];
     while (current != NULL) {
       Cell *next = current->next;
-      
+
       // Rehash to new bucket
       size_t new_bucket = hash_function(current->key, new_capacity, map->hash_func);
       current->next = new_cells[new_bucket];
       new_cells[new_bucket] = current;
-      
+
       current = next;
     }
   }
@@ -141,7 +142,7 @@ static bool samhashmap_resize(SamHashMap *map) {
   map->cells = new_cells;
   map->capacity = new_capacity;
   map->stats.resize_count++;
-  
+
   return true;
 }
 
@@ -149,7 +150,8 @@ bool samhashmap_put(SamHashMap *map, const char *key, void *value) {
   // Validate parameters
   if (map == NULL || key == NULL) {
     if (map != NULL) {
-      samhashmap_report_error(map, SAMHASHMAP_ERROR_NULL_PARAM, "Null parameter passed to samhashmap_put");
+      samhashmap_report_error(map, SAMHASHMAP_ERROR_NULL_PARAM,
+                              "Null parameter passed to samhashmap_put");
     }
     return false;
   }
@@ -157,14 +159,14 @@ bool samhashmap_put(SamHashMap *map, const char *key, void *value) {
   if (map->size >= map->capacity * map->load_factor) {
     if (!samhashmap_resize(map)) {
       // Resize failed - continue anyway, performance will degrade
-      samhashmap_report_error(map, SAMHASHMAP_ERROR_RESIZE_FAILED, 
-                            "Hashmap resize failed, performance may degrade");
+      samhashmap_report_error(map, SAMHASHMAP_ERROR_RESIZE_FAILED,
+                              "Hashmap resize failed, performance may degrade");
     }
   }
 
   size_t hash_bucket = hash_function(key, map->capacity, map->hash_func);
   map->stats.total_operations++;
-  
+
   // First, check if key already exists to avoid unnecessary allocation
   Cell *current = map->cells[hash_bucket];
   size_t chain_length = 0;
@@ -176,7 +178,7 @@ bool samhashmap_put(SamHashMap *map, const char *key, void *value) {
     }
     current = current->next;
   }
-  
+
   // Track collision if chain_length > 0
   if (chain_length > 0) {
     map->stats.total_collisions++;
@@ -190,11 +192,11 @@ bool samhashmap_put(SamHashMap *map, const char *key, void *value) {
   if (new_cell == NULL) {
     // Failed to allocate memory for new cell
     map->stats.failed_allocations++;
-    samhashmap_report_error(map, SAMHASHMAP_ERROR_MEMORY_EXHAUSTED, 
-                          "Failed to allocate memory for new cell");
+    samhashmap_report_error(map, SAMHASHMAP_ERROR_MEMORY_EXHAUSTED,
+                            "Failed to allocate memory for new cell");
     return false;
   }
-  
+
   // Insert at the beginning of the bucket chain
   new_cell->next = map->cells[hash_bucket];
   map->cells[hash_bucket] = new_cell;
@@ -268,7 +270,7 @@ void samhashmap_clear(SamHashMap *map) {
   if (map == NULL) {
     return;
   }
-  
+
   // Zero out all buckets
   memset(map->cells, 0, sizeof(Cell *) * map->capacity);
   map->size = 0;
@@ -306,7 +308,7 @@ size_t samhashmap_get_keys(const SamHashMap *map, const char **keys, size_t max_
   if (map == NULL || keys == NULL || max_keys == 0) {
     return 0;
   }
-  
+
   size_t count = 0;
   for (size_t i = 0; i < map->capacity && count < max_keys; i++) {
     Cell *current = map->cells[i];
@@ -316,7 +318,7 @@ size_t samhashmap_get_keys(const SamHashMap *map, const char **keys, size_t max_
       current = current->next;
     }
   }
-  
+
   return count;
 }
 
@@ -324,7 +326,7 @@ size_t samhashmap_get_values(const SamHashMap *map, void **values, size_t max_va
   if (map == NULL || values == NULL || max_values == 0) {
     return 0;
   }
-  
+
   size_t count = 0;
   for (size_t i = 0; i < map->capacity && count < max_values; i++) {
     Cell *current = map->cells[i];
@@ -334,7 +336,7 @@ size_t samhashmap_get_values(const SamHashMap *map, void **values, size_t max_va
       current = current->next;
     }
   }
-  
+
   return count;
 }
 
@@ -342,7 +344,7 @@ void samhashmap_foreach(const SamHashMap *map, SamHashMapIterator iterator, void
   if (map == NULL || iterator == NULL) {
     return;
   }
-  
+
   for (size_t i = 0; i < map->capacity; i++) {
     Cell *current = map->cells[i];
     while (current != NULL) {
@@ -358,14 +360,14 @@ SamHashMapStats samhashmap_get_stats(const SamHashMap *map) {
     memset(&empty_stats, 0, sizeof(SamHashMapStats));
     return empty_stats;
   }
-  
+
   SamHashMapStats stats = map->stats;
-  
+
   // Calculate average chain length
   if (map->capacity > 0) {
     size_t total_chain_length = 0;
     size_t non_empty_buckets = 0;
-    
+
     for (size_t i = 0; i < map->capacity; i++) {
       size_t chain_length = 0;
       Cell *current = map->cells[i];
@@ -378,12 +380,12 @@ SamHashMapStats samhashmap_get_stats(const SamHashMap *map) {
         non_empty_buckets++;
       }
     }
-    
+
     if (non_empty_buckets > 0) {
       stats.average_chain_length = (double)total_chain_length / non_empty_buckets;
     }
   }
-  
+
   return stats;
 }
 
@@ -399,17 +401,17 @@ void samhashmap_print_stats(const SamHashMap *map) {
     printf("SamHashMap is NULL\n");
     return;
   }
-  
+
   SamHashMapStats stats = samhashmap_get_stats(map);
-  
+
   printf("SamHashMap Statistics:\n");
   printf("  Size: %zu\n", map->size);
   printf("  Capacity: %zu\n", map->capacity);
   printf("  Load Factor: %.2f\n", map->load_factor);
-  printf("  Hash Function: %s\n", 
-         map->hash_func == SAMHASHMAP_HASH_DJB2 ? "DJB2" :
-         map->hash_func == SAMHASHMAP_HASH_FNV1A ? "FNV1A" :
-         map->hash_func == SAMHASHMAP_HASH_MURMUR3 ? "MurmurHash3" : "Unknown");
+  printf("  Hash Function: %s\n", map->hash_func == SAMHASHMAP_HASH_DJB2      ? "DJB2"
+                                  : map->hash_func == SAMHASHMAP_HASH_FNV1A   ? "FNV1A"
+                                  : map->hash_func == SAMHASHMAP_HASH_MURMUR3 ? "MurmurHash3"
+                                                                              : "Unknown");
   printf("  Total Operations: %zu\n", stats.total_operations);
   printf("  Total Collisions: %zu\n", stats.total_collisions);
   printf("  Max Chain Length: %zu\n", stats.max_chain_length);
@@ -417,12 +419,13 @@ void samhashmap_print_stats(const SamHashMap *map) {
   printf("  Resize Count: %zu\n", stats.resize_count);
   printf("  Failed Allocations: %zu\n", stats.failed_allocations);
   if (stats.total_operations > 0) {
-    printf("  Collision Rate: %.2f%%\n", 
+    printf("  Collision Rate: %.2f%%\n",
            (double)stats.total_collisions / stats.total_operations * 100.0);
   }
 }
 
-void samhashmap_set_error_callback(SamHashMap *map, SamHashMapErrorCallback callback, void *user_data) {
+void samhashmap_set_error_callback(SamHashMap *map, SamHashMapErrorCallback callback,
+                                   void *user_data) {
   if (map == NULL) {
     return;
   }

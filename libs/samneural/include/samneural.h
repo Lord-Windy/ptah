@@ -17,11 +17,11 @@
 #ifndef SAMNEURAL_H
 #define SAMNEURAL_H
 
-#include <samrena.h>
-#include <samdata.h>
-#include "samneural/layers.h"
 #include "samneural/activations.h"
+#include "samneural/layers.h"
 #include "samneural/network.h"
+#include <samdata.h>
+#include <samrena.h>
 
 #ifdef __cplusplus
 extern "C" {

@@ -18,7 +18,7 @@
 #include <stdio.h>
 
 int main(void) {
-    printf("Sam MNIST Example\n");
-    samneural_hello();
-    return 0;
+  printf("Sam MNIST Example\n");
+  samneural_hello();
+  return 0;
 }

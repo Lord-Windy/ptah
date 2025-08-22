@@ -7,18 +7,20 @@
 #include <math.h>
 #include <string.h>
 
-SamNeuralLayer * samneural_layer_create(uint64_t neuron_count, uint64_t input_count, SamNeuralActivation activation, Samrena *samrena, SamRng *rng) {
-  SamNeuralLayer* layer = SAMRENA_PUSH_TYPE(samrena, SamNeuralLayer);
+SamNeuralLayer *samneural_layer_create(uint64_t neuron_count, uint64_t input_count,
+                                       SamNeuralActivation activation, Samrena *samrena,
+                                       SamRng *rng) {
+  SamNeuralLayer *layer = SAMRENA_PUSH_TYPE(samrena, SamNeuralLayer);
 
   layer->neuron_count = neuron_count;
   layer->input_count = input_count;
   layer->activation = activation;
 
-  layer->weights = SAMRENA_PUSH_ARRAY(samrena, float, neuron_count * input_count);
+  layer->weights = SAMRENA_PUSH_ARRAY(samrena, float, neuron_count *input_count);
   layer->biases = SAMRENA_PUSH_ARRAY(samrena, float, neuron_count);
   layer->activations = SAMRENA_PUSH_ARRAY(samrena, float, neuron_count);
 
-  layer->weights_gradients = SAMRENA_PUSH_ARRAY(samrena, float, neuron_count * input_count);
+  layer->weights_gradients = SAMRENA_PUSH_ARRAY(samrena, float, neuron_count *input_count);
   layer->biases_gradients = SAMRENA_PUSH_ARRAY(samrena, float, neuron_count);
   layer->activations_gradients = SAMRENA_PUSH_ARRAY(samrena, float, neuron_count);
 
@@ -49,7 +51,7 @@ void samneural_layer_activate(SamNeuralLayer *layer, const float *inputs) {
     return;
   }
 
-  //store inputs for backwards pass
+  // store inputs for backwards pass
   memcpy(layer->last_inputs, inputs, sizeof(float) * layer->input_count);
 
   for (int i = 0; i < layer->neuron_count; i++) {
@@ -69,10 +71,10 @@ void samneural_layer_activate(SamNeuralLayer *layer, const float *inputs) {
         break;
     }
   }
-
 }
 
-void samneural_layer_propagate_gradients(SamNeuralLayer *layer, float *input_gradients, const float *outputs_gradients) {
+void samneural_layer_propagate_gradients(SamNeuralLayer *layer, float *input_gradients,
+                                         const float *outputs_gradients) {
 
   if (layer == NULL || input_gradients == NULL || outputs_gradients == NULL) {
     return;
@@ -132,7 +134,6 @@ void samneural_layer_propagate_gradients(SamNeuralLayer *layer, float *input_gra
           input_gradients[j] += w_row[j] * ag;
         }
       }
-
 
       break;
   }

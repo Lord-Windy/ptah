@@ -17,10 +17,10 @@
 #ifndef SAMDATA_SAMRNG_H
 #define SAMDATA_SAMRNG_H
 
-#include <stdint.h>
-#include <stddef.h>
-#include <stdbool.h>
 #include <samrena.h>
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -28,43 +28,44 @@ extern "C" {
 
 typedef struct SamRng SamRng;
 
-SamRng* samrng_create(Samrena* arena, uint64_t seed);
+SamRng *samrng_create(Samrena *arena, uint64_t seed);
 
-void samrng_destroy(SamRng* rng);
+void samrng_destroy(SamRng *rng);
 
-void samrng_seed(SamRng* rng, uint64_t seed);
+void samrng_seed(SamRng *rng, uint64_t seed);
 
-uint32_t samrng_uint32(SamRng* rng);
+uint32_t samrng_uint32(SamRng *rng);
 
-uint64_t samrng_uint64(SamRng* rng);
+uint64_t samrng_uint64(SamRng *rng);
 
-float samrng_float(SamRng* rng);
+float samrng_float(SamRng *rng);
 
-double samrng_double(SamRng* rng);
+double samrng_double(SamRng *rng);
 
-float samrng_uniform(SamRng* rng, float min, float max);
+float samrng_uniform(SamRng *rng, float min, float max);
 
-double samrng_uniform_double(SamRng* rng, double min, double max);
+double samrng_uniform_double(SamRng *rng, double min, double max);
 
-float samrng_normal(SamRng* rng, float mean, float stddev);
+float samrng_normal(SamRng *rng, float mean, float stddev);
 
-double samrng_normal_double(SamRng* rng, double mean, double stddev);
+double samrng_normal_double(SamRng *rng, double mean, double stddev);
 
-float samrng_xavier_uniform(SamRng* rng, size_t fan_in, size_t fan_out);
+float samrng_xavier_uniform(SamRng *rng, size_t fan_in, size_t fan_out);
 
-float samrng_he_uniform(SamRng* rng, size_t fan_in);
+float samrng_he_uniform(SamRng *rng, size_t fan_in);
 
-float samrng_he_normal(SamRng* rng, size_t fan_in);
+float samrng_he_normal(SamRng *rng, size_t fan_in);
 
-void samrng_fill_uniform(SamRng* rng, float* array, size_t count, float min, float max);
+void samrng_fill_uniform(SamRng *rng, float *array, size_t count, float min, float max);
 
-void samrng_fill_normal(SamRng* rng, float* array, size_t count, float mean, float stddev);
+void samrng_fill_normal(SamRng *rng, float *array, size_t count, float mean, float stddev);
 
-void samrng_fill_xavier_uniform(SamRng* rng, float* array, size_t count, size_t fan_in, size_t fan_out);
+void samrng_fill_xavier_uniform(SamRng *rng, float *array, size_t count, size_t fan_in,
+                                size_t fan_out);
 
-void samrng_fill_he_uniform(SamRng* rng, float* array, size_t count, size_t fan_in);
+void samrng_fill_he_uniform(SamRng *rng, float *array, size_t count, size_t fan_in);
 
-void samrng_fill_he_normal(SamRng* rng, float* array, size_t count, size_t fan_in);
+void samrng_fill_he_normal(SamRng *rng, float *array, size_t count, size_t fan_in);
 
 #ifdef __cplusplus
 }
