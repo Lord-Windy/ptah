@@ -5,7 +5,7 @@
 #include <samdata.h>
 #include <samrena.h>
 #include <stdint.h>
-#include <samneural/activations.h>
+#include "activations.h"
 
 typedef struct {
 
@@ -31,6 +31,10 @@ typedef struct {
 
 } SamNeuralLayer;
 
-SamNeuralLayer* samneural_layer_create(uint64_t neuron_count, uint64_t input_count, SamNeuralActivation activation, Samrena *samrena);
+SamNeuralLayer* samneural_layer_create(uint64_t neuron_count, uint64_t input_count, SamNeuralActivation activation, Samrena *samrena, SamRng *rng);
+void samneural_layer_activate(SamNeuralLayer *layer, const float *inputs);
+void samneural_layer_propagate_gradients(SamNeuralLayer *layer, float *input_gradients, const float *outputs_gradients);
+void samneural_layer_update_weights(SamNeuralLayer *layer, float learning_rate);
+void samneural_layer_zero_gradients(SamNeuralLayer *layer);
 
 #endif // SAMNEURAL_LAYER_H

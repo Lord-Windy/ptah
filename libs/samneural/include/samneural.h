@@ -21,6 +21,7 @@
 #include <samdata.h>
 #include "samneural/layers.h"
 #include "samneural/activations.h"
+#include "samneural/network.h"
 
 #ifdef __cplusplus
 extern "C" {
