@@ -20,6 +20,7 @@
 #include "samneural/activations.h"
 #include "samneural/layers.h"
 #include "samneural/network.h"
+#include "samneural/loss.h"
 #include <samdata.h>
 #include <samrena.h>
 

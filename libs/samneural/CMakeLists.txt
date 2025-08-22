@@ -18,11 +18,13 @@ ptah_add_library(samneural
         src/activations.c
         src/layers.c
         src/network.c
+        src/loss.c
     PUBLIC_HEADERS
         include/samneural.h
         include/samneural/layers.h
         include/samneural/activations.h
         include/samneural/network.h
+        include/samneural/loss.h
     DEPENDENCIES
         samrena
         samdata
