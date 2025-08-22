@@ -15,6 +15,11 @@
 ptah_add_executable(sam_mnist
     SOURCES
         src/main.c
+        src/mnist_loader.c
     DEPENDENCIES
         samneural
+        samrena
 )
+
+# Add include directory for the mnist_loader header
+target_include_directories(sam_mnist PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
