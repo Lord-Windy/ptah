@@ -28,6 +28,23 @@
 extern "C" {
 #endif
 
+/*
+ * Data item to be processed with targed outputs
+ */
+typedef struct {
+  float *inputs;
+  float *target_outputs;
+} SamNeuralSample;
+
+typedef struct {
+
+} SamNeuralConfiguration;
+
+typedef struct {
+  SamNeuralNetwork *network;
+  SamNeuralConfiguration *configuration;
+} SamNeuralInstance;
+
 void samneural_hello(void);
 
 #ifdef __cplusplus
