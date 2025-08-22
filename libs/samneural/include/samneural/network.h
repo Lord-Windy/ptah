@@ -28,7 +28,7 @@ SamNeuralNetwork *samneural_network_create(uint64_t hidden_layer_count,
                                            Samrena *samrena, SamRng *rng);
 
 void samneural_network_activate(SamNeuralNetwork *network, const float *inputs);
-void samneural_network_propagate_gradients(SamNeuralNetwork *network, float *input_gradients,
+void samneural_network_propagate_gradients(SamNeuralNetwork *network,
                                            const float *outputs_gradients);
 void samneural_network_update_weights(SamNeuralNetwork *network, float learning_rate);
 void samneural_network_zero_gradients(SamNeuralNetwork *network);

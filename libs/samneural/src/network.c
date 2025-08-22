@@ -61,8 +61,25 @@ void samneural_network_activate(SamNeuralNetwork *network, const float *inputs) 
   }
 }
 
-void samneural_network_propagate_gradients(SamNeuralNetwork *network, float *input_gradients,
+void samneural_network_propagate_gradients(SamNeuralNetwork *network,
                                            const float *outputs_gradients) {
+
+  float *current_output_gradients = outputs_gradients;
+
+  float *input_gradients = network->gradient_buffer1;
+  float *temp_gradients = network->gradient_buffer2;
+
+  for (uint64_t i = network->layer_count; i > 0; i--) {
+    uint64_t pos = i -1;
+    samneural_layer_propagate_gradients(network->layers[pos], current_output_gradients, input_gradients);
+
+    if (pos > 0) {
+      current_output_gradients = input_gradients;
+      float *tmp = input_gradients;
+      input_gradients = temp_gradients;
+      temp_gradients = tmp;
+    }
+  }
 
 }
 
