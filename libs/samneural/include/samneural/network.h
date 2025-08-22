@@ -5,11 +5,13 @@
 #ifndef SAMNEURAL_NETWORK_H
 #define SAMNEURAL_NETWORK_H
 
+#include <samrena.h>
+#include "activations.h"
 #include "layers.h"
 
 typedef struct {
   uint64_t layer_count;
-  SamNeuralLayer *layers;
+  SamNeuralLayer **layers;
 
   uint64_t input_count;
   uint64_t output_count;
@@ -25,4 +27,10 @@ SamNeuralNetwork *samneural_network_create(uint64_t hidden_layer_count,
                                            uint64_t input_count, uint64_t output_count,
                                            Samrena *samrena, SamRng *rng);
 
+void samneural_network_activate(SamNeuralNetwork *network, const float *inputs);
+void samneural_network_propagate_gradients(SamNeuralNetwork *network, float *input_gradients,
+                                           const float *outputs_gradients);
+void samneural_network_update_weights(SamNeuralNetwork *network, float learning_rate);
+void samneural_network_zero_gradients(SamNeuralNetwork *network);
+void sameural_get_output(SamNeuralNetwork *network, float *output);
 #endif // SAMNEURAL_NETWORK_H
