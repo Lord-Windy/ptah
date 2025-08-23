@@ -101,7 +101,6 @@ void samneural_train(SamNeuralInstance *instance, SamNeuralSamples *samples) {
           }
         }
 
-
         samneural_network_update_weights(instance->network, instance->configuration.learning_rate);
         samneural_network_zero_gradients(instance->network);
 
@@ -117,7 +116,26 @@ void samneural_train(SamNeuralInstance *instance, SamNeuralSamples *samples) {
 
 // Returns correct number of samples
 uint64_t samneural_verify(SamNeuralInstance *instance, SamNeuralSamples *samples) {
-
+  uint64_t correct_predictions = 0;
+  
+  for (uint64_t i = 0; i < samples->sample_count; i++) {
+    uint64_t input_position = i * instance->network->input_count;
+    uint64_t output_position = i * instance->network->output_count;
+    
+    samneural_network_activate(instance->network, &samples->inputs[input_position]);
+    samneural_network_get_outputs(instance->network, instance->output_buffer);
+    
+    float *target_outputs = &samples->target_outputs[output_position];
+    
+    uint64_t target = max_position(target_outputs, instance->network->output_count, 0);
+    uint64_t prediction = max_position(instance->output_buffer, instance->network->output_count, 0);
+    
+    if (prediction == target) {
+      correct_predictions++;
+    }
+  }
+  
+  return correct_predictions;
 }
 
 void samneural_hello(void) { printf("Hello from samneural!\n"); }
