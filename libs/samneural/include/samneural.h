@@ -34,16 +34,34 @@ extern "C" {
 typedef struct {
   float *inputs;
   float *target_outputs;
-} SamNeuralSample;
+  uint64_t sample_count;
+} SamNeuralSamples;
 
 typedef struct {
-
+  uint64_t  rng_seed;
+  uint64_t  thread_count;
+  uint64_t  batch_size;
+  uint64_t  epoch_count;
+  float     learning_rate;
+  uint64_t  input_count;
+  uint64_t  output_count;
+  uint64_t  hidden_layer_count;
+  uint64_t *hidden_layer_neuron_counts;
 } SamNeuralConfiguration;
 
 typedef struct {
   SamNeuralNetwork *network;
-  SamNeuralConfiguration *configuration;
+  SamNeuralConfiguration configuration;
+  SamRng *rng;
+  float *output_buffer;
+  float *gradient_buffer;
 } SamNeuralInstance;
+
+  SamNeuralInstance *samneural_create(Samrena* samrena, SamNeuralConfiguration config);
+void samneural_train(SamNeuralInstance *instance, SamNeuralSamples *samples);
+
+// Returns number of successes
+uint64_t samneural_verify(SamNeuralInstance *instance, SamNeuralSamples *samples);
 
 void samneural_hello(void);
 

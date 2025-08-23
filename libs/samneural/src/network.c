@@ -96,7 +96,7 @@ void samneural_network_zero_gradients(SamNeuralNetwork *network) {
   }
 }
 
-void sameural_get_output(SamNeuralNetwork *network, float *output) {
+void samneural_network_get_outputs(SamNeuralNetwork *network, float *output) {
   // memcopy the final layers outputs to outputs
   memcpy(output, network->layers[network->layer_count - 1]->raw_outputs, network->output_count * sizeof(float));
 }

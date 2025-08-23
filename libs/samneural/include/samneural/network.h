@@ -32,5 +32,5 @@ void samneural_network_propagate_gradients(SamNeuralNetwork *network,
                                            const float *outputs_gradients);
 void samneural_network_update_weights(SamNeuralNetwork *network, float learning_rate);
 void samneural_network_zero_gradients(SamNeuralNetwork *network);
-void sameural_get_output(SamNeuralNetwork *network, float *output);
+void samneural_network_get_outputs(SamNeuralNetwork *network, float *output);
 #endif // SAMNEURAL_NETWORK_H
