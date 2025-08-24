@@ -71,7 +71,7 @@ void samneural_network_propagate_gradients(SamNeuralNetwork *network,
   float *temp_gradients = network->gradient_buffer2;
 
   for (uint64_t i = network->layer_count; i > 0; i--) {
-    uint64_t pos = i -1;
+    const uint64_t pos = i -1;
     
     // Zero out input gradients buffer before accumulation
     memset(input_gradients, 0, sizeof(float) * (pos > 0 ? network->layers[pos-1]->neuron_count : network->input_count));

@@ -36,7 +36,7 @@ SamNeuralLayer *samneural_layer_create(uint64_t neuron_count, uint64_t input_cou
 
   // initialize weights
   const double din = (double)input_count;
-  const float scale = (float)(1.0 / sqrt(din));
+  const float scale = sqrtf(2.0f / din);
   for (int i = 0; i < neuron_count * input_count; i++) {
     layer->weights[i] = (samrng_float(rng) * 2.0f - 1.0f) * scale; // small initial value
     layer->weights_gradients[i] = 0.0f;
@@ -101,8 +101,8 @@ void samneural_layer_propagate_gradients(SamNeuralLayer *layer, float *input_gra
 
       for (int i = 0; i < layer->neuron_count; i++) {
         z = layer->raw_outputs[i];
-        float derive = z > 0.0f ? 1.0f : 0.01f;
-        ag = outputs_gradients[i] * derive;
+        derivative = z > 0.0f ? 1.0f : 0.01f;
+        ag = outputs_gradients[i] * derivative;
 
         layer->biases_gradients[i] += ag;
 

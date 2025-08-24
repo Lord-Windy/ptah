@@ -86,8 +86,8 @@ void samneural_train(SamNeuralInstance *instance, SamNeuralSamples *samples) {
 
     samneural_network_zero_gradients(instance->network);
 
-    for (int idx = 0; idx < samples->sample_count; idx++) {
-      int i = indices[idx];  // Use shuffled index
+    for (uint64_t idx = 0; idx < samples->sample_count; idx++) {
+      uint64_t i = indices[idx];  // Use shuffled index
       
       uint64_t input_position = i * instance->network->input_count;
       uint64_t output_position = i * instance->network->output_count;
@@ -141,7 +141,7 @@ void samneural_train(SamNeuralInstance *instance, SamNeuralSamples *samples) {
     double epoch_time = ((double)(epoch_end - epoch_start)) / CLOCKS_PER_SEC;
     double accuracy = (double)correct_predictions / (double)samples->sample_count * 100.0;
     
-    printf("Epoch %lu: Time: %.3fs, Accuracy: %.2f%% (%lu/%d correct), Loss: %.6f\n",
+    printf("Epoch %lu: Time: %.3fs, Accuracy: %.2f%% (%lu/%lu correct), Loss: %.6f\n",
            epoch + 1, epoch_time, accuracy, correct_predictions, samples->sample_count, epoch_loss);
 
   }
