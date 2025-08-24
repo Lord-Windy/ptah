@@ -101,7 +101,7 @@ int main(int argc, char** argv) {
   printf("===================================\n");
   
   SamNeuralConfiguration config = {
-    .rng_seed = 42,
+    .rng_seed = (uint64_t)time(NULL) + rand(),
     .thread_count = 1,
     .batch_size = 32,
     .epoch_count = 10,
