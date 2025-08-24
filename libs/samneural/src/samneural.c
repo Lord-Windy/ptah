@@ -17,6 +17,7 @@
 #include <samneural.h>
 #include <stdio.h>
 #include <string.h>
+#include <time.h>
 
 SamNeuralInstance *samneural_create(Samrena* samrena, SamNeuralConfiguration config) {
   SamNeuralInstance *instance = SAMRENA_PUSH_TYPE(samrena, SamNeuralInstance);
@@ -51,6 +52,7 @@ uint64_t max_position(float *array, uint64_t count, uint64_t) {
 void samneural_train(SamNeuralInstance *instance, SamNeuralSamples *samples) {
 
   for (uint64_t epoch = 0; epoch < instance->configuration.epoch_count; epoch++) {
+    clock_t epoch_start = clock();
 
     //reorder samples
     float epoch_loss = 0.0f;
@@ -109,6 +111,13 @@ void samneural_train(SamNeuralInstance *instance, SamNeuralSamples *samples) {
       }
 
     }
+
+    clock_t epoch_end = clock();
+    double epoch_time = ((double)(epoch_end - epoch_start)) / CLOCKS_PER_SEC;
+    double accuracy = (double)correct_predictions / (double)samples->sample_count * 100.0;
+    
+    printf("Epoch %lu: Time: %.3fs, Accuracy: %.2f%% (%lu/%d correct), Loss: %.6f\n",
+           epoch + 1, epoch_time, accuracy, correct_predictions, samples->sample_count, epoch_loss);
 
   }
 
