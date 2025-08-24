@@ -29,3 +29,6 @@ ptah_add_library(samneural
         samrena
         samdata
 )
+
+# Link with math library for mathematical functions
+target_link_libraries(samneural PUBLIC m)
