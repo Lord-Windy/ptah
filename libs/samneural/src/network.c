@@ -31,7 +31,8 @@ SamNeuralNetwork *samneural_network_create(uint64_t hidden_layer_count,
   }
 
   //output layer
-  SamNeuralActivation output_activation = output_count > 0 ? ACTIVATION_SOFTMAX : ACTIVATION_LEAKY_RELU;
+  // Use softmax for multi-class classification (output_count > 1)
+  SamNeuralActivation output_activation = output_count > 1 ? ACTIVATION_SOFTMAX : ACTIVATION_LEAKY_RELU;
   if (hidden_layer_count > 0) {
     network->layers[hidden_layer_count] = samneural_layer_create(output_count, network->layers[hidden_layer_count - 1]->neuron_count,
                                                 output_activation, samrena, rng);

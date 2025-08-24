@@ -105,7 +105,7 @@ int main(int argc, char** argv) {
     .thread_count = 1,
     .batch_size = 32,
     .epoch_count = 10,
-    .learning_rate = 0.001f,
+    .learning_rate = 0.01f,  // Increased from 0.001
     .input_count = MNIST_IMAGE_SIZE,  // 784 pixels
     .output_count = MNIST_NUM_CLASSES, // 10 classes (0-9)
     .hidden_layer_count = 2,

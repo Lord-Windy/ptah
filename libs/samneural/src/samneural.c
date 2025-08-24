@@ -16,6 +16,7 @@
 
 #include <samneural.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <time.h>
 
@@ -49,12 +50,35 @@ uint64_t max_position(float *array, uint64_t count) {
   return max_position;
 }
 
+static void shuffle_indices(uint64_t *indices, uint64_t count, SamRng *rng) {
+  // Initialize indices
+  for (uint64_t i = 0; i < count; i++) {
+    indices[i] = i;
+  }
+  
+  // Fisher-Yates shuffle
+  for (uint64_t i = count - 1; i > 0; i--) {
+    uint64_t j = samrng_uint64(rng) % (i + 1);
+    uint64_t temp = indices[i];
+    indices[i] = indices[j];
+    indices[j] = temp;
+  }
+}
+
 void samneural_train(SamNeuralInstance *instance, SamNeuralSamples *samples) {
+  
+  // Allocate indices array for shuffling
+  uint64_t *indices = malloc(sizeof(uint64_t) * samples->sample_count);
+  if (!indices) {
+    printf("Failed to allocate memory for shuffling\n");
+    return;
+  }
 
   for (uint64_t epoch = 0; epoch < instance->configuration.epoch_count; epoch++) {
     clock_t epoch_start = clock();
-
-    //reorder samples
+    
+    // Shuffle sample order for this epoch
+    shuffle_indices(indices, samples->sample_count, instance->rng);
     float epoch_loss = 0.0f;
     uint64_t correct_predictions = 0;
     uint64_t batch_count = 0;
@@ -62,8 +86,9 @@ void samneural_train(SamNeuralInstance *instance, SamNeuralSamples *samples) {
 
     samneural_network_zero_gradients(instance->network);
 
-    for (int i = 0; i < samples->sample_count; i++) {
-
+    for (int idx = 0; idx < samples->sample_count; idx++) {
+      int i = indices[idx];  // Use shuffled index
+      
       uint64_t input_position = i * instance->network->input_count;
       uint64_t output_position = i * instance->network->output_count;
       samneural_network_activate(instance->network, &samples->inputs[input_position]);
@@ -78,28 +103,28 @@ void samneural_train(SamNeuralInstance *instance, SamNeuralSamples *samples) {
       correct_predictions += prediction == target;
 
       samneural_loss_cross_entropy_derivative(instance->output_buffer, target_outputs, instance->gradient_buffer, instance->network->output_count);
-
+      
       samneural_network_propagate_gradients(instance->network, instance->gradient_buffer);
 
       batch_count++;
 
       const bool batch_full = (batch_count == instance->configuration.batch_size);
-      const bool last_sample = (i == samples->sample_count - 1);
+      const bool last_sample = (idx == samples->sample_count - 1);
       if (batch_full || last_sample) {
 
-        float batch_count_float = (float)batch_count;
-
-        // Average gradients over the batch
+        // Scale gradients by actual batch size (important for last batch which might be smaller)
+        float scale = 1.0f / (float)batch_count;
+        
         for (uint64_t j = 0; j < instance->network->layer_count; j++) {
           SamNeuralLayer *layer = instance->network->layers[j];
-
+          
           for (uint64_t k = 0; k < layer->neuron_count; k++) {
-            layer->biases_gradients[k] /= batch_count_float;
+            layer->biases_gradients[k] *= scale;
           }
-
+          
           uint64_t wcount = layer->neuron_count * layer->input_count;
           for (uint64_t k = 0; k < wcount; k++) {
-            layer->weights_gradients[k] /= batch_count_float;
+            layer->weights_gradients[k] *= scale;
           }
         }
 
@@ -120,7 +145,8 @@ void samneural_train(SamNeuralInstance *instance, SamNeuralSamples *samples) {
            epoch + 1, epoch_time, accuracy, correct_predictions, samples->sample_count, epoch_loss);
 
   }
-
+  
+  free(indices);
 }
 
 // Returns correct number of samples
