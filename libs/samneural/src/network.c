@@ -57,7 +57,7 @@ SamNeuralNetwork *samneural_network_create(uint64_t hidden_layer_count,
 void samneural_network_activate(SamNeuralNetwork *network, const float *inputs) {
   samneural_layer_activate(network->layers[0], inputs);
   for (int i = 1; i < network->layer_count; i++) {
-    samneural_layer_activate(network->layers[i], network->layers[i - 1]->raw_outputs);
+    samneural_layer_activate(network->layers[i], network->layers[i - 1]->activations);
   }
 }
 
@@ -71,7 +71,11 @@ void samneural_network_propagate_gradients(SamNeuralNetwork *network,
 
   for (uint64_t i = network->layer_count; i > 0; i--) {
     uint64_t pos = i -1;
-    samneural_layer_propagate_gradients(network->layers[pos], current_output_gradients, input_gradients);
+    
+    // Zero out input gradients buffer before accumulation
+    memset(input_gradients, 0, sizeof(float) * (pos > 0 ? network->layers[pos-1]->neuron_count : network->input_count));
+    
+    samneural_layer_propagate_gradients(network->layers[pos], input_gradients, current_output_gradients);
 
     if (pos > 0) {
       current_output_gradients = input_gradients;
@@ -98,5 +102,5 @@ void samneural_network_zero_gradients(SamNeuralNetwork *network) {
 
 void samneural_network_get_outputs(SamNeuralNetwork *network, float *output) {
   // memcopy the final layers outputs to outputs
-  memcpy(output, network->layers[network->layer_count - 1]->raw_outputs, network->output_count * sizeof(float));
+  memcpy(output, network->layers[network->layer_count - 1]->activations, network->output_count * sizeof(float));
 }

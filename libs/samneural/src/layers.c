@@ -61,15 +61,18 @@ void samneural_layer_activate(SamNeuralLayer *layer, const float *inputs) {
     }
     sum += layer->biases[i];
     layer->raw_outputs[i] = sum;
+  }
 
-    switch (layer->activation) {
-      case ACTIVATION_LEAKY_RELU:
-        layer->activations[i] = samneural_activation_leaky_relu(sum, 0.01f);
-        break;
-      case ACTIVATION_SOFTMAX:
-        samneural_activation_softmax(layer->neuron_count, layer->raw_outputs, layer->activations);
-        break;
-    }
+  // Apply activation function after computing all raw outputs
+  switch (layer->activation) {
+    case ACTIVATION_LEAKY_RELU:
+      for (int i = 0; i < layer->neuron_count; i++) {
+        layer->activations[i] = samneural_activation_leaky_relu(layer->raw_outputs[i], 0.01f);
+      }
+      break;
+    case ACTIVATION_SOFTMAX:
+      samneural_activation_softmax(layer->neuron_count, layer->raw_outputs, layer->activations);
+      break;
   }
 }
 
@@ -107,7 +110,7 @@ void samneural_layer_propagate_gradients(SamNeuralLayer *layer, float *input_gra
         wg_row = &layer->weights_gradients[i * layer->input_count];
 
         for (int j = 0; j < layer->input_count; j++) {
-          wg_row[j] = ag * layer->last_inputs[j];
+          wg_row[j] += ag * layer->last_inputs[j];
           input_gradients[j] += w_row[j] * ag;
         }
       }
@@ -130,7 +133,7 @@ void samneural_layer_propagate_gradients(SamNeuralLayer *layer, float *input_gra
         wg_row = &layer->weights_gradients[i * layer->input_count];
 
         for (int j = 0; j < layer->input_count; j++) {
-          wg_row[j] = ag * layer->last_inputs[j];
+          wg_row[j] += ag * layer->last_inputs[j];
           input_gradients[j] += w_row[j] * ag;
         }
       }

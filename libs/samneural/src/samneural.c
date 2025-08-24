@@ -34,7 +34,7 @@ SamNeuralInstance *samneural_create(Samrena* samrena, SamNeuralConfiguration con
   return instance;
 }
 
-uint64_t max_position(float *array, uint64_t count, uint64_t) {
+uint64_t max_position(float *array, uint64_t count) {
 
   float max = array[0];
   uint64_t max_position = 0;
@@ -73,8 +73,8 @@ void samneural_train(SamNeuralInstance *instance, SamNeuralSamples *samples) {
 
       float loss = samneural_loss_cross_entropy(instance->output_buffer, target_outputs, instance->network->output_count);
       epoch_loss += loss;
-      uint64_t target = max_position(target_outputs, instance->network->output_count, 0);
-      uint64_t prediction = max_position(instance->output_buffer, instance->network->output_count, 0);
+      uint64_t target = max_position(target_outputs, instance->network->output_count);
+      uint64_t prediction = max_position(instance->output_buffer, instance->network->output_count);
       correct_predictions += prediction == target;
 
       samneural_loss_cross_entropy_derivative(instance->output_buffer, target_outputs, instance->gradient_buffer, instance->network->output_count);
@@ -136,8 +136,8 @@ uint64_t samneural_verify(SamNeuralInstance *instance, SamNeuralSamples *samples
     
     float *target_outputs = &samples->target_outputs[output_position];
     
-    uint64_t target = max_position(target_outputs, instance->network->output_count, 0);
-    uint64_t prediction = max_position(instance->output_buffer, instance->network->output_count, 0);
+    uint64_t target = max_position(target_outputs, instance->network->output_count);
+    uint64_t prediction = max_position(instance->output_buffer, instance->network->output_count);
     
     if (prediction == target) {
       correct_predictions++;
