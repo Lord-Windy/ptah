@@ -19,6 +19,7 @@ ptah_add_executable(sam_mnist
     DEPENDENCIES
         samneural
         samrena
+        samvulkan
 )
 
 # Add include directory for the mnist_loader header

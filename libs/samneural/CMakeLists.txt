@@ -28,6 +28,7 @@ ptah_add_library(samneural
     DEPENDENCIES
         samrena
         samdata
+        samvulkan
 )
 
 # Link with math library for mathematical functions
