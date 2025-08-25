@@ -101,10 +101,10 @@ int main(int argc, char** argv) {
   printf("===================================\n");
   
   SamNeuralConfiguration config = {
-    .rng_seed = (uint64_t)time(NULL) + rand(),
+    .rng_seed = 42, //(uint64_t)time(NULL) + rand(),
     .thread_count = 1,
     .batch_size = 32,
-    .epoch_count = 10,
+    .epoch_count = 30,
     .learning_rate = 0.01f,  // Increased from 0.001
     .input_count = MNIST_IMAGE_SIZE,  // 784 pixels
     .output_count = MNIST_NUM_CLASSES, // 10 classes (0-9)
