@@ -12,12 +12,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# Find OpenCL package
+find_package(OpenCL REQUIRED)
+
 ptah_add_library(samcl
     SOURCES
         src/samcl.c
     PUBLIC_HEADERS
         include/samcl.h
 )
+
+# Link OpenCL to samcl
+target_link_libraries(samcl PUBLIC OpenCL::OpenCL)
 
 if(BUILD_TESTING)
     ptah_add_executable(samcl_test
