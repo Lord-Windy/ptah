@@ -12,10 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-add_subdirectory(typesafe_example)
-add_subdirectory(iterator_example)
-add_subdirectory(samset_example)
-add_subdirectory(samrng_example)
-add_subdirectory(sam_mnist)
-add_subdirectory(sdl_example)
-add_subdirectory(samcl_example)
+ptah_add_executable(samcl_example
+    SOURCES
+        src/main.c
+    DEPENDENCIES
+        samcl
+)
