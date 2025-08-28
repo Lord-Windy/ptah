@@ -12,24 +12,25 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-ptah_add_library(samneural
+# Find OpenCL package
+find_package(OpenCL REQUIRED)
+
+ptah_add_library(samcl
     SOURCES
-        src/samneural.c
-        src/activations.c
-        src/layers.c
-        src/network.c
-        src/loss.c
+        src/samcl.c
     PUBLIC_HEADERS
-        include/samneural.h
-        include/samneural/layers.h
-        include/samneural/activations.h
-        include/samneural/network.h
-        include/samneural/loss.h
-    DEPENDENCIES
-        samrena
-        samdata
-        samvulkan
+        include/samcl.h
 )
 
-# Link with math library for mathematical functions
-target_link_libraries(samneural PUBLIC m)
+# Link OpenCL to samcl
+target_link_libraries(samcl PUBLIC OpenCL::OpenCL)
+
+if(BUILD_TESTING)
+    ptah_add_executable(samcl_test
+        SOURCES
+            test/samcl_test.c
+        DEPENDENCIES
+            samcl
+    )
+    add_test(NAME samcl_basic COMMAND samcl_test)
+endif()

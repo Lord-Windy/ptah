@@ -12,24 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-ptah_add_library(samneural
+ptah_add_executable(samcl_example
     SOURCES
-        src/samneural.c
-        src/activations.c
-        src/layers.c
-        src/network.c
-        src/loss.c
-    PUBLIC_HEADERS
-        include/samneural.h
-        include/samneural/layers.h
-        include/samneural/activations.h
-        include/samneural/network.h
-        include/samneural/loss.h
+        src/main.c
     DEPENDENCIES
-        samrena
-        samdata
-        samvulkan
+        samcl
 )
-
-# Link with math library for mathematical functions
-target_link_libraries(samneural PUBLIC m)
