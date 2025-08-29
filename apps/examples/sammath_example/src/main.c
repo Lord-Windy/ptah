@@ -15,8 +15,37 @@
  */
 
 #include <sammath.h>
+#include <stdio.h>
 
 int main(void) {
     sammath_hello();
+    
+    printf("\nDemonstrating SamMath with samrena and samdata:\n");
+    
+    Samrena *arena = samrena_create_default();
+    if (!arena) {
+        printf("Failed to create arena\n");
+        return 1;
+    }
+    
+    SamMath *math = sammath_create(arena);
+    if (!math) {
+        printf("Failed to create SamMath\n");
+        samrena_destroy(arena);
+        return 1;
+    }
+    
+    double *pi = (double *)samhashmap_get(math->constants, "pi");
+    double *e = (double *)samhashmap_get(math->constants, "e");
+    
+    if (pi) printf("Pi constant: %.15f\n", *pi);
+    if (e) printf("Euler's number: %.15f\n", *e);
+    
+    printf("Hash map size: %zu\n", samhashmap_size(math->constants));
+    
+    sammath_destroy(math);
+    samrena_destroy(arena);
+    
+    printf("SamMath example completed successfully!\n");
     return 0;
 }

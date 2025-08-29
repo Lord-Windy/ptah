@@ -17,4 +17,7 @@ ptah_add_library(sammath
         src/sammath.c
     PUBLIC_HEADERS
         include/sammath.h
+    DEPENDENCIES
+        samrena
+        samdata
 )

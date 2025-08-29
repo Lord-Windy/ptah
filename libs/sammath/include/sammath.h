@@ -17,10 +17,20 @@
 #ifndef SAMMATH_H
 #define SAMMATH_H
 
+#include <samrena.h>
+#include <samdata.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
+typedef struct {
+    Samrena *arena;
+    SamHashMap *constants;
+} SamMath;
+
+SamMath *sammath_create(Samrena *arena);
+void sammath_destroy(SamMath *math);
 void sammath_hello(void);
 
 #ifdef __cplusplus

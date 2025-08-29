@@ -16,7 +16,35 @@
 
 #include "sammath.h"
 #include <stdio.h>
+#include <string.h>
+
+SamMath *sammath_create(Samrena *arena) {
+    if (!arena) return NULL;
+    
+    SamMath *math = (SamMath *)samrena_push(arena, sizeof(SamMath));
+    if (!math) return NULL;
+    
+    math->arena = arena;
+    math->constants = samhashmap_create(16, arena);
+    
+    if (math->constants) {
+        double *pi = (double *)samrena_push(arena, sizeof(double));
+        *pi = 3.14159265358979323846;
+        samhashmap_put(math->constants, "pi", pi);
+        
+        double *e = (double *)samrena_push(arena, sizeof(double));
+        *e = 2.71828182845904523536;
+        samhashmap_put(math->constants, "e", e);
+    }
+    
+    return math;
+}
+
+void sammath_destroy(SamMath *math) {
+    if (!math) return;
+}
 
 void sammath_hello(void) {
     printf("Hello from SamMath library!\n");
+    printf("SamMath now includes samrena (memory arena) and samdata (hash maps) support!\n");
 }
