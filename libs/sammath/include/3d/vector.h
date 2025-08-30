@@ -14,30 +14,20 @@
  * limitations under the License.
  */
 
-#ifndef SAMMATH_H
-#define SAMMATH_H
-
-#include <samrena.h>
-#include <samdata.h>
-
-#include "3d/vector.h"
-#include "3d/physics.h"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
+#ifndef SAMMATH_VECTOR_H
+#define SAMMATH_VECTOR_H
 
 typedef struct {
-    Samrena *arena;
-    SamHashMap *constants;
-} SamMath;
+  double x, y, z;
+} SamVector3d;
 
-SamMath *sammath_create(Samrena *arena);
-void sammath_destroy(SamMath *math);
-void sammath_hello(void);
+SamVector3d samvector3d_add(SamVector3d a, SamVector3d b);
+SamVector3d samvector3d_subtract(SamVector3d a, SamVector3d b);
+SamVector3d samvector3d_scale(SamVector3d a, double scale);
+double      samvector3d_dot(SamVector3d a, SamVector3d b);
+double      samvector3d_magnitude(SamVector3d v);
 
-#ifdef __cplusplus
-}
-#endif
 
-#endif
+#endif //SAMMATH_VECTOR_H
+
+
