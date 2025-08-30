@@ -21,6 +21,8 @@
 
 #include "vector.h"
 
+#define SAMMATH_PHYSICS_EPSILON 1e-10
+
 typedef struct {
   SamVector3d position;
   SamVector3d velocity;
@@ -34,6 +36,13 @@ typedef struct {
   double time;
   double G; // gravitational constant
 } SamPhysicsSystem;
+
+void samphysics_system_calculate_accelerations(SamPhysicsSystem* sys);
+double samphysics_system_calculate_total_energy(SamPhysicsSystem* sys);
+SamVector3d samphysics_system_calculate_total_angular_momentum(SamPhysicsSystem* sys);
+double samphysics_system_calculate_angular_momentum_magnitude(SamPhysicsSystem* sys);
+SamVector3d samphysics_system_calculate_center_of_mass(SamPhysicsSystem* sys);
+SamVector3d samphysics_system_calculate_center_of_mass_velocity(SamPhysicsSystem* sys);
 
 typedef struct {
   double h; //timestep
