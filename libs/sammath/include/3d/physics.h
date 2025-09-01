@@ -19,6 +19,8 @@
 
 #include <stdint.h>
 
+#include <samrena.h>
+
 #include "vector.h"
 
 #define SAMMATH_PHYSICS_EPSILON 1e-10
@@ -55,15 +57,33 @@ typedef struct {
   double weights[8];
 
   // Predictor-corrector arrays (per body)
+  // B array: 7 coefficients per body (B₁ through B₇)
+  // These represent the polynomial interpolation of acceleration
   SamVector3d* B;  // B[stage][body_index]
+  // G array: 7 Gauss-Radau stage values per body
+  // These are linear combinations of B values
   SamVector3d* G;  // G[stage][body_index]
   SamVector3d* E;  // Error estimates
 
-  // Compensated summation for high precision
+  // Compensated summation arrays for position and velocity
+  // These track numerical error to maintain precision
   SamVector3d* cs_pos;  // position compensation
   SamVector3d* cs_vel;  // velocity compensation  
  
 } SamIAS15State;
+
+// 3. IAS15 initialization
+void samphysics_ias15_init_nodes_weights(SamIAS15State* state);
+void samphysics_ias15_allocate_arrays(SamIAS15State* state, Samrena* arena, int n_bodies);
+
+// 4. IAS15 core algorithm
+void samphysics_ias15_predict_B_values(SamIAS15State* state, SamPhysicsSystem* sys);
+void samphysics_ias15_update_G_from_B(SamIAS15State* state, SamPhysicsSystem* sys);
+void samphysics_ias15_evaluate_F(SamIAS15State* state, SamPhysicsSystem* sys, int stage);
+void samphysics_ias15_correct_B_and_G(SamIAS15State* state, SamPhysicsSystem* sys);
+double samphysics_ias15_estimate_error(SamIAS15State* state, SamPhysicsSystem* sys);
+void samphysics_ias15_step_accept(SamIAS15State* state, SamPhysicsSystem* sys);
+double samphysics_ias15_compute_new_timestep(SamIAS15State* state);
 
 #endif //SAMMATH_PHYSICS_H
 

@@ -17,6 +17,7 @@ ptah_add_library(sammath
         src/sammath.c
         src/vector.c
         src/system.c
+        src/isa15.c
     PUBLIC_HEADERS
         include/sammath.h
         include/3d/physics.h
@@ -24,4 +25,5 @@ ptah_add_library(sammath
     DEPENDENCIES
         samrena
         samdata
+        m
 )
