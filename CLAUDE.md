@@ -29,6 +29,13 @@ demo → samrena, samdata
 examples → samrena, samdata
 ```
 
+## Dependencies
+
+The project uses the following external dependencies:
+- **libpq** (PostgreSQL client library): Required for database operations
+- **libcurl**: For HTTP requests (used in samspacetrader)
+- **cjson**: JSON parsing library (used in samspacetrader)
+
 ## Build System
 
 ### Common Commands
@@ -131,6 +138,7 @@ ptah_add_library(mylib
         include/mylib.h
     DEPENDENCIES
         # other libraries
+        PostgreSQL::PostgreSQL  # if database functionality needed
 )
 ```
 
@@ -142,6 +150,7 @@ ptah_add_executable(myapp
         src/main.c
     DEPENDENCIES
         mylib
+        PostgreSQL::PostgreSQL  # if database functionality needed
 )
 ```
 

@@ -22,6 +22,7 @@ ptah_add_executable(samspacetrader
     DEPENDENCIES
         samrena
         samdata
+        PostgreSQL::PostgreSQL
         ${CURL_LIBRARIES}
         ${CJSON_LIBRARIES}
 )

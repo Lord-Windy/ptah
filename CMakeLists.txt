@@ -61,6 +61,9 @@ option(BUILD_TESTING "Build tests" ON)
 include(CTest)
 include(GNUInstallDirs)
 
+# Find PostgreSQL (libpq)
+find_package(PostgreSQL REQUIRED)
+
 # Helper function for creating libraries with consistent settings
 function(ptah_add_library name)
     set(options STATIC SHARED INTERFACE)
