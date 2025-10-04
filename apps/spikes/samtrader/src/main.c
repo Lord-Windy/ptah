@@ -16,8 +16,19 @@
 
 #include <stdio.h>
 #include <libpq-fe.h>
+#include "db.h"
 #include "samrena.h"
 #include "samdata.h"
+
+
+SamtraderDb* setup_db(Samrena* arena) {
+
+  char* conn_info = "postgres://sam:password@localhost:5432/samtrader";
+  SamtraderDb* db = samtrader_db_connect(arena, conn_info); 
+  samtrader_db_debug_print_connection(db, true);
+
+  return db;
+}
 
 int main(int argc, char *argv[]) {
     printf("samtrader prototype\n");
@@ -25,8 +36,11 @@ int main(int argc, char *argv[]) {
     // Initialize arena
     SamrenaConfig config = samrena_default_config();
     Samrena *arena = samrena_create(&config);
+    SamtraderDb* db = setup_db(arena);
+
 
     // Cleanup
+    samtrader_db_close(db);
     samrena_destroy(arena);
 
     return 0;

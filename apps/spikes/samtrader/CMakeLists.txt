@@ -12,13 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-find_package(PostgreSQL REQUIRED)
-
-ptah_add_executable(samtrader_prototype
+ptah_add_executable(samtrader
     SOURCES
-        main.c
+        src/main.c
+        src/db.c
     DEPENDENCIES
-        samrena
         samdata
+        samrena
         PostgreSQL::PostgreSQL
 )
