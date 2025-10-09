@@ -19,6 +19,9 @@
 
 #include <libpq-fe.h>
 #include "samrena.h"
+#include "samvector.h"
+#include "ohlcv.h"
+#include <time.h>
 
 typedef struct {
   char* conninfo;
@@ -30,7 +33,20 @@ typedef struct {
 SamtraderDb* samtrader_db_connect(Samrena* arena, char* conn_info);
 void samtrader_db_close(SamtraderDb* db);
 
-
+// OHLCV queries
+/**
+ * Fetches OHLCV data for a given code and exchange within a time range
+ *
+ * @param db Database connection
+ * @param code Stock/asset code
+ * @param exchange Exchange name
+ * @param start_time Start of time range (Unix timestamp)
+ * @param end_time End of time range (Unix timestamp)
+ * @return Vector of OHLCV records, or NULL on error
+ */
+SamrenaVector* samtrader_db_fetch_ohlcv(SamtraderDb* db, const char* code,
+                                        const char* exchange, time_t start_time,
+                                        time_t end_time);
 
 // Debug
 // Will print out information about the connection

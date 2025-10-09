@@ -16,6 +16,7 @@ ptah_add_executable(samtrader
     SOURCES
         src/main.c
         src/db.c
+        src/ohlcv.c
     DEPENDENCIES
         samdata
         samrena
