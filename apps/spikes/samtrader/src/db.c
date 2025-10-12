@@ -92,8 +92,8 @@ SamrenaVector* samtrader_db_fetch_ohlcv(SamtraderDb* db, const char* code,
 
   int num_rows = PQntuples(res);
 
-  // Create vector to hold OHLCV pointers
-  SamrenaVector* vec = samrena_vector_init(db->arena, sizeof(Ohlcv*), num_rows);
+  // Create vector to hold OHLCV structs directly
+  SamrenaVector* vec = samrena_vector_init(db->arena, sizeof(Ohlcv), num_rows);
   if (!vec) {
     fprintf(stderr, "Failed to create vector\n");
     PQclear(res);
@@ -116,17 +116,14 @@ SamrenaVector* samtrader_db_fetch_ohlcv(SamtraderDb* db, const char* code,
     strptime(row_date, "%Y-%m-%d %H:%M:%S", &tm);
     time_t date_val = mktime(&tm);
 
-    // Create OHLCV record using arena
-    Ohlcv* ohlcv = ohlcv_create(db->arena, row_code, row_exchange, date_val,
-                                open_val, high_val, low_val, close_val, volume_val);
+    // Push OHLCV record directly into vector
+    Ohlcv* ohlcv = ohlcv_push(vec, db->arena, row_code, row_exchange, date_val,
+                              open_val, high_val, low_val, close_val, volume_val);
     if (!ohlcv) {
       fprintf(stderr, "Failed to create OHLCV record\n");
       PQclear(res);
       return NULL;
     }
-
-    // Push pointer to vector
-    samrena_vector_push(vec, &ohlcv);
   }
 
   PQclear(res);

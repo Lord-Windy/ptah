@@ -404,3 +404,72 @@ void samrena_vector_foreach(const SamrenaVector *vec, SamrenaVectorForEach callb
     }
   }
 }
+
+SamrenaVector* samrena_vector_transfer(SamrenaVector *vec, Samrena* new_arena) {
+
+  if (!vec || !new_arena) {
+    return NULL;
+  }
+
+  // Create new vector on the target arena
+  SamrenaVector* new_vec = samrena_vector_init(new_arena, vec->element_size, vec->capacity);
+  if (!new_vec) {
+    return NULL;
+  }
+
+  // Copy metadata
+  new_vec->size = vec->size;
+  new_vec->growth_factor = vec->growth_factor;
+  new_vec->min_growth = vec->min_growth;
+
+  // Copy the original vector data over
+  if (vec->data && vec->size > 0 && new_vec->data) {
+    memcpy(new_vec->data, vec->data, vec->element_size * vec->size);
+  }
+
+  return new_vec;
+}
+
+SamrenaVector* samrena_vector_slice(const SamrenaVector *vec, size_t start, size_t end, Samrena* target_arena) {
+
+  if (!vec) {
+    return NULL;
+  }
+
+  // If no target arena provided, use the vector's arena
+  if (!target_arena) {
+    // Cannot slice into an owned arena - caller must provide explicit arena
+    if (vec->owns_arena) {
+      // TODO: Consider adding proper error logging here
+      // Error: Cannot slice vector with owned arena without explicit target arena
+      return NULL;
+    }
+    target_arena = vec->arena;
+  }
+
+  // Validate range
+  if (start > end || end > vec->size) {
+    return NULL;
+  }
+
+  size_t slice_size = end - start;
+
+  // Create new vector with capacity equal to slice size
+  SamrenaVector* slice_vec = samrena_vector_init(target_arena, vec->element_size, slice_size);
+  if (!slice_vec) {
+    return NULL;
+  }
+
+  // Copy metadata
+  slice_vec->growth_factor = vec->growth_factor;
+  slice_vec->min_growth = vec->min_growth;
+  slice_vec->size = slice_size;
+
+  // Copy the sliced data
+  if (slice_size > 0 && vec->data && slice_vec->data) {
+    const uint8_t *src = (const uint8_t *)vec->data + (start * vec->element_size);
+    memcpy(slice_vec->data, src, vec->element_size * slice_size);
+  }
+
+  return slice_vec;
+}

@@ -28,6 +28,11 @@ _deps/
 *~
 .DS_Store
 
+# Tags files
+tags
+tags.*
+TAGS
+
 # Build artifacts
 *.o
 *.a

@@ -30,7 +30,34 @@ typedef struct {
     double low;
     double close;
     int volume;
+    // algoritms
+
+    double sma_20;
+    double sma_50;
+    double sma_200;
+
+
 } Ohlcv;
+
+/**
+ * Initializes an existing OHLCV structure with the given values
+ * The strings (code, exchange) are allocated from the arena
+ *
+ * @param ohlcv Pointer to OHLCV structure to initialize
+ * @param arena The arena to allocate strings from
+ * @param code The stock/asset code
+ * @param exchange The exchange name
+ * @param date Unix timestamp
+ * @param open Opening price
+ * @param high Highest price
+ * @param low Lowest price
+ * @param close Closing price
+ * @param volume Trading volume
+ * @return 0 on success, -1 on failure
+ */
+int ohlcv_init(Ohlcv *ohlcv, Samrena *arena, const char *code,
+               const char *exchange, time_t date, double open, double high,
+               double low, double close, int volume);
 
 /**
  * Creates a new OHLCV structure using arena allocation
@@ -51,10 +78,31 @@ Ohlcv *ohlcv_create(Samrena *arena, const char *code, const char *exchange,
                     double close, int volume);
 
 /**
+ * Creates a new OHLCV structure directly in a vector
+ *
+ * @param vec Vector to push the OHLCV into
+ * @param arena The arena to allocate strings from
+ * @param code The stock/asset code
+ * @param exchange The exchange name
+ * @param date Unix timestamp
+ * @param open Opening price
+ * @param high Highest price
+ * @param low Lowest price
+ * @param close Closing price
+ * @param volume Trading volume
+ * @return Pointer to the OHLCV structure in the vector, or NULL on failure
+ */
+Ohlcv *ohlcv_push(SamrenaVector *vec, Samrena *arena, const char *code,
+                  const char *exchange, time_t date, double open, double high,
+                  double low, double close, int volume);
+
+/**
  * Prints a vector of OHLCV records in order
  *
- * @param vec Vector containing Ohlcv* pointers
+ * @param vec Vector containing Ohlcv structures (not pointers)
  */
 void ohlcv_print_vector(SamrenaVector *vec);
+
+void ohlcv_calculate_indicators(SamrenaVector* vec);
 
 #endif // OHLCV_H

@@ -229,6 +229,23 @@ bool samrena_vector_is_full(const SamrenaVector *vec);
 size_t samrena_vector_available(const SamrenaVector *vec);
 
 // Vector Lifecycle
+// Transfer vector to a new arena by copying all data
+// Creates a new vector on new_arena with the same contents as vec
+// The original vector remains valid and unchanged
+// Returns NULL on allocation failure or invalid input
+// Note: Does NOT destroy the original vector - caller manages both lifetimes
+SamrenaVector* samrena_vector_transfer(SamrenaVector *vec, Samrena* new_arena);
+
+// Create a new vector containing elements from [start, end)
+// Creates a new vector on target_arena with elements from indices [start, end)
+// start: inclusive starting index
+// end: exclusive ending index (use vec->size to include all remaining elements)
+// target_arena: arena for new vector (if NULL, uses vec->arena unless vec owns its arena)
+// Returns NULL on allocation failure, invalid input, out of bounds indices,
+//   or if target_arena is NULL and vec owns its arena
+// Note: Does NOT modify the original vector
+SamrenaVector* samrena_vector_slice(const SamrenaVector *vec, size_t start, size_t end, Samrena* target_arena);
+
 void samrena_vector_destroy(SamrenaVector *vec);
 
 // =============================================================================
