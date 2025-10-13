@@ -21,4 +21,5 @@ ptah_add_executable(samtrader
         samdata
         samrena
         PostgreSQL::PostgreSQL
+        m
 )
