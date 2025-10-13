@@ -45,6 +45,14 @@ typedef struct {
     double bollinger_20_upper;
     double bollinger_20_middle;
     double bollinger_20_lower;
+
+    double pivot_point;
+    double pivot_r1;
+    double pivot_r2;
+    double pivot_r3;
+    double pivot_s1;
+    double pivot_s2;
+    double pivot_s3;
 } Ohlcv;
 
 /**

@@ -68,6 +68,14 @@ int ohlcv_init(Ohlcv *ohlcv, Samrena *arena, const char *code,
     ohlcv->bollinger_20_middle = 0;
     ohlcv->bollinger_20_lower = 0;
 
+    ohlcv->pivot_point = 0;
+    ohlcv->pivot_r1 = 0;
+    ohlcv->pivot_r2 = 0;
+    ohlcv->pivot_r3 = 0;
+    ohlcv->pivot_s1 = 0;
+    ohlcv->pivot_s2 = 0;
+    ohlcv->pivot_s3 = 0;
+
     return 0;
 }
 
@@ -117,9 +125,9 @@ void ohlcv_print_vector(SamrenaVector *vec) {
     }
 
     printf("OHLCV Records (%zu total):\n", size);
-    printf("%-10s %-10s %-12s %10s %10s %12s %10s %10s %10s\n",
-           "Code", "Exchange", "Date", "Open", "Close", "Volume", "SMA-20", "SMA-50", "SMA-200");
-    printf("----------------------------------------------------------------------------------------------------------\n");
+    printf("%-10s %-10s %-12s %10s %10s %12s %10s %10s %10s %10s %10s %10s\n",
+           "Code", "Exchange", "Date", "Open", "Close", "Volume", "SMA-20", "SMA-50", "SMA-200", "Pivot", "R1", "S1");
+    printf("----------------------------------------------------------------------------------------------------------------------------\n");
 
     for (size_t i = 0; i < size; i++) {
         Ohlcv *ohlcv = (Ohlcv *)samrena_vector_at(vec, i);
@@ -133,7 +141,7 @@ void ohlcv_print_vector(SamrenaVector *vec) {
         struct tm *tm_info = localtime(&ohlcv->date);
         strftime(date_str, sizeof(date_str), "%Y-%m-%d", tm_info);
 
-        printf("%-10s %-10s %-12s %10.2f %10.2f %12d %10.2f %10.2f %10.2f\n",
+        printf("%-10s %-10s %-12s %10.2f %10.2f %12d %10.2f %10.2f %10.2f %10.2f %10.2f %10.2f\n",
                ohlcv->code,
                ohlcv->exchange,
                date_str,
@@ -142,7 +150,10 @@ void ohlcv_print_vector(SamrenaVector *vec) {
                ohlcv->volume,
                ohlcv->sma_20,
                ohlcv->sma_50,
-               ohlcv->sma_200);
+               ohlcv->sma_200,
+               ohlcv->pivot_point,
+               ohlcv->pivot_r1,
+               ohlcv->pivot_s1);
     }
 }
 
@@ -242,6 +253,63 @@ typedef struct {
   double lower;
 } Bollinger;
 
+typedef struct {
+  double pivot;
+  double r1;
+  double r2;
+  double r3;
+  double s1;
+  double s2;
+  double s3;
+} PivotPoints;
+
+PivotPoints ohlcv_calculate_pivot_points(SamrenaVector* vec, size_t index) {
+  PivotPoints pivot;
+
+  pivot.pivot = 0;
+  pivot.r1 = 0;
+  pivot.r2 = 0;
+  pivot.r3 = 0;
+  pivot.s1 = 0;
+  pivot.s2 = 0;
+  pivot.s3 = 0;
+
+  // Need at least one previous period to calculate pivot points
+  if (index == 0) {
+    return pivot;
+  }
+
+  // Get the previous period's data
+  Ohlcv *prev_ohlcv = (Ohlcv *)samrena_vector_at(vec, index - 1);
+  if (!prev_ohlcv) {
+    return pivot;
+  }
+
+  // Calculate Pivot Point: PP = (High + Low + Close) / 3
+  pivot.pivot = (prev_ohlcv->high + prev_ohlcv->low + prev_ohlcv->close) / 3.0;
+
+  // Calculate Support and Resistance levels
+  // R1 = (2 × PP) - Low
+  pivot.r1 = (2.0 * pivot.pivot) - prev_ohlcv->low;
+
+  // S1 = (2 × PP) - High
+  pivot.s1 = (2.0 * pivot.pivot) - prev_ohlcv->high;
+
+  // R2 = PP + (High - Low)
+  pivot.r2 = pivot.pivot + (prev_ohlcv->high - prev_ohlcv->low);
+
+  // S2 = PP - (High - Low)
+  pivot.s2 = pivot.pivot - (prev_ohlcv->high - prev_ohlcv->low);
+
+  // R3 = High + 2 × (PP - Low)
+  pivot.r3 = prev_ohlcv->high + 2.0 * (pivot.pivot - prev_ohlcv->low);
+
+  // S3 = Low - 2 × (High - PP)
+  pivot.s3 = prev_ohlcv->low - 2.0 * (prev_ohlcv->high - pivot.pivot);
+
+  return pivot;
+}
+
 Bollinger ohlcv_calculate_bollinger(SamrenaVector* vec, size_t index, double sma, size_t period) {
 
   Bollinger bol;
@@ -322,5 +390,16 @@ void ohlcv_calculate_indicators(SamrenaVector* vec) {
         ohlcv->bollinger_20_upper = bol.upper;
         ohlcv->bollinger_20_middle = bol.middle;
         ohlcv->bollinger_20_lower = bol.lower;
+
+        // Calculate pivot points
+        PivotPoints pivot = ohlcv_calculate_pivot_points(vec, i);
+
+        ohlcv->pivot_point = pivot.pivot;
+        ohlcv->pivot_r1 = pivot.r1;
+        ohlcv->pivot_r2 = pivot.r2;
+        ohlcv->pivot_r3 = pivot.r3;
+        ohlcv->pivot_s1 = pivot.s1;
+        ohlcv->pivot_s2 = pivot.s2;
+        ohlcv->pivot_s3 = pivot.s3;
     }
 }
