@@ -16,6 +16,7 @@
 
 #include "ohlcv.h"
 #include "samvector.h"
+#include <math.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
@@ -55,6 +56,17 @@ int ohlcv_init(Ohlcv *ohlcv, Samrena *arena, const char *code,
     ohlcv->sma_20 = 0;
     ohlcv->sma_50 = 0;
     ohlcv->sma_200 = 0;
+
+    ohlcv->ema_9 = 0;
+    ohlcv->ema_21 = 0;
+    ohlcv->ema_50 = 0;
+
+    ohlcv->rsi_14 = 0;
+
+
+    ohlcv->bollinger_20_upper = 0;
+    ohlcv->bollinger_20_middle = 0;
+    ohlcv->bollinger_20_lower = 0;
 
     return 0;
 }
@@ -138,16 +150,18 @@ void ohlcv_print_vector(SamrenaVector *vec) {
 // index is the current one being worked on
 // period is the number of days
 double ohlcv_calculate_sma(SamrenaVector* vec, size_t index, size_t period) {
-    // SMA requires at least 'period' data points
-    // If we don't have enough data before the current index, return 0
-    if (index + 1 < period) {
+    // If we don't have enough data for a full period, calculate SMA with available data
+    size_t available_points = index + 1;
+    size_t points_to_use = (available_points < period) ? available_points : period;
+
+    if (points_to_use == 0) {
         return 0.0;
     }
 
     // Calculate the start index for our window
-    size_t start_index = index - period + 1;
+    size_t start_index = index - points_to_use + 1;
 
-    // Sum up the closing prices over the period
+    // Sum up the closing prices over the available period
     double sum = 0.0;
     for (size_t i = start_index; i <= index; i++) {
         Ohlcv *ohlcv = (Ohlcv *)samrena_vector_at(vec, i);
@@ -158,7 +172,115 @@ double ohlcv_calculate_sma(SamrenaVector* vec, size_t index, size_t period) {
     }
 
     // Return the average
-    return sum / (double)period;
+    return sum / (double)points_to_use;
+}
+
+double ohlcv_calculate_ema(SamrenaVector* vec, size_t index, size_t period, double prev_ema) {
+    // Get current closing price
+    Ohlcv *curr_ohlcv = (Ohlcv *)samrena_vector_at(vec, index);
+    if (!curr_ohlcv) {
+        return 0.0;
+    }
+
+    // For the first EMA value (when prev_ema is 0), use SMA as the seed
+    if (prev_ema == 0.0) {
+        return ohlcv_calculate_sma(vec, index, period);
+    }
+
+    // Calculate the smoothing multiplier: 2 / (period + 1)
+    double multiplier = 2.0 / (double)(period + 1);
+
+    // Calculate EMA: (Close - EMA_prev) × multiplier + EMA_prev
+    // This is equivalent to: Close × multiplier + EMA_prev × (1 - multiplier)
+    return (curr_ohlcv->close - prev_ema) * multiplier + prev_ema;
+}
+
+double ohlcv_calculate_rsi(SamrenaVector* vec, size_t index, size_t period) {
+    // We need at least 'period' data points to calculate RSI
+    if (index < period) {
+        return 0.0;  // Not enough data
+    }
+
+    double total_gains = 0.0;
+    double total_losses = 0.0;
+
+    // Calculate gains and losses over the period
+    // Start from (index - period + 1) and compare each close with the previous close
+    for (size_t i = index - period + 1; i <= index; i++) {
+        Ohlcv *curr_ohlcv = (Ohlcv *)samrena_vector_at(vec, i);
+        Ohlcv *prev_ohlcv = (Ohlcv *)samrena_vector_at(vec, i - 1);
+
+        if (!curr_ohlcv || !prev_ohlcv) {
+            return 0.0;  // Invalid data
+        }
+
+        double change = curr_ohlcv->close - prev_ohlcv->close;
+
+        if (change > 0) {
+            total_gains += change;
+        } else if (change < 0) {
+            total_losses += -change;  // Store as positive value
+        }
+    }
+
+    double average_gains = total_gains / (double)period;
+    double average_losses = total_losses / (double)period;
+
+    // Handle division by zero case
+    if (average_losses == 0.0) {
+        return 100.0;  // If no losses, RSI is 100
+    }
+
+    double RS = average_gains / average_losses;
+
+    return 100.0 - (100.0 / (1.0 + RS));
+}
+
+typedef struct {
+  double upper;
+  double middle;
+  double lower;
+} Bollinger;
+
+Bollinger ohlcv_calculate_bollinger(SamrenaVector* vec, size_t index, double sma, size_t period) {
+
+  Bollinger bol;
+
+  bol.upper = 0;
+  bol.middle = sma;
+  bol.lower = 0;
+
+  // If we don't have enough data for a full period, use available data
+  size_t available_points = index + 1;
+  size_t points_to_use = (available_points < period) ? available_points : period;
+
+  if (points_to_use == 0) {
+    return bol;
+  }
+
+  // Calculate the start index for our window
+  size_t start_index = index - points_to_use + 1;
+
+  // Calculate variance (sum of squared differences from the mean)
+  double variance_sum = 0.0;
+  for (size_t i = start_index; i <= index; i++) {
+    Ohlcv *ohlcv = (Ohlcv *)samrena_vector_at(vec, i);
+    if (!ohlcv) {
+      return bol;  // Invalid data
+    }
+    double diff = ohlcv->close - sma;
+    variance_sum += diff * diff;
+  }
+
+  // Calculate standard deviation
+  double variance = variance_sum / (double)points_to_use;
+  double std_dev = sqrt(variance);
+
+  // Bollinger Bands are typically SMA ± 2 standard deviations
+  bol.upper = sma + (2.0 * std_dev);
+  bol.lower = sma - (2.0 * std_dev);
+
+  return bol;
 }
 
 void ohlcv_calculate_indicators(SamrenaVector* vec) {
@@ -172,8 +294,33 @@ void ohlcv_calculate_indicators(SamrenaVector* vec) {
             continue;
         }
 
+        // Calculate SMAs
         ohlcv->sma_20 = ohlcv_calculate_sma(vec, i, 20);
         ohlcv->sma_50 = ohlcv_calculate_sma(vec, i, 50);
         ohlcv->sma_200 = ohlcv_calculate_sma(vec, i, 200);
+
+        // Calculate EMAs using previous values (0.0 for first element)
+        double prev_ema_9 = 0.0;
+        double prev_ema_21 = 0.0;
+        double prev_ema_50 = 0.0;
+
+        if (i > 0) {
+            Ohlcv *prev_ohlcv = (Ohlcv *)samrena_vector_at(vec, i - 1);
+            if (prev_ohlcv) {
+                prev_ema_9 = prev_ohlcv->ema_9;
+                prev_ema_21 = prev_ohlcv->ema_21;
+                prev_ema_50 = prev_ohlcv->ema_50;
+            }
+        }
+
+        ohlcv->ema_9 = ohlcv_calculate_ema(vec, i, 9, prev_ema_9);
+        ohlcv->ema_21 = ohlcv_calculate_ema(vec, i, 21, prev_ema_21);
+        ohlcv->ema_50 = ohlcv_calculate_ema(vec, i, 50, prev_ema_50);
+
+        Bollinger bol = ohlcv_calculate_bollinger(vec, i, ohlcv->sma_20, 20);
+
+        ohlcv->bollinger_20_upper = bol.upper;
+        ohlcv->bollinger_20_middle = bol.middle;
+        ohlcv->bollinger_20_lower = bol.lower;
     }
 }

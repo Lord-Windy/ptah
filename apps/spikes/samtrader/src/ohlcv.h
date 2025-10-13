@@ -36,7 +36,15 @@ typedef struct {
     double sma_50;
     double sma_200;
 
+    double ema_9;
+    double ema_21;
+    double ema_50;
 
+    double rsi_14;
+
+    double bollinger_20_upper;
+    double bollinger_20_middle;
+    double bollinger_20_lower;
 } Ohlcv;
 
 /**
