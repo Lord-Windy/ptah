@@ -14,13 +14,12 @@
  * limitations under the License.
  */
 
-#include "samrena.h"
-#include "adapters/chained_adapter.h"
-#include "samrena_config.h"
-#include "samrena_internal.h"
-#ifdef SAMRENA_ENABLE_VIRTUAL
-#include "adapters/virtual_adapter.h"
+#ifndef _WIN32
+#define _GNU_SOURCE
 #endif
+
+#include "samrena.h"
+#include "samrena_internal.h"
 #include <stdarg.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -29,11 +28,16 @@
 
 #ifdef _WIN32
 #include <windows.h>
-#elif defined(__linux__)
-#include <sys/sysinfo.h>
+#else
+#include <sys/mman.h>
+#include <unistd.h>
 #endif
 
 static SamrenaError last_error = SAMRENA_SUCCESS;
+
+// =============================================================================
+// Error Handling
+// =============================================================================
 
 SamrenaError samrena_get_last_error(void) { return last_error; }
 
@@ -49,8 +53,6 @@ const char *samrena_error_string(SamrenaError error) {
       return "Out of memory error";
     case SAMRENA_ERROR_INVALID_PARAMETER:
       return "Invalid parameter error";
-    case SAMRENA_ERROR_UNSUPPORTED_STRATEGY:
-      return "Unsupported strategy error";
     case SAMRENA_ERROR_UNSUPPORTED_OPERATION:
       return "Unsupported operation error";
     default:
@@ -60,42 +62,59 @@ const char *samrena_error_string(SamrenaError error) {
 
 static void samrena_set_error(SamrenaError error) { last_error = error; }
 
-// Adapter registry
-typedef struct {
-  SamrenaStrategy strategy;
-  const SamrenaOps *ops;
-  const char *name;
-} AdapterEntry;
+// =============================================================================
+// Virtual Memory Platform Abstraction
+// =============================================================================
 
-static const AdapterEntry adapters[] = {
-    {SAMRENA_STRATEGY_CHAINED, &chained_adapter_ops, "chained"},
-#ifdef SAMRENA_ENABLE_VIRTUAL
-    {SAMRENA_STRATEGY_VIRTUAL, &virtual_adapter_ops, "virtual"},
+static uint64_t get_system_page_size(void) {
+#ifdef _WIN32
+  SYSTEM_INFO si;
+  GetSystemInfo(&si);
+  return si.dwPageSize;
+#else
+  return (uint64_t)sysconf(_SC_PAGESIZE);
 #endif
-    {0, NULL, NULL} // Sentinel
-};
-
-static const SamrenaOps *find_adapter(SamrenaStrategy strategy) {
-  for (const AdapterEntry *entry = adapters; entry->ops; entry++) {
-    if (entry->strategy == strategy) {
-      return entry->ops;
-    }
-  }
-  return NULL;
 }
 
-// Fallback rules structure
-typedef struct {
-  SamrenaStrategy from;
-  SamrenaStrategy to;
-  const char *reason;
-} FallbackRule;
+static uint64_t get_allocation_granularity(void) {
+#ifdef _WIN32
+  SYSTEM_INFO si;
+  GetSystemInfo(&si);
+  return si.dwAllocationGranularity;
+#else
+  return get_system_page_size();
+#endif
+}
 
-static const FallbackRule fallback_rules[] = {{SAMRENA_STRATEGY_VIRTUAL, SAMRENA_STRATEGY_CHAINED,
-                                               "Virtual memory not available on this platform"},
-                                              {SAMRENA_STRATEGY_DEFAULT, SAMRENA_STRATEGY_CHAINED,
-                                               "No optimal strategy available, using chained"},
-                                              {0, 0, NULL}};
+static void *virtual_reserve_memory(uint64_t size) {
+#ifdef _WIN32
+  return VirtualAlloc(NULL, size, MEM_RESERVE, PAGE_NOACCESS);
+#else
+  void *addr = mmap(NULL, size, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+  return (addr == MAP_FAILED) ? NULL : addr;
+#endif
+}
+
+static bool virtual_commit(void *address, uint64_t size) {
+#ifdef _WIN32
+  return VirtualAlloc(address, size, MEM_COMMIT, PAGE_READWRITE) != NULL;
+#else
+  return mprotect(address, size, PROT_READ | PROT_WRITE) == 0;
+#endif
+}
+
+static void virtual_release(void *address, uint64_t size) {
+#ifdef _WIN32
+  VirtualFree(address, 0, MEM_RELEASE);
+  (void)size; // Unused on Windows
+#else
+  munmap(address, size);
+#endif
+}
+
+// =============================================================================
+// Logging
+// =============================================================================
 
 static void log_message(const SamrenaConfig *config, const char *format, ...) {
   char buffer[256];
@@ -111,7 +130,10 @@ static void log_message(const SamrenaConfig *config, const char *format, ...) {
   }
 }
 
-// Configuration validation
+// =============================================================================
+// Configuration Validation
+// =============================================================================
+
 static SamrenaError validate_config(const SamrenaConfig *config) {
   if (!config) {
     return SAMRENA_ERROR_NULL_POINTER;
@@ -125,66 +147,12 @@ static SamrenaError validate_config(const SamrenaConfig *config) {
     return SAMRENA_ERROR_INVALID_PARAMETER; // Minimum page size
   }
 
-  if (config->strategy < 0 || config->strategy > SAMRENA_STRATEGY_VIRTUAL) {
-    return SAMRENA_ERROR_INVALID_PARAMETER;
-  }
-
-  // Virtual memory specific validation
-  if (config->strategy == SAMRENA_STRATEGY_VIRTUAL) {
-    if (config->max_reserve != 0 && config->page_size != 0 &&
-        config->max_reserve < config->page_size) {
-      return SAMRENA_ERROR_INVALID_PARAMETER;
-    }
-  }
-
   return SAMRENA_SUCCESS;
 }
 
-static SamrenaStrategy apply_fallback(SamrenaStrategy requested, const SamrenaConfig *config,
-                                      const char **reason) {
-  // Check if requested is available
-  if (find_adapter(requested)) {
-    return requested;
-  }
-
-  // Handle based on fallback mode
-  if (config->fallback_mode == SAMRENA_FALLBACK_STRICT) {
-    *reason = "Requested strategy not available";
-    return SAMRENA_STRATEGY_DEFAULT; // Signal error
-  }
-
-  // Find appropriate fallback
-  for (const FallbackRule *rule = fallback_rules; rule->reason; rule++) {
-    if (rule->from == requested && find_adapter(rule->to)) {
-      *reason = rule->reason;
-      return rule->to;
-    }
-  }
-
-  // Last resort
-  *reason = "No suitable adapter found";
-  return SAMRENA_STRATEGY_CHAINED;
-}
-
-static SamrenaStrategy select_strategy(SamrenaStrategy requested) {
-  switch (requested) {
-    case SAMRENA_STRATEGY_DEFAULT:
-#ifdef SAMRENA_ENABLE_VIRTUAL
-      // Prefer virtual memory when available
-      return SAMRENA_STRATEGY_VIRTUAL;
-#else
-      return SAMRENA_STRATEGY_CHAINED;
-#endif
-
-    default:
-      return requested;
-  }
-}
-
-static const SamrenaOps *get_adapter_ops(SamrenaStrategy strategy) {
-  SamrenaStrategy selected = select_strategy(strategy);
-  return find_adapter(selected);
-}
+// =============================================================================
+// Arena Lifecycle
+// =============================================================================
 
 Samrena *samrena_create(const SamrenaConfig *config) {
   // Use defaults if no config provided
@@ -205,24 +173,6 @@ Samrena *samrena_create(const SamrenaConfig *config) {
     cfg.page_size = 64 * 1024; // 64KB default page size
   }
 
-  // Select strategy with fallback
-  const char *fallback_reason = NULL;
-  SamrenaStrategy selected = apply_fallback(cfg.strategy, &cfg, &fallback_reason);
-
-  if (selected == SAMRENA_STRATEGY_DEFAULT) {
-    // Fallback failed in strict mode
-    samrena_set_error(SAMRENA_ERROR_UNSUPPORTED_STRATEGY);
-    return NULL;
-  }
-
-  // Find adapter
-  const SamrenaOps *ops = find_adapter(selected);
-  if (!ops) {
-    log_message(&cfg, "Internal error: adapter not found");
-    samrena_set_error(SAMRENA_ERROR_UNSUPPORTED_STRATEGY);
-    return NULL;
-  }
-
   // Allocate arena structure
   Samrena *arena = calloc(1, sizeof(Samrena));
   if (!arena) {
@@ -238,31 +188,58 @@ Samrena *samrena_create(const SamrenaConfig *config) {
   }
 
   // Initialize implementation
-  arena->impl->ops = ops;
-  arena->impl->strategy = selected;
   arena->impl->page_size = cfg.page_size;
   arena->impl->config = cfg;
-  strncpy(arena->impl->adapter_name, samrena_strategy_name(selected),
-          sizeof(arena->impl->adapter_name) - 1);
 
-  // Create adapter context
-  err = ops->create(&arena->context, &cfg);
-  if (err != SAMRENA_SUCCESS) {
-    log_message(&cfg, "Failed to create %s adapter: error %d", samrena_strategy_name(selected),
-                err);
+  // Allocate and initialize virtual context
+  VirtualContext *ctx = calloc(1, sizeof(VirtualContext));
+  if (!ctx) {
     free(arena->impl);
     free(arena);
-    samrena_set_error(err);
+    samrena_set_error(SAMRENA_ERROR_OUT_OF_MEMORY);
     return NULL;
   }
 
-  // Log successful creation if fallback occurred
-  if (cfg.log_callback && selected != cfg.strategy && fallback_reason) {
-    log_message(&cfg, "Created %s arena (requested: %s, reason: %s)",
-                samrena_strategy_name(selected), samrena_strategy_name(cfg.strategy),
-                fallback_reason);
+  ctx->page_size = get_system_page_size();
+  ctx->commit_granularity = cfg.commit_size > 0 ? cfg.commit_size : ctx->page_size;
+  ctx->enable_stats = cfg.enable_stats;
+  ctx->enable_debug = cfg.enable_debug;
+
+  // Default to 64MB if not specified
+  ctx->reserved_size = cfg.max_reserve > 0 ? cfg.max_reserve : (64 * 1024 * 1024);
+
+  // Align to allocation granularity
+  uint64_t granularity = get_allocation_granularity();
+  ctx->reserved_size = (ctx->reserved_size + granularity - 1) & ~(granularity - 1);
+
+  // Reserve virtual address space
+  ctx->base_address = virtual_reserve_memory(ctx->reserved_size);
+  if (!ctx->base_address) {
+    free(ctx);
+    free(arena->impl);
+    free(arena);
+    samrena_set_error(SAMRENA_ERROR_OUT_OF_MEMORY);
+    return NULL;
   }
 
+  ctx->committed_size = 0;
+  ctx->allocated_size = 0;
+
+  // Commit initial pages
+  uint64_t initial_commit = cfg.initial_pages * ctx->page_size;
+  if (initial_commit > 0) {
+    if (!virtual_commit(ctx->base_address, initial_commit)) {
+      virtual_release(ctx->base_address, ctx->reserved_size);
+      free(ctx);
+      free(arena->impl);
+      free(arena);
+      samrena_set_error(SAMRENA_ERROR_OUT_OF_MEMORY);
+      return NULL;
+    }
+    ctx->committed_size = initial_commit;
+  }
+
+  arena->context = ctx;
   samrena_set_error(SAMRENA_SUCCESS);
   return arena;
 }
@@ -271,105 +248,82 @@ void samrena_destroy(Samrena *arena) {
   if (!arena)
     return;
 
-  if (arena->impl && arena->impl->ops && arena->impl->ops->destroy) {
-    arena->impl->ops->destroy(arena->context);
+  if (arena->context) {
+    VirtualContext *ctx = (VirtualContext *)arena->context;
+    if (ctx->base_address) {
+      virtual_release(ctx->base_address, ctx->reserved_size);
+    }
+    free(ctx);
   }
 
   free(arena->impl);
   free(arena);
 }
 
+// =============================================================================
+// Core Allocation Functions
+// =============================================================================
+
 void *samrena_push(Samrena *arena, uint64_t size) {
-  if (!arena) {
+  if (!arena || !arena->context) {
     samrena_set_error(SAMRENA_ERROR_NULL_POINTER);
     return NULL;
   }
 
-  void *result = SAMRENA_CALL_OP_PTR(arena, push, size);
-  if (!result) {
-    samrena_set_error(SAMRENA_ERROR_OUT_OF_MEMORY);
-  } else {
-    samrena_set_error(SAMRENA_SUCCESS);
+  if (size == 0) {
+    samrena_set_error(SAMRENA_ERROR_INVALID_SIZE);
+    return NULL;
   }
 
+  VirtualContext *ctx = (VirtualContext *)arena->context;
+
+  // Align size to 8-byte boundary
+  size = (size + 7) & ~7;
+
+  uint64_t new_allocated = ctx->allocated_size + size;
+
+  // Check if we exceed reserved space
+  if (new_allocated > ctx->reserved_size) {
+    samrena_set_error(SAMRENA_ERROR_OUT_OF_MEMORY);
+    return NULL;
+  }
+
+  // Check if we need to commit more memory
+  if (new_allocated > ctx->committed_size) {
+    uint64_t needed_commit = new_allocated - ctx->committed_size;
+    uint64_t commit_size =
+        ((needed_commit + ctx->commit_granularity - 1) / ctx->commit_granularity) *
+        ctx->commit_granularity;
+
+    uint64_t new_committed = ctx->committed_size + commit_size;
+    if (new_committed > ctx->reserved_size) {
+      new_committed = ctx->reserved_size;
+      commit_size = new_committed - ctx->committed_size;
+    }
+
+    if (commit_size > 0) {
+      void *commit_addr = (uint8_t *)ctx->base_address + ctx->committed_size;
+      if (!virtual_commit(commit_addr, commit_size)) {
+        samrena_set_error(SAMRENA_ERROR_OUT_OF_MEMORY);
+        return NULL;
+      }
+      ctx->committed_size = new_committed;
+    }
+  }
+
+  void *result = (uint8_t *)ctx->base_address + ctx->allocated_size;
+  ctx->allocated_size = new_allocated;
+
+  samrena_set_error(SAMRENA_SUCCESS);
   return result;
 }
 
 void *samrena_push_zero(Samrena *arena, uint64_t size) {
-  if (!arena) {
-    samrena_set_error(SAMRENA_ERROR_NULL_POINTER);
-    return NULL;
+  void *result = samrena_push(arena, size);
+  if (result) {
+    memset(result, 0, size);
   }
-
-  void *result = SAMRENA_CALL_OP_PTR(arena, push_zero, size);
-  if (!result) {
-    samrena_set_error(SAMRENA_ERROR_OUT_OF_MEMORY);
-  } else {
-    samrena_set_error(SAMRENA_SUCCESS);
-  }
-
   return result;
-}
-
-uint64_t samrena_allocated(Samrena *arena) {
-  if (!arena) {
-    samrena_set_error(SAMRENA_ERROR_NULL_POINTER);
-    return 0;
-  }
-
-  return SAMRENA_CALL_OP_UINT64(arena, allocated);
-}
-
-uint64_t samrena_capacity(Samrena *arena) {
-  if (!arena) {
-    samrena_set_error(SAMRENA_ERROR_NULL_POINTER);
-    return 0;
-  }
-
-  return SAMRENA_CALL_OP_UINT64(arena, capacity);
-}
-
-// Capability query API implementation
-bool samrena_strategy_available(SamrenaStrategy strategy) { return find_adapter(strategy) != NULL; }
-
-int samrena_available_strategies(SamrenaStrategy *strategies, int max_count) {
-  int count = 0;
-  for (const AdapterEntry *entry = adapters; entry->ops && count < max_count; entry++) {
-    if (strategies) {
-      strategies[count] = entry->strategy;
-    }
-    count++;
-  }
-  return count;
-}
-
-const char *samrena_strategy_name(SamrenaStrategy strategy) {
-  for (const AdapterEntry *entry = adapters; entry->ops; entry++) {
-    if (entry->strategy == strategy) {
-      return entry->name;
-    }
-  }
-  return "unknown";
-}
-
-Samrena *samrena_create_default(void) {
-  return samrena_create(NULL); // Use all defaults
-}
-
-// Utility functions implementation
-bool samrena_can_allocate(Samrena *arena, uint64_t size) {
-  if (!arena || !arena->impl)
-    return false;
-
-  // For virtual memory, check against reserved space
-  if (arena->impl->strategy == SAMRENA_STRATEGY_VIRTUAL) {
-    uint64_t used = samrena_allocated(arena);
-    uint64_t capacity = samrena_capacity(arena);
-    return (used + size) <= capacity;
-  }
-
-  // For chained, always true (can grow)
-  return true;
 }
 
 void *samrena_push_aligned(Samrena *arena, uint64_t size, uint64_t alignment) {
@@ -414,65 +368,69 @@ void *samrena_push_aligned(Samrena *arena, uint64_t size, uint64_t alignment) {
   return (void *)aligned_addr;
 }
 
-bool samrena_reset_if_supported(Samrena *arena) {
-  if (!arena || !arena->impl || !arena->impl->ops->reset) {
-    return false;
+// =============================================================================
+// Query Functions
+// =============================================================================
+
+uint64_t samrena_allocated(Samrena *arena) {
+  if (!arena || !arena->context) {
+    samrena_set_error(SAMRENA_ERROR_NULL_POINTER);
+    return 0;
   }
-  arena->impl->ops->reset(arena->context);
-  return true;
+
+  VirtualContext *ctx = (VirtualContext *)arena->context;
+  return ctx->allocated_size;
+}
+
+uint64_t samrena_capacity(Samrena *arena) {
+  if (!arena || !arena->context) {
+    samrena_set_error(SAMRENA_ERROR_NULL_POINTER);
+    return 0;
+  }
+
+  VirtualContext *ctx = (VirtualContext *)arena->context;
+  return ctx->committed_size;
 }
 
 void samrena_get_info(Samrena *arena, SamrenaInfo *info) {
   if (!arena || !arena->impl || !info)
     return;
 
-  info->adapter_name = arena->impl->adapter_name;
-  info->strategy = arena->impl->strategy;
   info->allocated = samrena_allocated(arena);
   info->capacity = samrena_capacity(arena);
   info->page_size = arena->impl->page_size;
-
-  // Strategy-specific info
-  switch (arena->impl->strategy) {
-    case SAMRENA_STRATEGY_VIRTUAL:
-      info->can_grow = false; // Fixed reservation
-      info->is_contiguous = true;
-      break;
-    case SAMRENA_STRATEGY_CHAINED:
-      info->can_grow = true;
-      info->is_contiguous = false;
-      break;
-    default:
-      info->can_grow = false;
-      info->is_contiguous = false;
-  }
+  info->is_contiguous = true;
 }
 
-// ============================================================================
-// Phase 5: Enhanced Features Implementation
-// ============================================================================
+// =============================================================================
+// Factory Functions
+// =============================================================================
 
-// Capability Query API Implementation
+Samrena *samrena_create_default(void) {
+  return samrena_create(NULL); // Use all defaults
+}
+
+// =============================================================================
+// Capability Query API
+// =============================================================================
+
+static const SamrenaCapabilities virtual_capabilities = {
+    .flags = SAMRENA_CAP_CONTIGUOUS_MEMORY | SAMRENA_CAP_ZERO_COPY_GROWTH | SAMRENA_CAP_RESET |
+             SAMRENA_CAP_RESERVE,
+    .max_allocation_size = 0, // Set dynamically based on reserved size
+    .alignment_guarantee = 16
+};
+
 SamrenaCapabilities samrena_get_capabilities(Samrena *arena) {
-  if (!arena || !arena->impl || !arena->impl->ops->get_capabilities) {
+  if (!arena || !arena->context) {
     return (SamrenaCapabilities){0};
   }
 
-  const SamrenaCapabilities *base_caps = arena->impl->ops->get_capabilities(arena->context);
-  if (!base_caps) {
-    return (SamrenaCapabilities){0};
-  }
+  VirtualContext *ctx = (VirtualContext *)arena->context;
+  SamrenaCapabilities caps = virtual_capabilities;
 
-  SamrenaCapabilities caps = *base_caps;
-
-  // Adjust dynamic values based on current state
-  if (arena->impl->strategy == SAMRENA_STRATEGY_VIRTUAL) {
-    // For virtual adapter, update actual limits based on reservation
-    // This would be filled in by the virtual adapter implementation
-    uint64_t current_used = samrena_allocated(arena);
-    uint64_t total_capacity = samrena_capacity(arena);
-    caps.max_allocation_size = total_capacity - current_used;
-  }
+  // Set dynamic values based on current state
+  caps.max_allocation_size = ctx->reserved_size - ctx->allocated_size;
 
   return caps;
 }
@@ -482,29 +440,43 @@ bool samrena_has_capability(Samrena *arena, SamrenaCapabilityFlags cap) {
   return (caps.flags & cap) != 0;
 }
 
-SamrenaCapabilities samrena_strategy_capabilities(SamrenaStrategy strategy) {
-  const SamrenaOps *ops = find_adapter(strategy);
-  if (!ops || !ops->get_capabilities) {
-    return (SamrenaCapabilities){0};
-  }
+// =============================================================================
+// Memory Management API
+// =============================================================================
 
-  // For strategy capabilities, we can't provide context-specific info
-  // Return the static capabilities with maximum values
-  const SamrenaCapabilities *base_caps = ops->get_capabilities(NULL);
-  return base_caps ? *base_caps : (SamrenaCapabilities){0};
-}
-
-// Memory Reservation API Implementation
-SamrenaError samrena_reserve(Samrena *arena, uint64_t size) {
-  if (!arena || !arena->impl) {
+SamrenaError samrena_reserve(Samrena *arena, uint64_t min_capacity) {
+  if (!arena || !arena->context) {
     return SAMRENA_ERROR_INVALID_PARAMETER;
   }
 
-  if (arena->impl->ops->reserve) {
-    return arena->impl->ops->reserve(arena->context, size);
+  VirtualContext *ctx = (VirtualContext *)arena->context;
+
+  if (min_capacity > ctx->reserved_size) {
+    return SAMRENA_ERROR_INVALID_PARAMETER;
   }
 
-  // If reserve not supported, return OK (it's a hint)
+  if (ctx->committed_size >= min_capacity) {
+    return SAMRENA_SUCCESS;
+  }
+
+  uint64_t needed = min_capacity - ctx->committed_size;
+  uint64_t commit_size =
+      ((needed + ctx->commit_granularity - 1) / ctx->commit_granularity) * ctx->commit_granularity;
+
+  uint64_t new_committed = ctx->committed_size + commit_size;
+  if (new_committed > ctx->reserved_size) {
+    new_committed = ctx->reserved_size;
+    commit_size = new_committed - ctx->committed_size;
+  }
+
+  if (commit_size > 0) {
+    void *commit_addr = (uint8_t *)ctx->base_address + ctx->committed_size;
+    if (!virtual_commit(commit_addr, commit_size)) {
+      return SAMRENA_ERROR_OUT_OF_MEMORY;
+    }
+    ctx->committed_size = new_committed;
+  }
+
   return SAMRENA_SUCCESS;
 }
 
@@ -513,9 +485,6 @@ SamrenaError samrena_reserve_with_growth(Samrena *arena, uint64_t immediate_size
   if (!arena || !arena->impl) {
     return SAMRENA_ERROR_INVALID_PARAMETER;
   }
-
-  // Store growth hint for future allocations
-  arena->impl->growth_hint = expected_total;
 
   // Reserve immediate size plus some headroom
   uint64_t reserve_size = immediate_size * 2;
@@ -526,47 +495,22 @@ SamrenaError samrena_reserve_with_growth(Samrena *arena, uint64_t immediate_size
   return samrena_reserve(arena, reserve_size);
 }
 
-// Growth Policies Implementation
-typedef struct {
-  // Allocation history for adaptive growth
-  uint64_t *allocation_sizes;
-  size_t history_size;
-  size_t history_capacity;
-  size_t history_index;
+bool samrena_can_allocate(Samrena *arena, uint64_t size) {
+  if (!arena || !arena->context)
+    return false;
 
-  // Statistics
-  uint64_t total_growths;
-  uint64_t total_wasted;
-  uint64_t allocation_count;
-} GrowthState;
-
-static uint64_t calculate_growth(const SamrenaGrowthConfig *config, GrowthState *state,
-                                 uint64_t current_size, uint64_t requested_size) {
-  uint64_t min_growth = requested_size - current_size;
-  uint64_t new_size = current_size;
-
-  switch (config->policy) {
-    case SAMRENA_GROWTH_LINEAR:
-      new_size += config->params.linear.increment;
-      break;
-
-    case SAMRENA_GROWTH_EXPONENTIAL:
-      new_size = (uint64_t)(current_size * config->params.exponential.factor);
-      break;
-  }
-
-  // Ensure minimum growth
-  if (new_size < current_size + min_growth) {
-    new_size = current_size + min_growth;
-  }
-
-  return new_size - current_size;
+  VirtualContext *ctx = (VirtualContext *)arena->context;
+  uint64_t used = ctx->allocated_size;
+  uint64_t capacity = ctx->reserved_size;
+  return (used + size) <= capacity;
 }
 
-// Preset growth configurations
-const SamrenaGrowthConfig SAMRENA_GROWTH_CONSERVATIVE = {
-    .policy = SAMRENA_GROWTH_LINEAR, .params.linear = {.increment = 65536} // 64KB at a time
-};
+bool samrena_reset_if_supported(Samrena *arena) {
+  if (!arena || !arena->context) {
+    return false;
+  }
 
-const SamrenaGrowthConfig SAMRENA_GROWTH_BALANCED = {.policy = SAMRENA_GROWTH_EXPONENTIAL,
-                                                     .params.exponential = {.factor = 1.5}};
+  VirtualContext *ctx = (VirtualContext *)arena->context;
+  ctx->allocated_size = 0;
+  return true;
+}

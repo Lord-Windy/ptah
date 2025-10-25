@@ -25,15 +25,8 @@
 
 typedef struct {
   const char *name;
-  void (*test_func)(SamrenaStrategy strategy);
-  bool (*should_run)(SamrenaStrategy strategy);
-} AdapterTest;
-
-typedef struct {
-  SamrenaStrategy strategy;
-  const char *name;
-  bool available;
-} AdapterInfo;
+  void (*test_func)(void);
+} ArenaTest;
 
 typedef struct {
   Samrena *arena;
@@ -42,19 +35,8 @@ typedef struct {
   volatile bool *success;
 } ThreadTestData;
 
-static bool requires_reset(SamrenaStrategy strategy) {
-  SamrenaCapabilities caps = samrena_strategy_capabilities(strategy);
-  return (caps.flags & SAMRENA_CAP_RESET) != 0;
-}
-
-static bool requires_reserve(SamrenaStrategy strategy) {
-  SamrenaCapabilities caps = samrena_strategy_capabilities(strategy);
-  return (caps.flags & SAMRENA_CAP_RESERVE) != 0;
-}
-
-static void test_basic_allocation(SamrenaStrategy strategy) {
+static void test_basic_allocation(void) {
   SamrenaConfig config = samrena_default_config();
-  config.strategy = strategy;
 
   Samrena *arena = samrena_create(&config);
   assert(arena != NULL);
@@ -80,9 +62,8 @@ static void test_basic_allocation(SamrenaStrategy strategy) {
   samrena_destroy(arena);
 }
 
-static void test_large_allocation(SamrenaStrategy strategy) {
+static void test_large_allocation(void) {
   SamrenaConfig config = samrena_default_config();
-  config.strategy = strategy;
   config.initial_pages = 1;
 
   Samrena *arena = samrena_create(&config);
@@ -101,9 +82,8 @@ static void test_large_allocation(SamrenaStrategy strategy) {
   samrena_destroy(arena);
 }
 
-static void test_many_small_allocations(SamrenaStrategy strategy) {
+static void test_many_small_allocations(void) {
   SamrenaConfig config = samrena_default_config();
-  config.strategy = strategy;
 
   Samrena *arena = samrena_create(&config);
   assert(arena != NULL);
@@ -131,9 +111,8 @@ static void test_many_small_allocations(SamrenaStrategy strategy) {
   samrena_destroy(arena);
 }
 
-static void test_growth_behavior(SamrenaStrategy strategy) {
+static void test_growth_behavior(void) {
   SamrenaConfig config = samrena_default_config();
-  config.strategy = strategy;
   config.initial_pages = 1;
 
   Samrena *arena = samrena_create(&config);
@@ -159,9 +138,8 @@ static void test_growth_behavior(SamrenaStrategy strategy) {
   samrena_destroy(arena);
 }
 
-static void test_reset_operation(SamrenaStrategy strategy) {
+static void test_reset_operation(void) {
   SamrenaConfig config = samrena_default_config();
-  config.strategy = strategy;
 
   Samrena *arena = samrena_create(&config);
   assert(arena != NULL);
@@ -182,16 +160,14 @@ static void test_reset_operation(SamrenaStrategy strategy) {
   void *p2 = samrena_push(arena, 1024);
   assert(p2 != NULL);
 
-  if (strategy == SAMRENA_STRATEGY_VIRTUAL) {
-    assert(p2 == p1);
-  }
+  // Virtual memory should reuse the same address
+  assert(p2 == p1);
 
   samrena_destroy(arena);
 }
 
-static void test_reserve_operation(SamrenaStrategy strategy) {
+static void test_reserve_operation(void) {
   SamrenaConfig config = samrena_default_config();
-  config.strategy = strategy;
 
   Samrena *arena = samrena_create(&config);
   assert(arena != NULL);
@@ -206,9 +182,8 @@ static void test_reserve_operation(SamrenaStrategy strategy) {
   samrena_destroy(arena);
 }
 
-static void test_edge_cases(SamrenaStrategy strategy) {
+static void test_edge_cases(void) {
   SamrenaConfig config = samrena_default_config();
-  config.strategy = strategy;
 
   Samrena *arena = samrena_create(&config);
   assert(arena != NULL);
@@ -243,7 +218,7 @@ static void *thread_allocator(void *arg) {
   return NULL;
 }
 
-static void test_thread_safety(SamrenaStrategy strategy) {
+static void test_thread_safety(void) {
   const size_t thread_count = 4;
   const size_t allocs_per_thread = 1000;
 
@@ -253,7 +228,6 @@ static void test_thread_safety(SamrenaStrategy strategy) {
 
   for (size_t i = 0; i < thread_count; i++) {
     SamrenaConfig config = samrena_default_config();
-    config.strategy = strategy;
 
     thread_data[i].arena = samrena_create(&config);
     thread_data[i].thread_id = i;
@@ -274,10 +248,9 @@ static void test_thread_safety(SamrenaStrategy strategy) {
   }
 }
 
-static void test_memory_leaks(SamrenaStrategy strategy) {
+static void test_memory_leaks(void) {
   for (int i = 0; i < 100; i++) {
     SamrenaConfig config = samrena_default_config();
-    config.strategy = strategy;
 
     Samrena *arena = samrena_create(&config);
     assert(arena != NULL);
@@ -292,9 +265,8 @@ static void test_memory_leaks(SamrenaStrategy strategy) {
   }
 }
 
-static void test_aligned_allocation(SamrenaStrategy strategy) {
+static void test_aligned_allocation(void) {
   SamrenaConfig config = samrena_default_config();
-  config.strategy = strategy;
 
   Samrena *arena = samrena_create(&config);
   assert(arena != NULL);
@@ -310,9 +282,8 @@ static void test_aligned_allocation(SamrenaStrategy strategy) {
   samrena_destroy(arena);
 }
 
-static void test_zero_allocation(SamrenaStrategy strategy) {
+static void test_zero_allocation(void) {
   SamrenaConfig config = samrena_default_config();
-  config.strategy = strategy;
 
   Samrena *arena = samrena_create(&config);
   assert(arena != NULL);
@@ -328,55 +299,56 @@ static void test_zero_allocation(SamrenaStrategy strategy) {
   samrena_destroy(arena);
 }
 
-static void run_adapter_tests(void) {
-  AdapterInfo adapters[] = {
-      {SAMRENA_STRATEGY_CHAINED, "chained", true},
-      {SAMRENA_STRATEGY_VIRTUAL, "virtual", samrena_strategy_available(SAMRENA_STRATEGY_VIRTUAL)},
-  };
+static void test_capabilities(void) {
+  SamrenaConfig config = samrena_default_config();
 
-  AdapterTest tests[] = {{"basic_allocation", test_basic_allocation, NULL},
-                         {"large_allocation", test_large_allocation, NULL},
-                         {"many_small_allocations", test_many_small_allocations, NULL},
-                         {"growth_behavior", test_growth_behavior, NULL},
-                         {"reset_operation", test_reset_operation, requires_reset},
-                         {"reserve_operation", test_reserve_operation, requires_reserve},
-                         {"edge_cases", test_edge_cases, NULL},
-                         {"thread_safety", test_thread_safety, NULL},
-                         {"memory_leaks", test_memory_leaks, NULL},
-                         {"aligned_allocation", test_aligned_allocation, NULL},
-                         {"zero_allocation", test_zero_allocation, NULL},
-                         {NULL, NULL, NULL}};
+  Samrena *arena = samrena_create(&config);
+  assert(arena != NULL);
 
-  printf("=== Samrena Adapter Test Suite ===\n\n");
+  SamrenaCapabilities caps = samrena_get_capabilities(arena);
 
-  for (size_t i = 0; i < sizeof(adapters) / sizeof(adapters[0]); i++) {
-    if (!adapters[i].available) {
-      printf("Skipping %s adapter (not available)\n", adapters[i].name);
-      continue;
-    }
+  // Virtual memory should have these capabilities
+  assert(caps.flags & SAMRENA_CAP_CONTIGUOUS_MEMORY);
+  assert(caps.flags & SAMRENA_CAP_ZERO_COPY_GROWTH);
+  assert(caps.flags & SAMRENA_CAP_RESET);
+  assert(caps.flags & SAMRENA_CAP_RESERVE);
 
-    printf("Testing %s adapter:\n", adapters[i].name);
+  assert(samrena_has_capability(arena, SAMRENA_CAP_CONTIGUOUS_MEMORY));
+  assert(samrena_has_capability(arena, SAMRENA_CAP_RESET));
 
-    for (AdapterTest *test = tests; test->name; test++) {
-      if (test->should_run && !test->should_run(adapters[i].strategy)) {
-        printf("  %s: SKIPPED\n", test->name);
-        continue;
-      }
+  samrena_destroy(arena);
+}
 
-      printf("  %s: ", test->name);
-      fflush(stdout);
+static void run_tests(void) {
+  ArenaTest tests[] = {{"basic_allocation", test_basic_allocation},
+                       {"large_allocation", test_large_allocation},
+                       {"many_small_allocations", test_many_small_allocations},
+                       {"growth_behavior", test_growth_behavior},
+                       {"reset_operation", test_reset_operation},
+                       {"reserve_operation", test_reserve_operation},
+                       {"edge_cases", test_edge_cases},
+                       {"thread_safety", test_thread_safety},
+                       {"memory_leaks", test_memory_leaks},
+                       {"aligned_allocation", test_aligned_allocation},
+                       {"zero_allocation", test_zero_allocation},
+                       {"capabilities", test_capabilities},
+                       {NULL, NULL}};
 
-      test->test_func(adapters[i].strategy);
-      printf("PASS\n");
-    }
-    printf("\n");
+  printf("=== Samrena Arena Test Suite ===\n\n");
+
+  for (ArenaTest *test = tests; test->name; test++) {
+    printf("  %s: ", test->name);
+    fflush(stdout);
+
+    test->test_func();
+    printf("PASS\n");
   }
 
-  printf("All tests completed successfully!\n");
+  printf("\nAll tests completed successfully!\n");
 }
 
 int main(void) {
   srand((unsigned int)time(NULL));
-  run_adapter_tests();
+  run_tests();
   return 0;
 }
