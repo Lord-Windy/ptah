@@ -23,7 +23,6 @@
 
 #include <stdbool.h>
 #include <stdint.h>
-#include <stdio.h>
 #include <stdlib.h>
 
 // =============================================================================
@@ -131,6 +130,35 @@ static inline SamrenaConfig samrena_default_config(void) {
                          .log_callback = NULL,
                          .log_user_data = NULL};
 }
+
+// =============================================================================
+// INTERNAL STRUCTURES
+// =============================================================================
+
+// Virtual memory context - internal implementation details
+typedef struct {
+  void *base_address;
+  uint64_t reserved_size;
+  uint64_t committed_size;
+  uint64_t allocated_size;
+  uint64_t commit_granularity;
+  uint64_t page_size;
+  bool enable_stats;
+  bool enable_debug;
+} VirtualContext;
+
+// Implementation structure
+struct SamrenaImpl {
+  uint64_t page_size;
+  SamrenaConfig config;
+
+  // Statistics
+  struct {
+    uint64_t total_allocations;
+    uint64_t failed_allocations;
+    uint64_t peak_usage;
+  } stats;
+};
 
 // =============================================================================
 // CORE API - Arena Management
