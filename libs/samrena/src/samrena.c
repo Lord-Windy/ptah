@@ -180,25 +180,12 @@ Samrena *samrena_create(const SamrenaConfig *config) {
     return NULL;
   }
 
-  arena->impl = calloc(1, sizeof(SamrenaImpl));
-  if (!arena->impl) {
-    free(arena);
-    samrena_set_error(SAMRENA_ERROR_OUT_OF_MEMORY);
-    return NULL;
-  }
+  // Initialize arena
+  arena->page_size = cfg.page_size;
+  arena->config = cfg;
 
-  // Initialize implementation
-  arena->impl->page_size = cfg.page_size;
-  arena->impl->config = cfg;
-
-  // Allocate and initialize virtual context
-  VirtualContext *ctx = calloc(1, sizeof(VirtualContext));
-  if (!ctx) {
-    free(arena->impl);
-    free(arena);
-    samrena_set_error(SAMRENA_ERROR_OUT_OF_MEMORY);
-    return NULL;
-  }
+  // Initialize virtual context
+  VirtualContext *ctx = &arena->vctx;
 
   ctx->page_size = get_system_page_size();
   ctx->commit_granularity = cfg.commit_size > 0 ? cfg.commit_size : ctx->page_size;
@@ -215,8 +202,6 @@ Samrena *samrena_create(const SamrenaConfig *config) {
   // Reserve virtual address space
   ctx->base_address = virtual_reserve_memory(ctx->reserved_size);
   if (!ctx->base_address) {
-    free(ctx);
-    free(arena->impl);
     free(arena);
     samrena_set_error(SAMRENA_ERROR_OUT_OF_MEMORY);
     return NULL;
@@ -230,16 +215,12 @@ Samrena *samrena_create(const SamrenaConfig *config) {
   if (initial_commit > 0) {
     if (!virtual_commit(ctx->base_address, initial_commit)) {
       virtual_release(ctx->base_address, ctx->reserved_size);
-      free(ctx);
-      free(arena->impl);
       free(arena);
       samrena_set_error(SAMRENA_ERROR_OUT_OF_MEMORY);
       return NULL;
     }
     ctx->committed_size = initial_commit;
   }
-
-  arena->context = ctx;
   samrena_set_error(SAMRENA_SUCCESS);
   return arena;
 }
@@ -248,15 +229,11 @@ void samrena_destroy(Samrena *arena) {
   if (!arena)
     return;
 
-  if (arena->context) {
-    VirtualContext *ctx = (VirtualContext *)arena->context;
-    if (ctx->base_address) {
-      virtual_release(ctx->base_address, ctx->reserved_size);
-    }
-    free(ctx);
+  VirtualContext *ctx = &arena->vctx;
+  if (ctx->base_address) {
+    virtual_release(ctx->base_address, ctx->reserved_size);
   }
 
-  free(arena->impl);
   free(arena);
 }
 
@@ -265,7 +242,7 @@ void samrena_destroy(Samrena *arena) {
 // =============================================================================
 
 void *samrena_push(Samrena *arena, uint64_t size) {
-  if (!arena || !arena->context) {
+  if (!arena) {
     samrena_set_error(SAMRENA_ERROR_NULL_POINTER);
     return NULL;
   }
@@ -275,7 +252,7 @@ void *samrena_push(Samrena *arena, uint64_t size) {
     return NULL;
   }
 
-  VirtualContext *ctx = (VirtualContext *)arena->context;
+  VirtualContext *ctx = &arena->vctx;
 
   // Align size to 8-byte boundary
   size = (size + 7) & ~7;
@@ -373,32 +350,32 @@ void *samrena_push_aligned(Samrena *arena, uint64_t size, uint64_t alignment) {
 // =============================================================================
 
 uint64_t samrena_allocated(Samrena *arena) {
-  if (!arena || !arena->context) {
+  if (!arena) {
     samrena_set_error(SAMRENA_ERROR_NULL_POINTER);
     return 0;
   }
 
-  VirtualContext *ctx = (VirtualContext *)arena->context;
+  VirtualContext *ctx = &arena->vctx;
   return ctx->allocated_size;
 }
 
 uint64_t samrena_capacity(Samrena *arena) {
-  if (!arena || !arena->context) {
+  if (!arena) {
     samrena_set_error(SAMRENA_ERROR_NULL_POINTER);
     return 0;
   }
 
-  VirtualContext *ctx = (VirtualContext *)arena->context;
+  VirtualContext *ctx = &arena->vctx;
   return ctx->committed_size;
 }
 
 void samrena_get_info(Samrena *arena, SamrenaInfo *info) {
-  if (!arena || !arena->impl || !info)
+  if (!arena || !info)
     return;
 
   info->allocated = samrena_allocated(arena);
   info->capacity = samrena_capacity(arena);
-  info->page_size = arena->impl->page_size;
+  info->page_size = arena->page_size;
   info->is_contiguous = true;
 }
 
@@ -422,11 +399,11 @@ static const SamrenaCapabilities virtual_capabilities = {
 };
 
 SamrenaCapabilities samrena_get_capabilities(Samrena *arena) {
-  if (!arena || !arena->context) {
+  if (!arena) {
     return (SamrenaCapabilities){0};
   }
 
-  VirtualContext *ctx = (VirtualContext *)arena->context;
+  VirtualContext *ctx = &arena->vctx;
   SamrenaCapabilities caps = virtual_capabilities;
 
   // Set dynamic values based on current state
@@ -445,11 +422,11 @@ bool samrena_has_capability(Samrena *arena, SamrenaCapabilityFlags cap) {
 // =============================================================================
 
 SamrenaError samrena_reserve(Samrena *arena, uint64_t min_capacity) {
-  if (!arena || !arena->context) {
+  if (!arena) {
     return SAMRENA_ERROR_INVALID_PARAMETER;
   }
 
-  VirtualContext *ctx = (VirtualContext *)arena->context;
+  VirtualContext *ctx = &arena->vctx;
 
   if (min_capacity > ctx->reserved_size) {
     return SAMRENA_ERROR_INVALID_PARAMETER;
@@ -482,7 +459,7 @@ SamrenaError samrena_reserve(Samrena *arena, uint64_t min_capacity) {
 
 SamrenaError samrena_reserve_with_growth(Samrena *arena, uint64_t immediate_size,
                                          uint64_t expected_total) {
-  if (!arena || !arena->impl) {
+  if (!arena) {
     return SAMRENA_ERROR_INVALID_PARAMETER;
   }
 
@@ -496,21 +473,21 @@ SamrenaError samrena_reserve_with_growth(Samrena *arena, uint64_t immediate_size
 }
 
 bool samrena_can_allocate(Samrena *arena, uint64_t size) {
-  if (!arena || !arena->context)
+  if (!arena)
     return false;
 
-  VirtualContext *ctx = (VirtualContext *)arena->context;
+  VirtualContext *ctx = &arena->vctx;
   uint64_t used = ctx->allocated_size;
   uint64_t capacity = ctx->reserved_size;
   return (used + size) <= capacity;
 }
 
 bool samrena_reset_if_supported(Samrena *arena) {
-  if (!arena || !arena->context) {
+  if (!arena) {
     return false;
   }
 
-  VirtualContext *ctx = (VirtualContext *)arena->context;
+  VirtualContext *ctx = &arena->vctx;
   ctx->allocated_size = 0;
   return true;
 }

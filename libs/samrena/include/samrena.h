@@ -32,12 +32,6 @@
 #define NEAT_INITIAL_PAGE_SIZE 1024
 
 // =============================================================================
-// FORWARD DECLARATIONS
-// =============================================================================
-
-typedef struct SamrenaImpl SamrenaImpl;
-
-// =============================================================================
 // CORE ENUMERATIONS
 // =============================================================================
 
@@ -64,16 +58,6 @@ typedef enum {
 } SamrenaCapabilityFlags;
 
 // =============================================================================
-// CORE STRUCTURES
-// =============================================================================
-
-// Samrena arena handle
-typedef struct {
-  SamrenaImpl *impl;
-  void *context; // Virtual memory context
-} Samrena;
-
-// =============================================================================
 // CONFIGURATION STRUCTURES
 // =============================================================================
 
@@ -95,6 +79,36 @@ typedef struct {
   void (*log_callback)(const char *message, void *user_data);
   void *log_user_data;
 } SamrenaConfig;
+
+// Virtual memory context - internal implementation details
+typedef struct {
+  void *base_address;
+  uint64_t reserved_size;
+  uint64_t committed_size;
+  uint64_t allocated_size;
+  uint64_t commit_granularity;
+  uint64_t page_size;
+  bool enable_stats;
+  bool enable_debug;
+} VirtualContext;
+
+// =============================================================================
+// CORE STRUCTURES
+// =============================================================================
+
+// Samrena arena handle
+typedef struct {
+  VirtualContext vctx;
+  uint64_t page_size;
+  SamrenaConfig config;
+
+  // Statistics
+  struct {
+    uint64_t total_allocations;
+    uint64_t failed_allocations;
+    uint64_t peak_usage;
+  } stats;
+} Samrena;
 
 // =============================================================================
 // INFORMATION STRUCTURES
@@ -130,35 +144,6 @@ static inline SamrenaConfig samrena_default_config(void) {
                          .log_callback = NULL,
                          .log_user_data = NULL};
 }
-
-// =============================================================================
-// INTERNAL STRUCTURES
-// =============================================================================
-
-// Virtual memory context - internal implementation details
-typedef struct {
-  void *base_address;
-  uint64_t reserved_size;
-  uint64_t committed_size;
-  uint64_t allocated_size;
-  uint64_t commit_granularity;
-  uint64_t page_size;
-  bool enable_stats;
-  bool enable_debug;
-} VirtualContext;
-
-// Implementation structure
-struct SamrenaImpl {
-  uint64_t page_size;
-  SamrenaConfig config;
-
-  // Statistics
-  struct {
-    uint64_t total_allocations;
-    uint64_t failed_allocations;
-    uint64_t peak_usage;
-  } stats;
-};
 
 // =============================================================================
 // CORE API - Arena Management
