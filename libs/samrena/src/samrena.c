@@ -112,6 +112,29 @@ static void virtual_release(void *address, uint64_t size) {
 #endif
 }
 
+static void virtual_decommit_physical(void *address, uint64_t size) {
+#ifdef _WIN32
+  // On Windows, use VirtualAlloc with MEM_RESET to tell OS it can decommit pages
+  // Pages remain committed but OS can reclaim physical memory
+  VirtualAlloc(address, size, MEM_RESET, PAGE_READWRITE);
+#elif defined(__linux__)
+  // On Linux, MADV_DONTNEED tells kernel to free physical pages immediately
+  // but keep virtual mapping - pages will be zero-filled on next access
+  madvise(address, size, MADV_DONTNEED);
+#elif defined(__APPLE__)
+  // On macOS, MADV_FREE marks pages as reusable (lazier than DONTNEED)
+  // Fall back to MADV_DONTNEED if MADV_FREE not available
+#ifdef MADV_FREE
+  madvise(address, size, MADV_FREE);
+#else
+  madvise(address, size, MADV_DONTNEED);
+#endif
+#else
+  // Other Unix-like systems - try MADV_DONTNEED
+  madvise(address, size, MADV_DONTNEED);
+#endif
+}
+
 // =============================================================================
 // Logging
 // =============================================================================
@@ -192,8 +215,8 @@ Samrena *samrena_create(const SamrenaConfig *config) {
   ctx->enable_stats = cfg.enable_stats;
   ctx->enable_debug = cfg.enable_debug;
 
-  // Default to 64MB if not specified
-  ctx->reserved_size = cfg.max_reserve > 0 ? cfg.max_reserve : (64 * 1024 * 1024);
+  // Default to 256MB if not specified
+  ctx->reserved_size = cfg.max_reserve > 0 ? cfg.max_reserve : (256ULL * 1024 * 1024);
 
   // Align to allocation granularity
   uint64_t granularity = get_allocation_granularity();
@@ -387,6 +410,18 @@ Samrena *samrena_create_default(void) {
   return samrena_create(NULL); // Use all defaults
 }
 
+Samrena *samrena_create_global(void) {
+  SamrenaConfig config = samrena_default_config();
+  config.max_reserve = 4ULL * 1024 * 1024 * 1024 * 1024; // 4TB
+  return samrena_create(&config);
+}
+
+Samrena *samrena_create_session(void) {
+  SamrenaConfig config = samrena_default_config();
+  config.max_reserve = 256ULL * 1024 * 1024 * 1024; // 256GB
+  return samrena_create(&config);
+}
+
 // =============================================================================
 // Capability Query API
 // =============================================================================
@@ -488,6 +523,13 @@ bool samrena_reset_if_supported(Samrena *arena) {
   }
 
   VirtualContext *ctx = &arena->vctx;
+
+  // Tell OS it can reclaim physical pages but keep virtual mapping
+  // This releases physical memory while keeping the address space reserved
+  if (ctx->committed_size > 0) {
+    virtual_decommit_physical(ctx->base_address, ctx->committed_size);
+  }
+
   ctx->allocated_size = 0;
   return true;
 }

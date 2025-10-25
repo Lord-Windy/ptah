@@ -137,7 +137,7 @@ typedef struct {
 static inline SamrenaConfig samrena_default_config(void) {
   return (SamrenaConfig){.initial_pages = 1,
                          .page_size = 0, // Use system default
-                         .max_reserve = 0, // Use default (64MB)
+                         .max_reserve = 0, // Use default (256MB)
                          .commit_size = 0,
                          .enable_stats = false,
                          .enable_debug = false,
@@ -168,7 +168,9 @@ void samrena_get_info(Samrena *arena, SamrenaInfo *info);
 // =============================================================================
 
 // Factory functions for common use cases
-Samrena *samrena_create_default(void);
+Samrena *samrena_create_default(void); // 256MB reserve (default)
+Samrena *samrena_create_global(void);  // 4TB reserve (for global/long-lived arenas)
+Samrena *samrena_create_session(void); // 256GB reserve (for session arenas)
 
 // =============================================================================
 // CAPABILITY API - Feature Detection

@@ -56,7 +56,14 @@ if(BUILD_TESTING)
     )
     target_link_libraries(samrena_adapter_test PRIVATE samrena Threads::Threads)
     add_test(NAME samrena_adapter_test COMMAND samrena_adapter_test)
-    
+
+    # Arena types test (default, session, global)
+    add_executable(samrena_arena_types_test
+        test/test_arena_types.c
+    )
+    target_link_libraries(samrena_arena_types_test PRIVATE samrena)
+    add_test(NAME samrena_arena_types_test COMMAND samrena_arena_types_test)
+
     # Comprehensive samvector test suite
     add_executable(samvector_lifecycle_test
         test/test_samvector_lifecycle.c
@@ -138,16 +145,26 @@ if(BUILD_TESTING)
                              --suppressions=${CMAKE_SOURCE_DIR}/valgrind_suppressions.supp
                              $<TARGET_FILE:samrena_feature_test>)
             
-            add_test(NAME samrena_adapter_test_valgrind 
-                     COMMAND ${VALGRIND_PROGRAM} 
-                             --tool=memcheck 
-                             --leak-check=full 
-                             --show-leak-kinds=all 
-                             --track-origins=yes 
+            add_test(NAME samrena_adapter_test_valgrind
+                     COMMAND ${VALGRIND_PROGRAM}
+                             --tool=memcheck
+                             --leak-check=full
+                             --show-leak-kinds=all
+                             --track-origins=yes
                              --error-exitcode=1
                              --suppressions=${CMAKE_SOURCE_DIR}/valgrind_suppressions.supp
                              $<TARGET_FILE:samrena_adapter_test>)
-            
+
+            add_test(NAME samrena_arena_types_test_valgrind
+                     COMMAND ${VALGRIND_PROGRAM}
+                             --tool=memcheck
+                             --leak-check=full
+                             --show-leak-kinds=all
+                             --track-origins=yes
+                             --error-exitcode=1
+                             --suppressions=${CMAKE_SOURCE_DIR}/valgrind_suppressions.supp
+                             $<TARGET_FILE:samrena_arena_types_test>)
+
             # Valgrind tests for comprehensive samvector test suite
             add_test(NAME samvector_lifecycle_test_valgrind 
                      COMMAND ${VALGRIND_PROGRAM} 
