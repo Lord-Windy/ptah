@@ -19,6 +19,7 @@ set(SAMRENA_SOURCES
 )
 
 ptah_add_library(samrena
+    INSTALL
     SOURCES ${SAMRENA_SOURCES}
     PUBLIC_HEADERS
         include/samrena.h

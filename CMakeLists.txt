@@ -66,11 +66,11 @@ find_package(PostgreSQL REQUIRED)
 
 # Helper function for creating libraries with consistent settings
 function(ptah_add_library name)
-    set(options STATIC SHARED INTERFACE)
+    set(options STATIC SHARED INTERFACE INSTALL)
     set(oneValueArgs)
     set(multiValueArgs SOURCES PUBLIC_HEADERS DEPENDENCIES)
     cmake_parse_arguments(ARG "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
-    
+
     if(ARG_INTERFACE)
         add_library(${name} INTERFACE)
     elseif(ARG_STATIC)
@@ -80,7 +80,7 @@ function(ptah_add_library name)
     else()
         add_library(${name} ${ARG_SOURCES})
     endif()
-    
+
     if(NOT ARG_INTERFACE)
         target_include_directories(${name}
             PUBLIC
@@ -90,41 +90,46 @@ function(ptah_add_library name)
                 ${CMAKE_CURRENT_SOURCE_DIR}/src
         )
     endif()
-    
+
     if(ARG_DEPENDENCIES)
         target_link_libraries(${name} PUBLIC ${ARG_DEPENDENCIES})
     endif()
-    
-    # Install rules
-    if(ARG_PUBLIC_HEADERS)
-        set_target_properties(${name} PROPERTIES PUBLIC_HEADER "${ARG_PUBLIC_HEADERS}")
+
+    # Install rules - only if INSTALL option is specified
+    if(ARG_INSTALL)
+        if(ARG_PUBLIC_HEADERS)
+            set_target_properties(${name} PROPERTIES PUBLIC_HEADER "${ARG_PUBLIC_HEADERS}")
+        endif()
+
+        install(TARGETS ${name}
+            EXPORT ptahTargets
+            LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+            ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+            RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+            PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+        )
     endif()
-    
-    install(TARGETS ${name}
-        EXPORT ptahTargets
-        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-        ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
-        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
-        PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/${name}
-    )
 endfunction()
 
 # Helper function for creating executables with consistent settings
 function(ptah_add_executable name)
-    set(options)
+    set(options INSTALL)
     set(oneValueArgs)
     set(multiValueArgs SOURCES DEPENDENCIES)
     cmake_parse_arguments(ARG "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
-    
+
     add_executable(${name} ${ARG_SOURCES})
-    
+
     if(ARG_DEPENDENCIES)
         target_link_libraries(${name} PRIVATE ${ARG_DEPENDENCIES})
     endif()
-    
-    install(TARGETS ${name}
-        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
-    )
+
+    # Only install if INSTALL option is specified
+    if(ARG_INSTALL)
+        install(TARGETS ${name}
+            RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+        )
+    endif()
 endfunction()
 
 # Function to recursively find and add subdirectories with CMakeLists.txt
@@ -178,3 +183,34 @@ if(BUILD_TESTING)
         add_subdirectories_recursively(tests)
     endif()
 endif()
+
+# Install export targets for find_package() support
+install(EXPORT ptahTargets
+    FILE ptahTargets.cmake
+    NAMESPACE ptah::
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/ptah
+)
+
+# Generate and install package config files
+include(CMakePackageConfigHelpers)
+
+# Create package version file
+write_basic_package_version_file(
+    "${CMAKE_CURRENT_BINARY_DIR}/ptahConfigVersion.cmake"
+    VERSION ${PROJECT_VERSION}
+    COMPATIBILITY SameMajorVersion
+)
+
+# Create package config file
+configure_package_config_file(
+    "${CMAKE_CURRENT_SOURCE_DIR}/cmake/ptahConfig.cmake.in"
+    "${CMAKE_CURRENT_BINARY_DIR}/ptahConfig.cmake"
+    INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/ptah
+)
+
+# Install package config files
+install(FILES
+    "${CMAKE_CURRENT_BINARY_DIR}/ptahConfig.cmake"
+    "${CMAKE_CURRENT_BINARY_DIR}/ptahConfigVersion.cmake"
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/ptah
+)
