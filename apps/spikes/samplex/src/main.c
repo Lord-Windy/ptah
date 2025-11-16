@@ -26,6 +26,58 @@
 #include <libpq-fe.h>
 #include <liburing.h>
 
+#include "plex.h"
+
+void test_plex_registry(void) {
+    printf("\n=== Plex Registry Test ===\n\n");
+
+    // Test plex_registry_create with different capacities
+    printf("Testing plex_registry_create with default capacity (0)...\n");
+    PlexRegistry* registry = plex_registry_create(0);
+    if (registry == NULL) {
+        printf("ERROR: Failed to create registry with default capacity\n");
+        return;
+    }
+    printf("SUCCESS: Registry created with default capacity\n");
+
+    // Test basic properties
+    printf("Registry arena: %p\n", (void*)registry->arena);
+    printf("Registry plex_map: %p\n", (void*)registry->plex_map);
+    printf("Registry id_tracker: %lu\n", registry->id_tracker);
+    printf("Registry rwlock initialized: YES\n");
+    
+    // Test another registry with specific capacity
+    printf("\nTesting plex_registry_create with specific capacity (64)...\n");
+    PlexRegistry* registry2 = plex_registry_create(64);
+    if (registry2 == NULL) {
+        printf("ERROR: Failed to create registry with capacity 64\n");
+        plex_registry_destroy(registry); // Clean up first one
+        return;
+    }
+    printf("SUCCESS: Registry created with capacity 64\n");
+    
+    printf("Registry2 arena: %p\n", (void*)registry2->arena);
+    printf("Registry2 plex_map: %p\n", (void*)registry2->plex_map);
+    printf("Registry2 id_tracker: %lu\n", registry2->id_tracker);
+
+    // Test the size function (should be 0 for both empty registries)
+    printf("\nTesting plex_registry_size...\n");
+    uint64_t size = plex_registry_size(registry);
+    printf("Registry 1 size: %lu (should be 0)\n", size);
+    
+    uint64_t size2 = plex_registry_size(registry2);
+    printf("Registry 2 size: %lu (should be 0)\n", size2);
+
+    // Clean up
+    printf("\nCleaning up registries...\n");
+    plex_registry_destroy(registry);
+    printf("Registry 1 destroyed\n");
+    plex_registry_destroy(registry2);
+    printf("Registry 2 destroyed\n");
+
+    printf("\nPlex Registry Test completed successfully!\n");
+}
+
 int main(void) {
     printf("=== Samplex: libpq Hello World ===\n\n");
 
@@ -105,6 +157,9 @@ int main(void) {
     }
 
     io_uring_queue_exit(&ring);
+
+    // Run the Plex Registry test
+    test_plex_registry();
 
     printf("\nSamplex completed successfully!\n");
     return EXIT_SUCCESS;
