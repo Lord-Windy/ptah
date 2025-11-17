@@ -18,15 +18,15 @@
 #include <math.h>
 
 SamVector3d samvector3d_add(SamVector3d a, SamVector3d b) {
-    return (SamVector3d){a.x + b.x, a.y + b.y, a.z + b.z};
+  return (SamVector3d){a.x + b.x, a.y + b.y, a.z + b.z};
 }
 
 SamVector3d samvector3d_subtract(SamVector3d a, SamVector3d b) {
-    return (SamVector3d){a.x - b.x, a.y - b.y, a.z - b.z};
+  return (SamVector3d){a.x - b.x, a.y - b.y, a.z - b.z};
 }
 
 SamVector3d samvector3d_scale(SamVector3d a, double scale) {
-    return (SamVector3d){a.x * scale, a.y * scale, a.z * scale};
+  return (SamVector3d){a.x * scale, a.y * scale, a.z * scale};
 }
 
 SamVector3d samvector3d_cross(SamVector3d a, SamVector3d b) {
@@ -37,10 +37,6 @@ SamVector3d samvector3d_cross(SamVector3d a, SamVector3d b) {
   return result;
 }
 
-double samvector3d_dot(SamVector3d a, SamVector3d b) {
-    return a.x * b.x + a.y * b.y + a.z * b.z;
-}
+double samvector3d_dot(SamVector3d a, SamVector3d b) { return a.x * b.x + a.y * b.y + a.z * b.z; }
 
-double samvector3d_magnitude(SamVector3d v) {
-    return sqrt(v.x * v.x + v.y * v.y + v.z * v.z);
-}
+double samvector3d_magnitude(SamVector3d v) { return sqrt(v.x * v.x + v.y * v.y + v.z * v.z); }

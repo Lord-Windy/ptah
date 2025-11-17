@@ -430,8 +430,7 @@ static const SamrenaCapabilities virtual_capabilities = {
     .flags = SAMRENA_CAP_CONTIGUOUS_MEMORY | SAMRENA_CAP_ZERO_COPY_GROWTH | SAMRENA_CAP_RESET |
              SAMRENA_CAP_RESERVE,
     .max_allocation_size = 0, // Set dynamically based on reserved size
-    .alignment_guarantee = 16
-};
+    .alignment_guarantee = 16};
 
 SamrenaCapabilities samrena_get_capabilities(Samrena *arena) {
   if (!arena) {

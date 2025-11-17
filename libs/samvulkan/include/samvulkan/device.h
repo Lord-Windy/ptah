@@ -31,44 +31,46 @@ typedef struct SamVulkanDevice SamVulkanDevice;
 
 // Queue family types
 typedef enum {
-    SAMVULKAN_QUEUE_COMPUTE = 1 << 0,
-    SAMVULKAN_QUEUE_GRAPHICS = 1 << 1,
-    SAMVULKAN_QUEUE_TRANSFER = 1 << 2
+  SAMVULKAN_QUEUE_COMPUTE = 1 << 0,
+  SAMVULKAN_QUEUE_GRAPHICS = 1 << 1,
+  SAMVULKAN_QUEUE_TRANSFER = 1 << 2
 } SamVulkanQueueType;
 
 // Device configuration
 typedef struct {
-    void* physical_device;  // VkPhysicalDevice
-    SamVulkanQueueType required_queues;
-    const char** required_extensions;
-    size_t extension_count;
-    const char** required_features;
-    size_t feature_count;
+  void *physical_device; // VkPhysicalDevice
+  SamVulkanQueueType required_queues;
+  const char **required_extensions;
+  size_t extension_count;
+  const char **required_features;
+  size_t feature_count;
 } SamVulkanDeviceConfig;
 
 // Create a logical device
-SamVulkanDevice* samvulkan_device_create(SamVulkanInstance* instance, const SamVulkanDeviceConfig* config);
+SamVulkanDevice *samvulkan_device_create(SamVulkanInstance *instance,
+                                         const SamVulkanDeviceConfig *config);
 
 // Destroy a logical device
-void samvulkan_device_destroy(SamVulkanDevice* device);
+void samvulkan_device_destroy(SamVulkanDevice *device);
 
 // Get the underlying VkDevice handle
-void* samvulkan_device_get_handle(SamVulkanDevice* device);
+void *samvulkan_device_get_handle(SamVulkanDevice *device);
 
 // Get queue handle
-void* samvulkan_device_get_queue(SamVulkanDevice* device, SamVulkanQueueType type);
+void *samvulkan_device_get_queue(SamVulkanDevice *device, SamVulkanQueueType type);
 
 // Get queue family index
-uint32_t samvulkan_device_get_queue_family_index(SamVulkanDevice* device, SamVulkanQueueType type);
+uint32_t samvulkan_device_get_queue_family_index(SamVulkanDevice *device, SamVulkanQueueType type);
 
 // Check if device supports compute shaders
-bool samvulkan_device_supports_compute(SamVulkanDevice* device);
+bool samvulkan_device_supports_compute(SamVulkanDevice *device);
 
 // Get device properties
-void samvulkan_device_get_properties(SamVulkanDevice* device, char* name, size_t name_size, uint32_t* vendor_id);
+void samvulkan_device_get_properties(SamVulkanDevice *device, char *name, size_t name_size,
+                                     uint32_t *vendor_id);
 
 // Get physical device handle
-void* samvulkan_device_get_physical_device(SamVulkanDevice* device);
+void *samvulkan_device_get_physical_device(SamVulkanDevice *device);
 
 #ifdef __cplusplus
 }

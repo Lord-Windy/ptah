@@ -256,10 +256,10 @@ void test_info_structure() {
   SamrenaInfo info;
   samrena_get_info(arena, &info);
 
-  assert(info.allocated == 0);  // Nothing allocated yet
-  assert(info.capacity > 0);    // Some memory committed
-  assert(info.page_size > 0);   // Page size set
-  assert(info.is_contiguous);   // Should be contiguous
+  assert(info.allocated == 0); // Nothing allocated yet
+  assert(info.capacity > 0);   // Some memory committed
+  assert(info.page_size > 0);  // Page size set
+  assert(info.is_contiguous);  // Should be contiguous
 
   printf("  Initial state: OK\n");
 
@@ -268,8 +268,8 @@ void test_info_structure() {
   assert(data != NULL);
 
   samrena_get_info(arena, &info);
-  assert(info.allocated >= 1024);  // At least 1024 bytes (may be aligned)
-  assert(info.capacity >= info.allocated);  // Capacity >= allocated
+  assert(info.allocated >= 1024);          // At least 1024 bytes (may be aligned)
+  assert(info.capacity >= info.allocated); // Capacity >= allocated
 
   printf("  After allocation: OK\n");
 

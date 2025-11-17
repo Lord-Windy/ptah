@@ -40,12 +40,12 @@ void samvulkan_cleanup(void);
 bool samvulkan_is_available(void);
 
 // Get Vulkan version
-void samvulkan_get_version(uint32_t* major, uint32_t* minor, uint32_t* patch);
+void samvulkan_get_version(uint32_t *major, uint32_t *minor, uint32_t *patch);
 
 // Include sub-modules
-#include "samvulkan/instance.h"
-#include "samvulkan/device.h"
 #include "samvulkan/compute.h"
+#include "samvulkan/device.h"
+#include "samvulkan/instance.h"
 
 #ifdef __cplusplus
 }

@@ -234,7 +234,7 @@ size_t samrena_vector_available(const SamrenaVector *vec);
 // The original vector remains valid and unchanged
 // Returns NULL on allocation failure or invalid input
 // Note: Does NOT destroy the original vector - caller manages both lifetimes
-SamrenaVector* samrena_vector_transfer(SamrenaVector *vec, Samrena* new_arena);
+SamrenaVector *samrena_vector_transfer(SamrenaVector *vec, Samrena *new_arena);
 
 // Create a new vector containing elements from [start, end)
 // Creates a new vector on target_arena with elements from indices [start, end)
@@ -244,7 +244,8 @@ SamrenaVector* samrena_vector_transfer(SamrenaVector *vec, Samrena* new_arena);
 // Returns NULL on allocation failure, invalid input, out of bounds indices,
 //   or if target_arena is NULL and vec owns its arena
 // Note: Does NOT modify the original vector
-SamrenaVector* samrena_vector_slice(const SamrenaVector *vec, size_t start, size_t end, Samrena* target_arena);
+SamrenaVector *samrena_vector_slice(const SamrenaVector *vec, size_t start, size_t end,
+                                    Samrena *target_arena);
 
 void samrena_vector_destroy(SamrenaVector *vec);
 

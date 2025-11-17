@@ -5,9 +5,9 @@
 #ifndef SAMNEURAL_NETWORK_H
 #define SAMNEURAL_NETWORK_H
 
-#include <samrena.h>
 #include "activations.h"
 #include "layers.h"
+#include <samrena.h>
 
 typedef struct {
   uint64_t layer_count;

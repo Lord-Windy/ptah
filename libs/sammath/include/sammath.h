@@ -17,19 +17,19 @@
 #ifndef SAMMATH_H
 #define SAMMATH_H
 
-#include <samrena.h>
 #include <samdata.h>
+#include <samrena.h>
 
-#include "3d/vector.h"
 #include "3d/physics.h"
+#include "3d/vector.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 typedef struct {
-    Samrena *arena;
-    SamHashMap *constants;
+  Samrena *arena;
+  SamHashMap *constants;
 } SamMath;
 
 SamMath *sammath_create(Samrena *arena);
