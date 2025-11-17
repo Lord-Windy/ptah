@@ -112,17 +112,27 @@ void plex_registry_unlock_read(PlexRegistry *registry);
 // ============================================================================
 
 /**
- * Create a new Plex with the given description
+ * Create a new Plex with the given description and register it in the registry
+ * @param registry The PlexRegistry to register the new Plex in
  * @param description The description of the Plex
- * @return Newly allocated Plex or NULL on failure
+ * @return Newly allocated Plex with assigned ID or NULL on failure
  */
-Plex *plex_create(const char *description);
+Plex *plex_create(PlexRegistry *registry, const char *description);
 
 /**
- * Destroy a Plex and all its items
+ * Destroy a Plex and all its items, removing it from the registry
+ * @param registry The PlexRegistry to unregister the Plex from
  * @param plex The Plex to destroy
  */
-void plex_destroy(Plex *plex);
+void plex_destroy(PlexRegistry *registry, Plex *plex);
+
+/**
+ * Get a Plex from the registry by its ID
+ * @param registry The PlexRegistry to search in
+ * @param id The ID of the Plex to retrieve
+ * @return Pointer to Plex or NULL if not found
+ */
+Plex *plex_get_by_id(PlexRegistry *registry, uint64_t id);
 
 // ============================================================================
 // PlexItem Functions
