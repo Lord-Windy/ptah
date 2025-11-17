@@ -22,29 +22,29 @@
 #define _XOPEN_SOURCE 600
 #endif
 
-#include <stdint.h>
 #include <pthread.h>
+#include <stdint.h>
 
+#include "samdata/samhashmap.h"
 #include "samrena.h"
 #include "samvector.h"
-#include "samdata/samhashmap.h"
 
 // Forward declaration
 typedef struct PlexItem PlexItem;
 
 // Function pointer types
-typedef void (*PlexItemHandler)(PlexItem* self, void* result);
-typedef void (*PlexItemErrorHandler)(PlexItem* self, int error);
-typedef void (*PlexItemCleanup)(PlexItem* self);
+typedef void (*PlexItemHandler)(PlexItem *self, void *result);
+typedef void (*PlexItemErrorHandler)(PlexItem *self, int error);
+typedef void (*PlexItemCleanup)(PlexItem *self);
 
-typedef struct PlexItem{
-  char* description;
-  
-  void* data;
+typedef struct PlexItem {
+  char *description;
+
+  void *data;
   PlexItemHandler handler;
   PlexItemErrorHandler error_handler;
   PlexItemCleanup cleanup;
-  
+
   // Unix timestamps in nanoseconds
   int64_t start_time_ns;
   int64_t stop_time_ns;
@@ -57,24 +57,24 @@ typedef struct Plex Plex;
 
 typedef struct Plex {
   uint64_t id;
-  char* description;
-  
-  Samrena* arena;
-  SamrenaVector_PlexItem* items;
-  
+  char *description;
+
+  Samrena *arena;
+  SamrenaVector_PlexItem *items;
+
   // Unix timestamps in nanoseconds
   int64_t start_time_ns;
   int64_t stop_time_ns;
 } Plex;
 
 // Declare type-safe hashmap for Plex registry (key: uint64_t id as string, value: Plex*)
-SAMHASHMAP_DEFINE_TYPED(PlexMap, const char*, Plex*)
+SAMHASHMAP_DEFINE_TYPED(PlexMap, const char *, Plex *)
 
 typedef struct PlexRegistry {
-  uint64_t id_tracker;              // Atomic counter for generating unique Plex IDs
-  pthread_rwlock_t rwlock;          // Read-write lock: exclusive for add/remove, shared for reads
-  PlexMap_samhashmap* plex_map;     // HashMap to store Plex instances by ID
-  Samrena* arena;                   // Arena for registry allocations
+  uint64_t id_tracker;          // Atomic counter for generating unique Plex IDs
+  pthread_rwlock_t rwlock;      // Read-write lock: exclusive for add/remove, shared for reads
+  PlexMap_samhashmap *plex_map; // HashMap to store Plex instances by ID
+  Samrena *arena;               // Arena for registry allocations
 } PlexRegistry;
 
 // ============================================================================
@@ -86,26 +86,26 @@ typedef struct PlexRegistry {
  * @param initial_capacity Initial capacity for the hashmap (0 for default)
  * @return Newly allocated PlexRegistry or NULL on failure
  */
-PlexRegistry* plex_registry_create(uint64_t initial_capacity);
+PlexRegistry *plex_registry_create(uint64_t initial_capacity);
 
 /**
  * Destroy a PlexRegistry and all contained Plex instances
  * @param registry The registry to destroy
  */
-void plex_registry_destroy(PlexRegistry* registry);
+void plex_registry_destroy(PlexRegistry *registry);
 
 /**
  * Get the total number of Plex instances in the registry
  * @param registry The registry to query
  * @return Number of Plex instances
  */
-uint64_t plex_registry_size(PlexRegistry* registry);
+uint64_t plex_registry_size(PlexRegistry *registry);
 
 // Helper functions for thread-safe operations
-void plex_registry_lock_write(PlexRegistry* registry);
-void plex_registry_unlock_write(PlexRegistry* registry);
-void plex_registry_lock_read(PlexRegistry* registry);
-void plex_registry_unlock_read(PlexRegistry* registry);
+void plex_registry_lock_write(PlexRegistry *registry);
+void plex_registry_unlock_write(PlexRegistry *registry);
+void plex_registry_lock_read(PlexRegistry *registry);
+void plex_registry_unlock_read(PlexRegistry *registry);
 
 // ============================================================================
 // Plex Functions
@@ -116,13 +116,13 @@ void plex_registry_unlock_read(PlexRegistry* registry);
  * @param description The description of the Plex
  * @return Newly allocated Plex or NULL on failure
  */
-Plex* plex_create(const char* description);
+Plex *plex_create(const char *description);
 
 /**
  * Destroy a Plex and all its items
  * @param plex The Plex to destroy
  */
-void plex_destroy(Plex* plex);
+void plex_destroy(Plex *plex);
 
 // ============================================================================
 // PlexItem Functions
@@ -137,15 +137,14 @@ void plex_destroy(Plex* plex);
  * @param data User data to associate with the item
  * @return Newly allocated PlexItem or NULL on failure
  */
-PlexItem* plex_item_create(const char* description, PlexItemHandler handler,
-                          PlexItemErrorHandler error_handler, PlexItemCleanup cleanup,
-                          void* data);
+PlexItem *plex_item_create(const char *description, PlexItemHandler handler,
+                           PlexItemErrorHandler error_handler, PlexItemCleanup cleanup, void *data);
 
 /**
  * Destroy a PlexItem (calls cleanup if provided)
  * @param item The item to destroy
  */
-void plex_item_destroy(PlexItem* item);
+void plex_item_destroy(PlexItem *item);
 
 /**
  * Add a PlexItem to a Plex
@@ -153,7 +152,7 @@ void plex_item_destroy(PlexItem* item);
  * @param item The item to add
  * @return true on success, false on failure
  */
-bool plex_add_item(Plex* plex, PlexItem* item);
+bool plex_add_item(Plex *plex, PlexItem *item);
 
 /**
  * Remove a PlexItem from a Plex
@@ -161,7 +160,7 @@ bool plex_add_item(Plex* plex, PlexItem* item);
  * @param item The item to remove
  * @return true on success, false on failure
  */
-bool plex_remove_item(Plex* plex, PlexItem* item);
+bool plex_remove_item(Plex *plex, PlexItem *item);
 
 /**
  * Find an item by description (first match)
@@ -169,7 +168,7 @@ bool plex_remove_item(Plex* plex, PlexItem* item);
  * @param description The description to search for
  * @return Pointer to PlexItem or NULL if not found
  */
-PlexItem* plex_find_item(Plex* plex, const char* description);
+PlexItem *plex_find_item(Plex *plex, const char *description);
 
 // ============================================================================
 // PlexItem Execution and Timing
@@ -179,34 +178,34 @@ PlexItem* plex_find_item(Plex* plex, const char* description);
  * Mark a PlexItem as started (records start time)
  * @param item The item to start
  */
-void plex_item_start(PlexItem* item);
+void plex_item_start(PlexItem *item);
 
 /**
  * Mark a PlexItem as stopped (records stop time)
  * @param item The item to stop
  */
-void plex_item_stop(PlexItem* item);
+void plex_item_stop(PlexItem *item);
 
 /**
  * Execute a PlexItem's handler with success result
  * @param item The item to execute
  * @param result Result data to pass to handler
  */
-void plex_item_execute(PlexItem* item, void* result);
+void plex_item_execute(PlexItem *item, void *result);
 
 /**
  * Execute a PlexItem's error handler
  * @param item The item to execute
  * @param error Error code to pass to handler
  */
-void plex_item_error(PlexItem* item, int32_t error);
+void plex_item_error(PlexItem *item, int32_t error);
 
 /**
  * Get the duration of a PlexItem in nanoseconds
  * @param item The item to query
  * @return Duration in nanoseconds, or -1 if not completed
  */
-int64_t plex_item_duration_ns(PlexItem* item);
+int64_t plex_item_duration_ns(PlexItem *item);
 
 // ============================================================================
 // Plex Timing and Lifecycle
@@ -216,20 +215,20 @@ int64_t plex_item_duration_ns(PlexItem* item);
  * Mark a Plex as started (records start time)
  * @param plex The Plex to start
  */
-void plex_start(Plex* plex);
+void plex_start(Plex *plex);
 
 /**
  * Mark a Plex as stopped (records stop time)
  * @param plex The Plex to stop
  */
-void plex_stop(Plex* plex);
+void plex_stop(Plex *plex);
 
 /**
  * Get the duration of a Plex in nanoseconds
  * @param plex The Plex to query
  * @return Duration in nanoseconds, or -1 if not completed
  */
-int64_t plex_duration_ns(Plex* plex);
+int64_t plex_duration_ns(Plex *plex);
 
 // ============================================================================
 // Utility Functions
@@ -246,13 +245,13 @@ int64_t plex_get_time_ns(void);
  * @param id The ID to convert
  * @return String representation
  */
-const char* plex_id_to_key(uint64_t id);
+const char *plex_id_to_key(uint64_t id);
 
 /**
  * Clean up all items in a Plex (calls cleanup handlers)
  * @param plex The Plex to clean up
  */
-void plex_cleanup_items(Plex* plex);
+void plex_cleanup_items(Plex *plex);
 
 /**
  * Get statistics for a Plex
@@ -261,6 +260,7 @@ void plex_cleanup_items(Plex* plex);
  * @param completed_items Output: number of items with both start and stop times
  * @param avg_duration_ns Output: average duration in nanoseconds
  */
-void plex_get_stats(Plex* plex, uint64_t* total_items, uint64_t* completed_items, int64_t* avg_duration_ns);
+void plex_get_stats(Plex *plex, uint64_t *total_items, uint64_t *completed_items,
+                    int64_t *avg_duration_ns);
 
 #endif // PLEX_H

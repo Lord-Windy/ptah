@@ -1,14 +1,14 @@
 #include "plex.h"
 
-PlexRegistry* plex_registry_create(uint64_t initial_capacity) {
+PlexRegistry *plex_registry_create(uint64_t initial_capacity) {
   // Create Arena for registry allocations
-  Samrena* arena = samrena_create_default();
+  Samrena *arena = samrena_create_default();
   if (arena == NULL) {
     return NULL;
   }
 
   // Create PlexRegistry via arena allocation
-  PlexRegistry* registry = samrena_push(arena, sizeof(PlexRegistry));
+  PlexRegistry *registry = samrena_push(arena, sizeof(PlexRegistry));
   if (registry == NULL) {
     samrena_destroy(arena);
     return NULL;
@@ -39,54 +39,54 @@ PlexRegistry* plex_registry_create(uint64_t initial_capacity) {
   return registry;
 }
 
-void plex_registry_destroy(PlexRegistry* registry) {
+void plex_registry_destroy(PlexRegistry *registry) {
   if (registry == NULL) {
     return;
   }
 
   // Destroy the read-write lock
   pthread_rwlock_destroy(&registry->rwlock);
-  
+
   // The arena will clean up all the memory including the registry and the hashmap
   // since they were both allocated through the arena
-  if (registry->arena != NULL ) {
+  if (registry->arena != NULL) {
     samrena_destroy(registry->arena);
   }
 }
 
-uint64_t plex_registry_size(PlexRegistry* registry) {
+uint64_t plex_registry_size(PlexRegistry *registry) {
   if (registry == NULL || registry->plex_map == NULL) {
     return 0;
   }
-  
+
   // Use read lock for size query
   pthread_rwlock_rdlock(&registry->rwlock);
   uint64_t size = PlexMap_size(registry->plex_map);
   pthread_rwlock_unlock(&registry->rwlock);
-  
+
   return size;
 }
 
-void plex_registry_lock_write(PlexRegistry* registry) {
-    if (registry != NULL) {
-        pthread_rwlock_wrlock(&registry->rwlock);
-    }
+void plex_registry_lock_write(PlexRegistry *registry) {
+  if (registry != NULL) {
+    pthread_rwlock_wrlock(&registry->rwlock);
+  }
 }
 
-void plex_registry_unlock_write(PlexRegistry* registry) {
-    if (registry != NULL) {
-        pthread_rwlock_unlock(&registry->rwlock);
-    }
+void plex_registry_unlock_write(PlexRegistry *registry) {
+  if (registry != NULL) {
+    pthread_rwlock_unlock(&registry->rwlock);
+  }
 }
 
-void plex_registry_lock_read(PlexRegistry* registry) {
-    if (registry != NULL) {
-        pthread_rwlock_rdlock(&registry->rwlock);
-    }
+void plex_registry_lock_read(PlexRegistry *registry) {
+  if (registry != NULL) {
+    pthread_rwlock_rdlock(&registry->rwlock);
+  }
 }
 
-void plex_registry_unlock_read(PlexRegistry* registry) {
-    if (registry != NULL) {
-        pthread_rwlock_unlock(&registry->rwlock);
-    }
+void plex_registry_unlock_read(PlexRegistry *registry) {
+  if (registry != NULL) {
+    pthread_rwlock_unlock(&registry->rwlock);
+  }
 }
