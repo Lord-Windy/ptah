@@ -147,7 +147,7 @@ Plex *plex_get_by_id(PlexRegistry *registry, uint64_t id);
  * @param data User data to associate with the item
  * @return Newly allocated PlexItem or NULL on failure
  */
-PlexItem *plex_item_create(const char *description, PlexItemHandler handler,
+PlexItem *plex_item_create(const char *description, Samrena *arena, PlexItemHandler handler,
                            PlexItemErrorHandler error_handler, PlexItemCleanup cleanup, void *data);
 
 /**
