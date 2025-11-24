@@ -17,6 +17,7 @@ ptah_add_executable(samplex
         src/main.c
         src/plex_registry.c
         src/plex.c
+        src/plex_uring.c
     DEPENDENCIES
         samrena
         samdata

@@ -27,6 +27,7 @@
 #include <unistd.h>
 
 #include "plex.h"
+#include "plex_uring.h"
 
 void test_plex_registry(void) {
   printf("\n=== Plex Registry Test ===\n\n");
@@ -169,6 +170,106 @@ void test_plex_registry(void) {
   printf("\nPlex Registry Test completed successfully!\n");
 }
 
+void test_plex_event_loop(void) {
+  printf("\n=== PlexEventLoop Test ===\n\n");
+
+  // Create a registry for the event loop
+  printf("Creating PlexRegistry...\n");
+  PlexRegistry *registry = plex_registry_create(0);
+  if (registry == NULL) {
+    printf("ERROR: Failed to create registry\n");
+    return;
+  }
+  printf("SUCCESS: Registry created\n");
+
+  // Test creating event loop with various queue depths
+  printf("\nTesting plex_event_loop_create with queue_depth=128...\n");
+  PlexEventLoop *loop = plex_event_loop_create(registry, 128);
+  if (loop == NULL) {
+    printf("ERROR: Failed to create event loop\n");
+    plex_registry_destroy(registry);
+    return;
+  }
+  printf("SUCCESS: Event loop created\n");
+  printf("  Registry: %p\n", (void *)loop->registry);
+  printf("  Arena: %p\n", (void *)loop->arena);
+  printf("  Queue depth: %u\n", loop->queue_depth);
+  printf("  Running: %s\n", loop->running ? "true" : "false");
+
+  // Verify queue depth
+  if (loop->queue_depth != 128) {
+    printf("ERROR: Queue depth mismatch (expected 128, got %u)\n", loop->queue_depth);
+  } else {
+    printf("SUCCESS: Queue depth is correct (128)\n");
+  }
+
+  // Verify initial state
+  if (loop->running) {
+    printf("ERROR: Loop should not be running initially\n");
+  } else {
+    printf("SUCCESS: Loop is not running initially\n");
+  }
+
+  // Test destroying event loop
+  printf("\nTesting plex_event_loop_destroy...\n");
+  plex_event_loop_destroy(loop);
+  printf("SUCCESS: Event loop destroyed\n");
+
+  // Test with minimum queue depth (should be clamped to 32)
+  printf("\nTesting with queue_depth=10 (should be clamped to 32)...\n");
+  PlexEventLoop *loop2 = plex_event_loop_create(registry, 10);
+  if (loop2 == NULL) {
+    printf("ERROR: Failed to create event loop with small queue depth\n");
+  } else {
+    printf("SUCCESS: Event loop created with clamped queue depth\n");
+    printf("  Queue depth: %u (expected 32)\n", loop2->queue_depth);
+    if (loop2->queue_depth == 32) {
+      printf("SUCCESS: Queue depth correctly clamped to minimum\n");
+    } else {
+      printf("ERROR: Queue depth not clamped correctly\n");
+    }
+    plex_event_loop_destroy(loop2);
+  }
+
+  // Test with maximum queue depth (should be clamped to 4096)
+  printf("\nTesting with queue_depth=10000 (should be clamped to 4096)...\n");
+  PlexEventLoop *loop3 = plex_event_loop_create(registry, 10000);
+  if (loop3 == NULL) {
+    printf("ERROR: Failed to create event loop with large queue depth\n");
+  } else {
+    printf("SUCCESS: Event loop created with clamped queue depth\n");
+    printf("  Queue depth: %u (expected 4096)\n", loop3->queue_depth);
+    if (loop3->queue_depth == 4096) {
+      printf("SUCCESS: Queue depth correctly clamped to maximum\n");
+    } else {
+      printf("ERROR: Queue depth not clamped correctly\n");
+    }
+    plex_event_loop_destroy(loop3);
+  }
+
+  // Test NULL safety
+  printf("\nTesting NULL safety for plex_event_loop_destroy...\n");
+  plex_event_loop_destroy(NULL);
+  printf("SUCCESS: NULL destroy handled safely\n");
+
+  // Test NULL registry
+  printf("\nTesting NULL registry for plex_event_loop_create...\n");
+  PlexEventLoop *loop4 = plex_event_loop_create(NULL, 128);
+  if (loop4 == NULL) {
+    printf("SUCCESS: NULL registry correctly rejected\n");
+  } else {
+    printf("ERROR: NULL registry should have been rejected\n");
+    plex_event_loop_destroy(loop4);
+  }
+
+  // Clean up
+  printf("\n=== Cleaning up ===\n");
+  plex_registry_destroy(registry);
+  printf("Registry destroyed\n");
+
+  printf("\nPlexEventLoop Test completed successfully!\n");
+}
+
 int main(void) {
   printf("=== Samplex: libpq Hello World ===\n\n");
 
@@ -252,6 +353,9 @@ int main(void) {
 
   // Run the Plex Registry test
   test_plex_registry();
+
+  // Run the PlexEventLoop test
+  test_plex_event_loop();
 
   printf("\nSamplex completed successfully!\n");
   return EXIT_SUCCESS;
