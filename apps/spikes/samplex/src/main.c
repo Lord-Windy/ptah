@@ -19,6 +19,7 @@
 #include <libpq-fe.h>
 #include <liburing.h>
 #include <signal.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -270,6 +271,143 @@ void test_plex_event_loop(void) {
   printf("\nPlexEventLoop Test completed successfully!\n");
 }
 
+// Context structure to pass event loop to handler
+typedef struct {
+  PlexEventLoop *loop;
+  PlexRegistry *registry;
+} TimeoutContext;
+
+// Handler that gets called when timeout completes
+void timeout_handler(PlexItem *self, void *result) {
+  printf("Timeout completed! Result: %d\n", (int)(intptr_t)result);
+
+  TimeoutContext *ctx = (TimeoutContext *)self->data;
+  if (ctx && ctx->loop) {
+    printf("Stopping event loop...\n");
+    plex_event_loop_stop(ctx->loop);
+  }
+}
+
+// Error handler for timeout operations
+void timeout_error_handler(PlexItem *self, int error) {
+  printf("ERROR: Timeout operation failed with error: %d (%s)\n", error, strerror(-error));
+
+  TimeoutContext *ctx = (TimeoutContext *)self->data;
+  if (ctx && ctx->loop) {
+    printf("Stopping event loop due to error...\n");
+    plex_event_loop_stop(ctx->loop);
+  }
+}
+
+void test_plex_event_loop_run_stop(void) {
+  printf("\n=== PlexEventLoop Run/Stop Test ===\n\n");
+
+  // Create a registry for the event loop
+  printf("Creating PlexRegistry...\n");
+  PlexRegistry *registry = plex_registry_create(0);
+  if (registry == NULL) {
+    printf("ERROR: Failed to create registry\n");
+    return;
+  }
+  printf("SUCCESS: Registry created\n");
+
+  // Create event loop
+  printf("Creating PlexEventLoop with queue_depth=128...\n");
+  PlexEventLoop *loop = plex_event_loop_create(registry, 128);
+  if (loop == NULL) {
+    printf("ERROR: Failed to create event loop\n");
+    plex_registry_destroy(registry);
+    return;
+  }
+  printf("SUCCESS: Event loop created\n");
+
+  // Create context for the handler
+  TimeoutContext *ctx = SAMRENA_PUSH_TYPE(registry->arena, TimeoutContext);
+  if (ctx == NULL) {
+    printf("ERROR: Failed to allocate context\n");
+    plex_event_loop_destroy(loop);
+    plex_registry_destroy(registry);
+    return;
+  }
+  ctx->loop = loop;
+  ctx->registry = registry;
+
+  // Create a PlexItem for the timeout operation
+  printf("Creating PlexItem for timeout test...\n");
+  PlexItem *timeout_item = plex_item_create(
+      "Timeout Test",
+      registry->arena,
+      timeout_handler,
+      timeout_error_handler,
+      NULL,  // no cleanup needed
+      ctx    // pass context as user data
+  );
+  if (timeout_item == NULL) {
+    printf("ERROR: Failed to create PlexItem\n");
+    plex_event_loop_destroy(loop);
+    plex_registry_destroy(registry);
+    return;
+  }
+  printf("SUCCESS: PlexItem created\n");
+
+  // Submit a timeout operation (1 second)
+  printf("Submitting 1-second timeout operation to io_uring...\n");
+  struct __kernel_timespec ts = {.tv_sec = 1, .tv_nsec = 0};
+  struct io_uring_sqe *sqe = io_uring_get_sqe(&loop->ring);
+  if (sqe == NULL) {
+    printf("ERROR: Failed to get SQE\n");
+    plex_event_loop_destroy(loop);
+    plex_registry_destroy(registry);
+    return;
+  }
+
+  io_uring_prep_timeout(sqe, &ts, 0, 0);
+  io_uring_sqe_set_data(sqe, timeout_item);
+  printf("SUCCESS: Timeout operation queued\n");
+
+  // Run the event loop
+  printf("\nRunning event loop (should run for ~1 second)...\n");
+  printf("Loop running flag: %s\n", loop->running ? "true" : "false");
+
+  int64_t start_time = plex_get_time_ns();
+  int result = plex_event_loop_run(loop);
+  int64_t end_time = plex_get_time_ns();
+
+  double duration_sec = (end_time - start_time) / 1e9;
+
+  printf("\nEvent loop exited with result: %d\n", result);
+  printf("Loop running flag after exit: %s\n", loop->running ? "true" : "false");
+  printf("Duration: %.3f seconds\n", duration_sec);
+
+  // Verify results
+  if (result == 0) {
+    printf("SUCCESS: Event loop exited cleanly\n");
+  } else {
+    printf("ERROR: Event loop exited with error\n");
+  }
+
+  if (!loop->running) {
+    printf("SUCCESS: Loop running flag is false after stop\n");
+  } else {
+    printf("ERROR: Loop running flag is still true\n");
+  }
+
+  if (duration_sec >= 0.9 && duration_sec <= 1.5) {
+    printf("SUCCESS: Duration is approximately 1 second (%.3f sec)\n", duration_sec);
+  } else {
+    printf("WARNING: Duration is not close to 1 second (%.3f sec)\n", duration_sec);
+  }
+
+  // Clean up
+  printf("\n=== Cleaning up ===\n");
+  plex_event_loop_destroy(loop);
+  printf("Event loop destroyed\n");
+  plex_registry_destroy(registry);
+  printf("Registry destroyed\n");
+
+  printf("\nPlexEventLoop Run/Stop Test completed successfully!\n");
+}
+
 int main(void) {
   printf("=== Samplex: libpq Hello World ===\n\n");
 
@@ -356,6 +494,9 @@ int main(void) {
 
   // Run the PlexEventLoop test
   test_plex_event_loop();
+
+  // Run the PlexEventLoop Run/Stop test
+  test_plex_event_loop_run_stop();
 
   printf("\nSamplex completed successfully!\n");
   return EXIT_SUCCESS;

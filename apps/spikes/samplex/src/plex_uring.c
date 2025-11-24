@@ -80,3 +80,77 @@ void plex_event_loop_destroy(PlexEventLoop *loop) {
   // so we don't explicitly free it. The arena will handle cleanup
   // when the registry is destroyed.
 }
+
+void plex_event_loop_stop(PlexEventLoop *loop) {
+  // NULL-safe check
+  if (loop == NULL) {
+    return;
+  }
+
+  // Signal the loop to stop
+  // This is thread-safe as a simple bool write is atomic on most architectures
+  loop->running = false;
+}
+
+int plex_event_loop_run(PlexEventLoop *loop) {
+  // Validate input
+  if (loop == NULL) {
+    fprintf(stderr, "plex_event_loop_run: loop cannot be NULL\n");
+    return -1;
+  }
+
+  // Set the running flag
+  loop->running = true;
+
+  // Main event loop
+  while (loop->running) {
+    // Submit any pending SQEs
+    int submitted = io_uring_submit(&loop->ring);
+    if (submitted < 0) {
+      fprintf(stderr, "plex_event_loop_run: io_uring_submit failed: %s\n", strerror(-submitted));
+      return -1;
+    }
+
+    // Wait for a completion event
+    struct io_uring_cqe *cqe;
+    int ret = io_uring_wait_cqe(&loop->ring, &cqe);
+
+    // Handle wait errors
+    if (ret < 0) {
+      // EINTR means interrupted by signal - this is normal, just continue
+      if (ret == -EINTR) {
+        continue;
+      }
+      // Any other error is fatal
+      fprintf(stderr, "plex_event_loop_run: io_uring_wait_cqe failed: %s\n", strerror(-ret));
+      return -1;
+    }
+
+    // Process the completion event
+    // user_data should point to a PlexItem
+    PlexItem *item = (PlexItem *)io_uring_cqe_get_data(cqe);
+
+    // Check the result code
+    // Note: ETIME (-62) is the success result for timeout operations
+    if (cqe->res >= 0 || cqe->res == -ETIME) {
+      // Success path - call success handler if item and handler exist
+      if (item != NULL && item->handler != NULL) {
+        // For now, pass the result code as the result pointer
+        // This is a simple approach for the foundational ticket
+        plex_item_execute(item, (void *)(intptr_t)cqe->res);
+      }
+    } else {
+      // Error path - call error handler if item and handler exist
+      if (item != NULL && item->error_handler != NULL) {
+        // cqe->res contains a negative error code
+        plex_item_error(item, cqe->res);
+      }
+    }
+
+    // Mark the CQE as seen (processed)
+    io_uring_cqe_seen(&loop->ring, cqe);
+  }
+
+  // Clean shutdown
+  return 0;
+}

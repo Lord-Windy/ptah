@@ -58,4 +58,19 @@ PlexEventLoop *plex_event_loop_create(PlexRegistry *registry, uint32_t queue_dep
  */
 void plex_event_loop_destroy(PlexEventLoop *loop);
 
+/**
+ * Run the event loop (blocking until stopped)
+ * Processes io_uring completions and dispatches to PlexItem handlers
+ * @param loop The event loop to run (must not be NULL)
+ * @return 0 on clean shutdown, -1 on error
+ */
+int plex_event_loop_run(PlexEventLoop *loop);
+
+/**
+ * Signal the event loop to stop
+ * Thread-safe, can be called from signal handlers or PlexItem handlers
+ * @param loop The event loop to stop (NULL-safe)
+ */
+void plex_event_loop_stop(PlexEventLoop *loop);
+
 #endif // PLEX_URING_H
