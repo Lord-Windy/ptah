@@ -19,44 +19,44 @@
 #include <stdio.h>
 
 void test_create_destroy() {
-    SamCL* cl = samcl_create();
-    assert(cl != NULL);
-    samcl_destroy(cl);
-    printf("test_create_destroy: PASSED\n");
+  SamCL *cl = samcl_create();
+  assert(cl != NULL);
+  samcl_destroy(cl);
+  printf("test_create_destroy: PASSED\n");
 }
 
 void test_init() {
-    SamCL* cl = samcl_create();
-    assert(cl != NULL);
-    
-    int result = samcl_init(cl);
-    assert(result == 0);
-    
-    samcl_destroy(cl);
-    printf("test_init: PASSED\n");
+  SamCL *cl = samcl_create();
+  assert(cl != NULL);
+
+  int result = samcl_init(cl);
+  assert(result == 0);
+
+  samcl_destroy(cl);
+  printf("test_init: PASSED\n");
 }
 
 void test_execute() {
-    SamCL* cl = samcl_create();
-    assert(cl != NULL);
-    
-    int result = samcl_init(cl);
-    assert(result == 0);
-    
-    result = samcl_execute(cl, "test command");
-    assert(result == 0);
-    
-    samcl_destroy(cl);
-    printf("test_execute: PASSED\n");
+  SamCL *cl = samcl_create();
+  assert(cl != NULL);
+
+  int result = samcl_init(cl);
+  assert(result == 0);
+
+  result = samcl_execute(cl, "test command");
+  assert(result == 0);
+
+  samcl_destroy(cl);
+  printf("test_execute: PASSED\n");
 }
 
 int main() {
-    printf("Running SamCL tests...\n");
-    
-    test_create_destroy();
-    test_init();
-    test_execute();
-    
-    printf("All tests passed!\n");
-    return 0;
+  printf("Running SamCL tests...\n");
+
+  test_create_destroy();
+  test_init();
+  test_execute();
+
+  printf("All tests passed!\n");
+  return 0;
 }

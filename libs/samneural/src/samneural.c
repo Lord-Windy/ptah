@@ -20,15 +20,15 @@
 #include <string.h>
 #include <time.h>
 
-SamNeuralInstance *samneural_create(Samrena* samrena, SamNeuralConfiguration config) {
+SamNeuralInstance *samneural_create(Samrena *samrena, SamNeuralConfiguration config) {
   SamNeuralInstance *instance = SAMRENA_PUSH_TYPE(samrena, SamNeuralInstance);
   instance->rng = samrng_create(samrena, config.rng_seed);
   instance->output_buffer = SAMRENA_PUSH_ARRAY(samrena, float, config.output_count);
   instance->gradient_buffer = SAMRENA_PUSH_ARRAY(samrena, float, config.output_count);
 
-  instance->network = samneural_network_create(config.hidden_layer_count,
-    config.hidden_layer_neuron_counts, config.input_count, config.output_count, samrena,
-    instance->rng);
+  instance->network =
+      samneural_network_create(config.hidden_layer_count, config.hidden_layer_neuron_counts,
+                               config.input_count, config.output_count, samrena, instance->rng);
 
   memcpy(&instance->configuration, &config, sizeof(SamNeuralConfiguration));
 
@@ -55,7 +55,7 @@ static void shuffle_indices(uint64_t *indices, uint64_t count, SamRng *rng) {
   for (uint64_t i = 0; i < count; i++) {
     indices[i] = i;
   }
-  
+
   // Fisher-Yates shuffle
   for (uint64_t i = count - 1; i > 0; i--) {
     uint64_t j = samrng_uint64(rng) % (i + 1);
@@ -66,7 +66,7 @@ static void shuffle_indices(uint64_t *indices, uint64_t count, SamRng *rng) {
 }
 
 void samneural_train(SamNeuralInstance *instance, SamNeuralSamples *samples) {
-  
+
   // Allocate indices array for shuffling
   uint64_t *indices = malloc(sizeof(uint64_t) * samples->sample_count);
   if (!indices) {
@@ -76,7 +76,7 @@ void samneural_train(SamNeuralInstance *instance, SamNeuralSamples *samples) {
 
   for (uint64_t epoch = 0; epoch < instance->configuration.epoch_count; epoch++) {
     clock_t epoch_start = clock();
-    
+
     // Shuffle sample order for this epoch
     shuffle_indices(indices, samples->sample_count, instance->rng);
     float epoch_loss = 0.0f;
@@ -87,8 +87,8 @@ void samneural_train(SamNeuralInstance *instance, SamNeuralSamples *samples) {
     samneural_network_zero_gradients(instance->network);
 
     for (uint64_t idx = 0; idx < samples->sample_count; idx++) {
-      uint64_t i = indices[idx];  // Use shuffled index
-      
+      uint64_t i = indices[idx]; // Use shuffled index
+
       uint64_t input_position = i * instance->network->input_count;
       uint64_t output_position = i * instance->network->output_count;
       samneural_network_activate(instance->network, &samples->inputs[input_position]);
@@ -96,14 +96,17 @@ void samneural_train(SamNeuralInstance *instance, SamNeuralSamples *samples) {
 
       float *target_outputs = &samples->target_outputs[output_position];
 
-      float loss = samneural_loss_cross_entropy(instance->output_buffer, target_outputs, instance->network->output_count);
+      float loss = samneural_loss_cross_entropy(instance->output_buffer, target_outputs,
+                                                instance->network->output_count);
       epoch_loss += loss;
       uint64_t target = max_position(target_outputs, instance->network->output_count);
       uint64_t prediction = max_position(instance->output_buffer, instance->network->output_count);
       correct_predictions += prediction == target;
 
-      samneural_loss_cross_entropy_derivative(instance->output_buffer, target_outputs, instance->gradient_buffer, instance->network->output_count);
-      
+      samneural_loss_cross_entropy_derivative(instance->output_buffer, target_outputs,
+                                              instance->gradient_buffer,
+                                              instance->network->output_count);
+
       samneural_network_propagate_gradients(instance->network, instance->gradient_buffer);
 
       batch_count++;
@@ -114,14 +117,14 @@ void samneural_train(SamNeuralInstance *instance, SamNeuralSamples *samples) {
 
         // Scale gradients by actual batch size (important for last batch which might be smaller)
         float scale = 1.0f / (float)batch_count;
-        
+
         for (uint64_t j = 0; j < instance->network->layer_count; j++) {
           SamNeuralLayer *layer = instance->network->layers[j];
-          
+
           for (uint64_t k = 0; k < layer->neuron_count; k++) {
             layer->biases_gradients[k] *= scale;
           }
-          
+
           uint64_t wcount = layer->neuron_count * layer->input_count;
           for (uint64_t k = 0; k < wcount; k++) {
             layer->weights_gradients[k] *= scale;
@@ -134,42 +137,40 @@ void samneural_train(SamNeuralInstance *instance, SamNeuralSamples *samples) {
         batch_count = 0;
         num_batch++;
       }
-
     }
 
     clock_t epoch_end = clock();
     double epoch_time = ((double)(epoch_end - epoch_start)) / CLOCKS_PER_SEC;
     double accuracy = (double)correct_predictions / (double)samples->sample_count * 100.0;
-    
-    printf("Epoch %lu: Time: %.3fs, Accuracy: %.2f%% (%lu/%lu correct), Loss: %.6f\n",
-           epoch + 1, epoch_time, accuracy, correct_predictions, samples->sample_count, epoch_loss);
 
+    printf("Epoch %lu: Time: %.3fs, Accuracy: %.2f%% (%lu/%lu correct), Loss: %.6f\n", epoch + 1,
+           epoch_time, accuracy, correct_predictions, samples->sample_count, epoch_loss);
   }
-  
+
   free(indices);
 }
 
 // Returns correct number of samples
 uint64_t samneural_verify(SamNeuralInstance *instance, SamNeuralSamples *samples) {
   uint64_t correct_predictions = 0;
-  
+
   for (uint64_t i = 0; i < samples->sample_count; i++) {
     uint64_t input_position = i * instance->network->input_count;
     uint64_t output_position = i * instance->network->output_count;
-    
+
     samneural_network_activate(instance->network, &samples->inputs[input_position]);
     samneural_network_get_outputs(instance->network, instance->output_buffer);
-    
+
     float *target_outputs = &samples->target_outputs[output_position];
-    
+
     uint64_t target = max_position(target_outputs, instance->network->output_count);
     uint64_t prediction = max_position(instance->output_buffer, instance->network->output_count);
-    
+
     if (prediction == target) {
       correct_predictions++;
     }
   }
-  
+
   return correct_predictions;
 }
 

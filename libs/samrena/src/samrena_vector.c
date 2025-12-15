@@ -405,14 +405,14 @@ void samrena_vector_foreach(const SamrenaVector *vec, SamrenaVectorForEach callb
   }
 }
 
-SamrenaVector* samrena_vector_transfer(SamrenaVector *vec, Samrena* new_arena) {
+SamrenaVector *samrena_vector_transfer(SamrenaVector *vec, Samrena *new_arena) {
 
   if (!vec || !new_arena) {
     return NULL;
   }
 
   // Create new vector on the target arena
-  SamrenaVector* new_vec = samrena_vector_init(new_arena, vec->element_size, vec->capacity);
+  SamrenaVector *new_vec = samrena_vector_init(new_arena, vec->element_size, vec->capacity);
   if (!new_vec) {
     return NULL;
   }
@@ -430,7 +430,8 @@ SamrenaVector* samrena_vector_transfer(SamrenaVector *vec, Samrena* new_arena) {
   return new_vec;
 }
 
-SamrenaVector* samrena_vector_slice(const SamrenaVector *vec, size_t start, size_t end, Samrena* target_arena) {
+SamrenaVector *samrena_vector_slice(const SamrenaVector *vec, size_t start, size_t end,
+                                    Samrena *target_arena) {
 
   if (!vec) {
     return NULL;
@@ -455,7 +456,7 @@ SamrenaVector* samrena_vector_slice(const SamrenaVector *vec, size_t start, size
   size_t slice_size = end - start;
 
   // Create new vector with capacity equal to slice size
-  SamrenaVector* slice_vec = samrena_vector_init(target_arena, vec->element_size, slice_size);
+  SamrenaVector *slice_vec = samrena_vector_init(target_arena, vec->element_size, slice_size);
   if (!slice_vec) {
     return NULL;
   }

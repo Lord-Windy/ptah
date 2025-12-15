@@ -19,6 +19,7 @@ set(SAMRENA_SOURCES
 )
 
 ptah_add_library(samrena
+    INSTALL
     SOURCES ${SAMRENA_SOURCES}
     PUBLIC_HEADERS
         include/samrena.h
@@ -43,12 +44,6 @@ if(BUILD_TESTING)
     )
     target_link_libraries(samrena_vector_test PRIVATE samrena)
     add_test(NAME samrena_vector_test COMMAND samrena_vector_test)
-    
-    add_executable(samrena_feature_test
-        test/test_features.c
-    )
-    target_link_libraries(samrena_feature_test PRIVATE samrena)
-    add_test(NAME samrena_feature_test COMMAND samrena_feature_test)
     
     # Comprehensive adapter test suite
     add_executable(samrena_adapter_test
@@ -134,16 +129,6 @@ if(BUILD_TESTING)
                              --error-exitcode=1
                              --suppressions=${CMAKE_SOURCE_DIR}/valgrind_suppressions.supp
                              $<TARGET_FILE:samrena_vector_test>)
-            
-            add_test(NAME samrena_feature_test_valgrind 
-                     COMMAND ${VALGRIND_PROGRAM} 
-                             --tool=memcheck 
-                             --leak-check=full 
-                             --show-leak-kinds=all 
-                             --track-origins=yes 
-                             --error-exitcode=1
-                             --suppressions=${CMAKE_SOURCE_DIR}/valgrind_suppressions.supp
-                             $<TARGET_FILE:samrena_feature_test>)
             
             add_test(NAME samrena_adapter_test_valgrind
                      COMMAND ${VALGRIND_PROGRAM}

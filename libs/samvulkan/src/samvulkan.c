@@ -15,53 +15,57 @@
  */
 
 #include "samvulkan.h"
-#include <volk.h>
 #include <stdio.h>
+#include <volk.h>
 
 static bool g_initialized = false;
 
 bool samvulkan_init(void) {
-    if (g_initialized) {
-        return true;
-    }
-    
-    VkResult result = volkInitialize();
-    if (result != VK_SUCCESS) {
-        fprintf(stderr, "Failed to initialize Volk: %d\n", result);
-        return false;
-    }
-    
-    g_initialized = true;
+  if (g_initialized) {
     return true;
+  }
+
+  VkResult result = volkInitialize();
+  if (result != VK_SUCCESS) {
+    fprintf(stderr, "Failed to initialize Volk: %d\n", result);
+    return false;
+  }
+
+  g_initialized = true;
+  return true;
 }
 
-void samvulkan_cleanup(void) {
-    g_initialized = false;
-}
+void samvulkan_cleanup(void) { g_initialized = false; }
 
 bool samvulkan_is_available(void) {
-    if (!g_initialized) {
-        if (!samvulkan_init()) {
-            return false;
-        }
+  if (!g_initialized) {
+    if (!samvulkan_init()) {
+      return false;
     }
-    
-    uint32_t version = volkGetInstanceVersion();
-    return version != 0;
+  }
+
+  uint32_t version = volkGetInstanceVersion();
+  return version != 0;
 }
 
-void samvulkan_get_version(uint32_t* major, uint32_t* minor, uint32_t* patch) {
-    if (!g_initialized) {
-        if (!samvulkan_init()) {
-            if (major) *major = 0;
-            if (minor) *minor = 0;
-            if (patch) *patch = 0;
-            return;
-        }
+void samvulkan_get_version(uint32_t *major, uint32_t *minor, uint32_t *patch) {
+  if (!g_initialized) {
+    if (!samvulkan_init()) {
+      if (major)
+        *major = 0;
+      if (minor)
+        *minor = 0;
+      if (patch)
+        *patch = 0;
+      return;
     }
-    
-    uint32_t version = volkGetInstanceVersion();
-    if (major) *major = VK_VERSION_MAJOR(version);
-    if (minor) *minor = VK_VERSION_MINOR(version);
-    if (patch) *patch = VK_VERSION_PATCH(version);
+  }
+
+  uint32_t version = volkGetInstanceVersion();
+  if (major)
+    *major = VK_VERSION_MAJOR(version);
+  if (minor)
+    *minor = VK_VERSION_MINOR(version);
+  if (patch)
+    *patch = VK_VERSION_PATCH(version);
 }

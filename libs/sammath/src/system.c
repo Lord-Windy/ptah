@@ -1,5 +1,5 @@
 /*
-* Copyright 2025 Samuel "Lord-Windy" Brown
+ * Copyright 2025 Samuel "Lord-Windy" Brown
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,7 +18,7 @@
 
 #include <math.h>
 
-void samphysics_system_calculate_accelerations(SamPhysicsSystem* sys) {
+void samphysics_system_calculate_accelerations(SamPhysicsSystem *sys) {
 
   // Newton's law of gravitation: F = G·m₁·m₂/r² in the direction of r̂
   // reset accelerations of bodies
@@ -62,7 +62,6 @@ void samphysics_system_calculate_accelerations(SamPhysicsSystem* sys) {
       sys->bodies[j].acceleration.z -= force_factor * sys->bodies[i].mass * dz * r3_inv;
     }
   }
-
 }
 
 /*
@@ -72,9 +71,10 @@ The physics:
 Kinetic Energy: KE = ½mv²
 Potential Energy: PE = -G·m₁·m₂/r (negative because gravity is attractive)
 
-Why it matters: Energy drift tells you if your integration is accurate. For IAS15, expect machine precision conservation (~10⁻¹⁵).
+Why it matters: Energy drift tells you if your integration is accurate. For IAS15, expect machine
+precision conservation (~10⁻¹⁵).
  */
-double samphysics_system_calculate_total_energy(SamPhysicsSystem* sys) {
+double samphysics_system_calculate_total_energy(SamPhysicsSystem *sys) {
 
   double kinetic_energy = 0.0;
   double potential_energy = 0.0;
@@ -101,7 +101,7 @@ double samphysics_system_calculate_total_energy(SamPhysicsSystem* sys) {
       double r = sqrt(r2);
 
       double epsilon = SAMMATH_PHYSICS_EPSILON;
-      r = sqrt(r*r + epsilon*epsilon);
+      r = sqrt(r * r + epsilon * epsilon);
 
       potential_energy -= sys->G * sys->bodies[i].mass * sys->bodies[j].mass / r;
     }
@@ -110,7 +110,7 @@ double samphysics_system_calculate_total_energy(SamPhysicsSystem* sys) {
   return kinetic_energy + potential_energy;
 }
 
-SamVector3d samphysics_system_calculate_total_angular_momentum(SamPhysicsSystem* sys) {
+SamVector3d samphysics_system_calculate_total_angular_momentum(SamPhysicsSystem *sys) {
   SamVector3d total_angular_momentum = {0, 0, 0};
 
   for (uint64_t i = 0; i < sys->bodies_count; i++) {
@@ -120,19 +120,20 @@ SamVector3d samphysics_system_calculate_total_angular_momentum(SamPhysicsSystem*
     angular_momentum.z = sys->bodies[i].mass * sys->bodies[i].velocity.z;
 
     // Calculate L_i = r_i × p_i
-    SamVector3d current_angular_momentum = samvector3d_cross(sys->bodies[i].position, angular_momentum);
+    SamVector3d current_angular_momentum =
+        samvector3d_cross(sys->bodies[i].position, angular_momentum);
     total_angular_momentum = samvector3d_add(total_angular_momentum, current_angular_momentum);
   }
 
   return total_angular_momentum;
 }
 
-double samphysics_system_calculate_angular_momentum_magnitude(SamPhysicsSystem* sys) {
+double samphysics_system_calculate_angular_momentum_magnitude(SamPhysicsSystem *sys) {
   SamVector3d l = samphysics_system_calculate_total_angular_momentum(sys);
-  return sqrt(l.x*l.x + l.y*l.y + l.z*l.z);
+  return sqrt(l.x * l.x + l.y * l.y + l.z * l.z);
 }
 
-SamVector3d samphysics_system_calculate_center_of_mass(SamPhysicsSystem* sys) {
+SamVector3d samphysics_system_calculate_center_of_mass(SamPhysicsSystem *sys) {
   SamVector3d center_of_mass = {0, 0, 0};
   double total_mass = 0.0;
 
@@ -145,7 +146,7 @@ SamVector3d samphysics_system_calculate_center_of_mass(SamPhysicsSystem* sys) {
   return center_of_mass;
 }
 
-SamVector3d samphysics_system_calculate_center_of_mass_velocity(SamPhysicsSystem* sys) {
+SamVector3d samphysics_system_calculate_center_of_mass_velocity(SamPhysicsSystem *sys) {
   SamVector3d center_of_mass_velocity = {0, 0, 0};
   double total_mass = 0.0;
 
@@ -153,7 +154,7 @@ SamVector3d samphysics_system_calculate_center_of_mass_velocity(SamPhysicsSystem
     center_of_mass_velocity = samvector3d_add(center_of_mass_velocity, sys->bodies[i].velocity);
     total_mass += sys->bodies[i].mass;
   }
-  
+
   center_of_mass_velocity = samvector3d_scale(center_of_mass_velocity, 1.0 / total_mass);
   return center_of_mass_velocity;
 }

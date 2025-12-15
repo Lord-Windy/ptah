@@ -25,10 +25,7 @@ SamVector3d samvector3d_add(SamVector3d a, SamVector3d b);
 SamVector3d samvector3d_subtract(SamVector3d a, SamVector3d b);
 SamVector3d samvector3d_scale(SamVector3d a, double scale);
 SamVector3d samvector3d_cross(SamVector3d a, SamVector3d b);
-double      samvector3d_dot(SamVector3d a, SamVector3d b);
-double      samvector3d_magnitude(SamVector3d v);
+double samvector3d_dot(SamVector3d a, SamVector3d b);
+double samvector3d_magnitude(SamVector3d v);
 
-
-#endif //SAMMATH_VECTOR_H
-
-
+#endif // SAMMATH_VECTOR_H

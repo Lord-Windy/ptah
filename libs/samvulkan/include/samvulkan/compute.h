@@ -31,76 +31,76 @@ typedef struct SamVulkanCompute SamVulkanCompute;
 
 // Buffer usage flags
 typedef enum {
-    SAMVULKAN_BUFFER_STORAGE = 1 << 0,
-    SAMVULKAN_BUFFER_UNIFORM = 1 << 1,
-    SAMVULKAN_BUFFER_TRANSFER_SRC = 1 << 2,
-    SAMVULKAN_BUFFER_TRANSFER_DST = 1 << 3
+  SAMVULKAN_BUFFER_STORAGE = 1 << 0,
+  SAMVULKAN_BUFFER_UNIFORM = 1 << 1,
+  SAMVULKAN_BUFFER_TRANSFER_SRC = 1 << 2,
+  SAMVULKAN_BUFFER_TRANSFER_DST = 1 << 3
 } SamVulkanBufferUsage;
 
 // Memory property flags
 typedef enum {
-    SAMVULKAN_MEMORY_DEVICE_LOCAL = 1 << 0,
-    SAMVULKAN_MEMORY_HOST_VISIBLE = 1 << 1,
-    SAMVULKAN_MEMORY_HOST_COHERENT = 1 << 2
+  SAMVULKAN_MEMORY_DEVICE_LOCAL = 1 << 0,
+  SAMVULKAN_MEMORY_HOST_VISIBLE = 1 << 1,
+  SAMVULKAN_MEMORY_HOST_COHERENT = 1 << 2
 } SamVulkanMemoryProperty;
 
 // Compute pipeline configuration
 typedef struct {
-    const uint32_t* shader_code;
-    size_t shader_size;
-    const char* entry_point;
-    uint32_t push_constant_size;
+  const uint32_t *shader_code;
+  size_t shader_size;
+  const char *entry_point;
+  uint32_t push_constant_size;
 } SamVulkanComputeConfig;
 
 // Buffer handle
 typedef struct SamVulkanBuffer SamVulkanBuffer;
 
 // Create compute context
-SamVulkanCompute* samvulkan_compute_create(SamVulkanDevice* device);
+SamVulkanCompute *samvulkan_compute_create(SamVulkanDevice *device);
 
 // Destroy compute context
-void samvulkan_compute_destroy(SamVulkanCompute* compute);
+void samvulkan_compute_destroy(SamVulkanCompute *compute);
 
 // Create compute pipeline from SPIR-V shader
-bool samvulkan_compute_create_pipeline(SamVulkanCompute* compute, const SamVulkanComputeConfig* config);
+bool samvulkan_compute_create_pipeline(SamVulkanCompute *compute,
+                                       const SamVulkanComputeConfig *config);
 
 // Create buffer
-SamVulkanBuffer* samvulkan_compute_create_buffer(
-    SamVulkanCompute* compute,
-    size_t size,
-    SamVulkanBufferUsage usage,
-    SamVulkanMemoryProperty properties
-);
+SamVulkanBuffer *samvulkan_compute_create_buffer(SamVulkanCompute *compute, size_t size,
+                                                 SamVulkanBufferUsage usage,
+                                                 SamVulkanMemoryProperty properties);
 
 // Destroy buffer
-void samvulkan_compute_destroy_buffer(SamVulkanBuffer* buffer);
+void samvulkan_compute_destroy_buffer(SamVulkanBuffer *buffer);
 
 // Map buffer memory for host access
-void* samvulkan_compute_map_buffer(SamVulkanBuffer* buffer);
+void *samvulkan_compute_map_buffer(SamVulkanBuffer *buffer);
 
 // Unmap buffer memory
-void samvulkan_compute_unmap_buffer(SamVulkanBuffer* buffer);
+void samvulkan_compute_unmap_buffer(SamVulkanBuffer *buffer);
 
 // Copy data to buffer
-bool samvulkan_compute_upload_buffer(SamVulkanBuffer* buffer, const void* data, size_t size);
+bool samvulkan_compute_upload_buffer(SamVulkanBuffer *buffer, const void *data, size_t size);
 
 // Copy data from buffer
-bool samvulkan_compute_download_buffer(SamVulkanBuffer* buffer, void* data, size_t size);
+bool samvulkan_compute_download_buffer(SamVulkanBuffer *buffer, void *data, size_t size);
 
 // Bind buffer to descriptor set
-void samvulkan_compute_bind_buffer(SamVulkanCompute* compute, uint32_t binding, SamVulkanBuffer* buffer);
+void samvulkan_compute_bind_buffer(SamVulkanCompute *compute, uint32_t binding,
+                                   SamVulkanBuffer *buffer);
 
 // Set push constants
-void samvulkan_compute_set_push_constants(SamVulkanCompute* compute, const void* data, size_t size);
+void samvulkan_compute_set_push_constants(SamVulkanCompute *compute, const void *data, size_t size);
 
 // Dispatch compute work
-bool samvulkan_compute_dispatch(SamVulkanCompute* compute, uint32_t x, uint32_t y, uint32_t z);
+bool samvulkan_compute_dispatch(SamVulkanCompute *compute, uint32_t x, uint32_t y, uint32_t z);
 
 // Wait for compute to complete
-bool samvulkan_compute_wait(SamVulkanCompute* compute);
+bool samvulkan_compute_wait(SamVulkanCompute *compute);
 
 // Submit and wait for compute in one call
-bool samvulkan_compute_submit_and_wait(SamVulkanCompute* compute, uint32_t x, uint32_t y, uint32_t z);
+bool samvulkan_compute_submit_and_wait(SamVulkanCompute *compute, uint32_t x, uint32_t y,
+                                       uint32_t z);
 
 #ifdef __cplusplus
 }

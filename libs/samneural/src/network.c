@@ -16,30 +16,34 @@ SamNeuralNetwork *samneural_network_create(uint64_t hidden_layer_count,
   network->input_count = input_count;
   network->output_count = output_count;
 
-  network->layers = SAMRENA_PUSH_ARRAY(samrena, SamNeuralLayer*, hidden_layer_count + 1); //+1 for output
+  network->layers =
+      SAMRENA_PUSH_ARRAY(samrena, SamNeuralLayer *, hidden_layer_count + 1); //+1 for output
   network->layer_count = hidden_layer_count + 1;
 
   // hidden layers
   for (int i = 0; i < hidden_layer_count; i++) {
     if (i == 0) {
       network->layers[i] = samneural_layer_create(hidden_layer_neuron_counts[i], input_count,
-                                                ACTIVATION_LEAKY_RELU, samrena, rng);
+                                                  ACTIVATION_LEAKY_RELU, samrena, rng);
     } else {
-      network->layers[i] = samneural_layer_create(hidden_layer_neuron_counts[i], network->layers[i - 1]->neuron_count,
-                                                ACTIVATION_LEAKY_RELU, samrena, rng);
+      network->layers[i] = samneural_layer_create(hidden_layer_neuron_counts[i],
+                                                  network->layers[i - 1]->neuron_count,
+                                                  ACTIVATION_LEAKY_RELU, samrena, rng);
     }
   }
 
-  //output layer
-  // Use softmax for multi-class classification (output_count > 1)
-  SamNeuralActivation output_activation = output_count > 1 ? ACTIVATION_SOFTMAX : ACTIVATION_LEAKY_RELU;
+  // output layer
+  //  Use softmax for multi-class classification (output_count > 1)
+  SamNeuralActivation output_activation =
+      output_count > 1 ? ACTIVATION_SOFTMAX : ACTIVATION_LEAKY_RELU;
   if (hidden_layer_count > 0) {
-    network->layers[hidden_layer_count] = samneural_layer_create(output_count, network->layers[hidden_layer_count - 1]->neuron_count,
-                                                output_activation, samrena, rng);
+    network->layers[hidden_layer_count] =
+        samneural_layer_create(output_count, network->layers[hidden_layer_count - 1]->neuron_count,
+                               output_activation, samrena, rng);
   } else {
     // No hidden layers, inputs directly to output
-    network->layers[hidden_layer_count] = samneural_layer_create(output_count, input_count,
-                                                output_activation, samrena, rng);
+    network->layers[hidden_layer_count] =
+        samneural_layer_create(output_count, input_count, output_activation, samrena, rng);
   }
 
   uint64_t max_neuron_count = 0;
@@ -71,12 +75,15 @@ void samneural_network_propagate_gradients(SamNeuralNetwork *network,
   float *temp_gradients = network->gradient_buffer2;
 
   for (uint64_t i = network->layer_count; i > 0; i--) {
-    const uint64_t pos = i -1;
-    
+    const uint64_t pos = i - 1;
+
     // Zero out input gradients buffer before accumulation
-    memset(input_gradients, 0, sizeof(float) * (pos > 0 ? network->layers[pos-1]->neuron_count : network->input_count));
-    
-    samneural_layer_propagate_gradients(network->layers[pos], input_gradients, current_output_gradients);
+    memset(input_gradients, 0,
+           sizeof(float) *
+               (pos > 0 ? network->layers[pos - 1]->neuron_count : network->input_count));
+
+    samneural_layer_propagate_gradients(network->layers[pos], input_gradients,
+                                        current_output_gradients);
 
     if (pos > 0) {
       current_output_gradients = input_gradients;
@@ -85,9 +92,7 @@ void samneural_network_propagate_gradients(SamNeuralNetwork *network,
       temp_gradients = tmp;
     }
   }
-
 }
-
 
 void samneural_network_update_weights(SamNeuralNetwork *network, float learning_rate) {
   for (int i = 0; i < network->layer_count; i++) {
@@ -103,5 +108,6 @@ void samneural_network_zero_gradients(SamNeuralNetwork *network) {
 
 void samneural_network_get_outputs(SamNeuralNetwork *network, float *output) {
   // memcopy the final layers outputs to outputs
-  memcpy(output, network->layers[network->layer_count - 1]->activations, network->output_count * sizeof(float));
+  memcpy(output, network->layers[network->layer_count - 1]->activations,
+         network->output_count * sizeof(float));
 }

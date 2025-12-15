@@ -136,7 +136,7 @@ typedef struct {
 // Configuration helper functions
 static inline SamrenaConfig samrena_default_config(void) {
   return (SamrenaConfig){.initial_pages = 1,
-                         .page_size = 0, // Use system default
+                         .page_size = 0,   // Use system default
                          .max_reserve = 0, // Use default (256MB)
                          .commit_size = 0,
                          .enable_stats = false,

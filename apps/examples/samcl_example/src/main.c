@@ -18,43 +18,39 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-int main(int argc, char** argv) {
-    printf("SamCL Example Application\n");
-    printf("=========================\n\n");
-    
-    SamCL* cl = samcl_create();
-    if (!cl) {
-        fprintf(stderr, "Failed to create SamCL instance\n");
-        return 1;
-    }
-    
-    printf("Created SamCL instance\n");
-    
-    int result = samcl_init(cl);
-    if (result != 0) {
-        fprintf(stderr, "Failed to initialize SamCL\n");
-        samcl_destroy(cl);
-        return 1;
-    }
-    
-    printf("Initialized SamCL\n");
-    
-    const char* commands[] = {
-        "kernel1",
-        "kernel2",
-        "kernel3"
-    };
-    
-    for (int i = 0; i < 3; i++) {
-        printf("Executing: %s\n", commands[i]);
-        result = samcl_execute(cl, commands[i]);
-        if (result != 0) {
-            fprintf(stderr, "Failed to execute command: %s\n", commands[i]);
-        }
-    }
-    
+int main(int argc, char **argv) {
+  printf("SamCL Example Application\n");
+  printf("=========================\n\n");
+
+  SamCL *cl = samcl_create();
+  if (!cl) {
+    fprintf(stderr, "Failed to create SamCL instance\n");
+    return 1;
+  }
+
+  printf("Created SamCL instance\n");
+
+  int result = samcl_init(cl);
+  if (result != 0) {
+    fprintf(stderr, "Failed to initialize SamCL\n");
     samcl_destroy(cl);
-    printf("\nSamCL destroyed successfully\n");
-    
-    return 0;
+    return 1;
+  }
+
+  printf("Initialized SamCL\n");
+
+  const char *commands[] = {"kernel1", "kernel2", "kernel3"};
+
+  for (int i = 0; i < 3; i++) {
+    printf("Executing: %s\n", commands[i]);
+    result = samcl_execute(cl, commands[i]);
+    if (result != 0) {
+      fprintf(stderr, "Failed to execute command: %s\n", commands[i]);
+    }
+  }
+
+  samcl_destroy(cl);
+  printf("\nSamCL destroyed successfully\n");
+
+  return 0;
 }

@@ -25,14 +25,14 @@ extern "C" {
 #endif
 
 typedef struct SamCL {
-    void* internal;
+  void *internal;
 } SamCL;
 
-SamCL* samcl_create(void);
-void samcl_destroy(SamCL* cl);
+SamCL *samcl_create(void);
+void samcl_destroy(SamCL *cl);
 
-int samcl_init(SamCL* cl);
-int samcl_execute(SamCL* cl, const char* command);
+int samcl_init(SamCL *cl);
+int samcl_execute(SamCL *cl, const char *command);
 
 #ifdef __cplusplus
 }

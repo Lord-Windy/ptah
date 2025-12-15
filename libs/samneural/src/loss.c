@@ -23,10 +23,10 @@ float samneural_loss_cross_entropy(float *predictions, float *targets, uint64_t 
   return loss;
 }
 
-void samneural_loss_cross_entropy_derivative(float *predictions, float *targets, float* gradients, uint64_t count) {
+void samneural_loss_cross_entropy_derivative(float *predictions, float *targets, float *gradients,
+                                             uint64_t count) {
 
   for (uint64_t i = 0; i < count; i++) {
     gradients[i] = predictions[i] - targets[i];
   }
-
 }

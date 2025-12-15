@@ -30,29 +30,29 @@ typedef struct SamVulkanInstance SamVulkanInstance;
 
 // Instance configuration
 typedef struct {
-    const char* application_name;
-    uint32_t application_version;
-    const char* engine_name;
-    uint32_t engine_version;
-    bool enable_validation;
-    const char** required_extensions;
-    size_t extension_count;
+  const char *application_name;
+  uint32_t application_version;
+  const char *engine_name;
+  uint32_t engine_version;
+  bool enable_validation;
+  const char **required_extensions;
+  size_t extension_count;
 } SamVulkanInstanceConfig;
 
 // Create a Vulkan instance
-SamVulkanInstance* samvulkan_instance_create(const SamVulkanInstanceConfig* config);
+SamVulkanInstance *samvulkan_instance_create(const SamVulkanInstanceConfig *config);
 
 // Destroy a Vulkan instance
-void samvulkan_instance_destroy(SamVulkanInstance* instance);
+void samvulkan_instance_destroy(SamVulkanInstance *instance);
 
 // Get the underlying VkInstance handle
-void* samvulkan_instance_get_handle(SamVulkanInstance* instance);
+void *samvulkan_instance_get_handle(SamVulkanInstance *instance);
 
 // Enumerate physical devices
-size_t samvulkan_instance_get_physical_device_count(SamVulkanInstance* instance);
+size_t samvulkan_instance_get_physical_device_count(SamVulkanInstance *instance);
 
 // Get physical device at index
-void* samvulkan_instance_get_physical_device(SamVulkanInstance* instance, size_t index);
+void *samvulkan_instance_get_physical_device(SamVulkanInstance *instance, size_t index);
 
 #ifdef __cplusplus
 }

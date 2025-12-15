@@ -22,37 +22,37 @@
 #include <time.h>
 
 typedef struct {
-    char *code;
-    char *exchange;
-    time_t date;
-    double open;
-    double high;
-    double low;
-    double close;
-    int volume;
-    // algoritms
+  char *code;
+  char *exchange;
+  time_t date;
+  double open;
+  double high;
+  double low;
+  double close;
+  int volume;
+  // algoritms
 
-    double sma_20;
-    double sma_50;
-    double sma_200;
+  double sma_20;
+  double sma_50;
+  double sma_200;
 
-    double ema_9;
-    double ema_21;
-    double ema_50;
+  double ema_9;
+  double ema_21;
+  double ema_50;
 
-    double rsi_14;
+  double rsi_14;
 
-    double bollinger_20_upper;
-    double bollinger_20_middle;
-    double bollinger_20_lower;
+  double bollinger_20_upper;
+  double bollinger_20_middle;
+  double bollinger_20_lower;
 
-    double pivot_point;
-    double pivot_r1;
-    double pivot_r2;
-    double pivot_r3;
-    double pivot_s1;
-    double pivot_s2;
-    double pivot_s3;
+  double pivot_point;
+  double pivot_r1;
+  double pivot_r2;
+  double pivot_r3;
+  double pivot_s1;
+  double pivot_s2;
+  double pivot_s3;
 } Ohlcv;
 
 /**
@@ -71,9 +71,8 @@ typedef struct {
  * @param volume Trading volume
  * @return 0 on success, -1 on failure
  */
-int ohlcv_init(Ohlcv *ohlcv, Samrena *arena, const char *code,
-               const char *exchange, time_t date, double open, double high,
-               double low, double close, int volume);
+int ohlcv_init(Ohlcv *ohlcv, Samrena *arena, const char *code, const char *exchange, time_t date,
+               double open, double high, double low, double close, int volume);
 
 /**
  * Creates a new OHLCV structure using arena allocation
@@ -89,9 +88,8 @@ int ohlcv_init(Ohlcv *ohlcv, Samrena *arena, const char *code,
  * @param volume Trading volume
  * @return Pointer to the allocated OHLCV structure
  */
-Ohlcv *ohlcv_create(Samrena *arena, const char *code, const char *exchange,
-                    time_t date, double open, double high, double low,
-                    double close, int volume);
+Ohlcv *ohlcv_create(Samrena *arena, const char *code, const char *exchange, time_t date,
+                    double open, double high, double low, double close, int volume);
 
 /**
  * Creates a new OHLCV structure directly in a vector
@@ -108,9 +106,8 @@ Ohlcv *ohlcv_create(Samrena *arena, const char *code, const char *exchange,
  * @param volume Trading volume
  * @return Pointer to the OHLCV structure in the vector, or NULL on failure
  */
-Ohlcv *ohlcv_push(SamrenaVector *vec, Samrena *arena, const char *code,
-                  const char *exchange, time_t date, double open, double high,
-                  double low, double close, int volume);
+Ohlcv *ohlcv_push(SamrenaVector *vec, Samrena *arena, const char *code, const char *exchange,
+                  time_t date, double open, double high, double low, double close, int volume);
 
 /**
  * Prints a vector of OHLCV records in order
@@ -119,6 +116,6 @@ Ohlcv *ohlcv_push(SamrenaVector *vec, Samrena *arena, const char *code,
  */
 void ohlcv_print_vector(SamrenaVector *vec);
 
-void ohlcv_calculate_indicators(SamrenaVector* vec);
+void ohlcv_calculate_indicators(SamrenaVector *vec);
 
 #endif // OHLCV_H

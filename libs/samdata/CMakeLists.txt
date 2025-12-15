@@ -13,6 +13,7 @@
 # limitations under the License.
 
 ptah_add_library(samdata
+    INSTALL
     SOURCES
         src/samhash.c
         src/samhashmap.c
@@ -22,6 +23,15 @@ ptah_add_library(samdata
         include/samdata.h
     DEPENDENCIES
         samrena
+)
+
+# Install the individual component headers in the samdata subdirectory
+install(FILES
+    include/samdata/samhash.h
+    include/samdata/samhashmap.h
+    include/samdata/samrng.h
+    include/samdata/samset.h
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/samdata
 )
 
 # Build tests if testing is enabled

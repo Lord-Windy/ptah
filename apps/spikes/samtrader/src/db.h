@@ -17,21 +17,21 @@
 #ifndef SAMTRADER_DB_H
 #define SAMTRADER_DB_H
 
-#include <libpq-fe.h>
+#include "ohlcv.h"
 #include "samrena.h"
 #include "samvector.h"
-#include "ohlcv.h"
+#include <libpq-fe.h>
 #include <time.h>
 
 typedef struct {
-  char* conninfo;
-  PGconn* conn;
-  Samrena* arena;
+  char *conninfo;
+  PGconn *conn;
+  Samrena *arena;
 } SamtraderDb;
 
 // Database connection and utilities for samtrader
-SamtraderDb* samtrader_db_connect(Samrena* arena, char* conn_info);
-void samtrader_db_close(SamtraderDb* db);
+SamtraderDb *samtrader_db_connect(Samrena *arena, char *conn_info);
+void samtrader_db_close(SamtraderDb *db);
 
 // OHLCV queries
 /**
@@ -44,12 +44,11 @@ void samtrader_db_close(SamtraderDb* db);
  * @param end_time End of time range (Unix timestamp)
  * @return Vector of OHLCV records, or NULL on error
  */
-SamrenaVector* samtrader_db_fetch_ohlcv(SamtraderDb* db, const char* code,
-                                        const char* exchange, time_t start_time,
-                                        time_t end_time);
+SamrenaVector *samtrader_db_fetch_ohlcv(SamtraderDb *db, const char *code, const char *exchange,
+                                        time_t start_time, time_t end_time);
 
 // Debug
 // Will print out information about the connection
-void samtrader_db_debug_print_connection(SamtraderDb* db, bool show_conn_string);
+void samtrader_db_debug_print_connection(SamtraderDb *db, bool show_conn_string);
 
 #endif // SAMTRADER_DB_H

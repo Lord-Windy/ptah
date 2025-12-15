@@ -15,55 +15,60 @@
  */
 
 #include "samcl.h"
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdio.h>
 
 typedef struct SamCLInternal {
-    int initialized;
+  int initialized;
 } SamCLInternal;
 
-SamCL* samcl_create(void) {
-    SamCL* cl = malloc(sizeof(SamCL));
-    if (!cl) return NULL;
-    
-    SamCLInternal* internal = malloc(sizeof(SamCLInternal));
-    if (!internal) {
-        free(cl);
-        return NULL;
-    }
-    
-    internal->initialized = 0;
-    cl->internal = internal;
-    
-    return cl;
-}
+SamCL *samcl_create(void) {
+  SamCL *cl = malloc(sizeof(SamCL));
+  if (!cl)
+    return NULL;
 
-void samcl_destroy(SamCL* cl) {
-    if (!cl) return;
-    
-    if (cl->internal) {
-        free(cl->internal);
-    }
+  SamCLInternal *internal = malloc(sizeof(SamCLInternal));
+  if (!internal) {
     free(cl);
+    return NULL;
+  }
+
+  internal->initialized = 0;
+  cl->internal = internal;
+
+  return cl;
 }
 
-int samcl_init(SamCL* cl) {
-    if (!cl || !cl->internal) return -1;
-    
-    SamCLInternal* internal = (SamCLInternal*)cl->internal;
-    internal->initialized = 1;
-    
-    return 0;
+void samcl_destroy(SamCL *cl) {
+  if (!cl)
+    return;
+
+  if (cl->internal) {
+    free(cl->internal);
+  }
+  free(cl);
 }
 
-int samcl_execute(SamCL* cl, const char* command) {
-    if (!cl || !cl->internal || !command) return -1;
-    
-    SamCLInternal* internal = (SamCLInternal*)cl->internal;
-    if (!internal->initialized) return -1;
-    
-    printf("SamCL executing: %s\n", command);
-    
-    return 0;
+int samcl_init(SamCL *cl) {
+  if (!cl || !cl->internal)
+    return -1;
+
+  SamCLInternal *internal = (SamCLInternal *)cl->internal;
+  internal->initialized = 1;
+
+  return 0;
+}
+
+int samcl_execute(SamCL *cl, const char *command) {
+  if (!cl || !cl->internal || !command)
+    return -1;
+
+  SamCLInternal *internal = (SamCLInternal *)cl->internal;
+  if (!internal->initialized)
+    return -1;
+
+  printf("SamCL executing: %s\n", command);
+
+  return 0;
 }
