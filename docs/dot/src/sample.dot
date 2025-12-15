@@ -1,0 +1,40 @@
+digraph project {
+    compound=true
+    fontname="Helvetica"
+    node [fontname="Helvetica"]
+
+    subgraph cluster_structs {
+        label="Data Structures"
+        node [shape=record, fontname="Courier"]
+
+        Position [label="{Position|int x\lint y}"]
+        Player [label="{Player|char* name\lint health\lint score\lPosition pos\l}"]
+
+        Player -> Position [label="contains"]
+    }
+
+    subgraph cluster_flow {
+        label="Program Flow"
+        node [shape=box]
+
+        start [shape=ellipse, label="start"]
+        main [label="main()"]
+        init [label="init_player()"]
+        loop [shape=diamond, label="Game Loop?"]
+        input [label="handle_input()"]
+        update [label="update_state()"]
+        render [label="render()"]
+        cleanup [label="cleanup()"]
+        stop [shape=ellipse, label="exit"]
+
+        start -> main
+        main -> init
+        init -> loop
+        loop -> input [label="running"]
+        input -> update
+        update -> render
+        render -> loop
+        loop -> cleanup [label="quit"]
+        cleanup -> stop
+    }
+}

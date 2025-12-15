@@ -75,6 +75,18 @@ docs/html/
 docs/latex/
 doxygen_output/
 
+# Generated graphviz files (keep only .dot sources)
+docs/dot/*.svg
+docs/dot/*.png
+docs/dot/*.pdf
+docs/dot/*.ps
+docs/dot/*.eps
+docs/dot/*.jpg
+docs/dot/*.jpeg
+docs/dot/*.gif
+docs/dot/*.bmp
+docs/dot/*.webp
+
 # Test coverage
 *.gcda
 *.gcno

@@ -1,0 +1,102 @@
+digraph samplex {
+    compound=true
+    fontname="Helvetica"
+    node [fontname="Helvetica"]
+
+    subgraph cluster_structs {
+        label="Samplex Structures"
+        node [shape=record, fontname="Courier"]
+
+        SamplexEngine [label="{SamplexEngine|
+          uint_64 ids
+          \lSamhash samplex_registry
+          \lSamhash samplex_fd_mapping
+          \lSamrena global_arena|threadpool|
+          \lSamVector workers
+          |async|
+          \lSamVector samplex_work_queue
+          \lvoid* async_engine_data
+          \lfunction pointer to implementations?
+          \lor do we set function points here...
+          }"
+        ]
+
+        SamplexWorker [label="{SamplexWorker|
+          pthread_something something
+        }"]
+
+        Samplex_note [shape=note, label="A Samplex is made up of\nmultiple SamplexItems that\ncontain the order of operations"];
+
+        Samplex_fd_mapping_note [shape=note,
+        label="When an async FD is triggered\nit is placed in the work queue\nand removed from the mapping"
+        ];
+
+        Samplex [label="{Samplex|
+          uint_64 id
+          \lchar* name
+          \lchar* description
+          \lSamrena local_arena
+          \lSamVector items //ordered
+          \luint64_t current_item
+          }"
+        ]
+
+        SamplexItem [label="{SamplexItem|
+          char* name
+          \lchar* description
+          \lvoid* data
+          \lSamplexItemProcess process_fn
+          \lSamplexItemDelete  delete_fn
+          }"
+        ]
+
+        
+        Samplex_fd_mapping_note:s -> SamplexEngine:w
+        SamplexEngine -> SamplexWorker
+        SamplexEngine -> Samplex
+        Samplex -> SamplexItem
+        Samplex_note -> Samplex
+        Samplex_note -> SamplexItem
+    }
+
+    subgraph cluster_http_request {
+      label="HTTP Request Example"
+      node [shape=box]
+
+      http_start [shape=ellipse, label="Samplex Created to\nhandle HTTP requests"]
+      http_create_http_fd [shape=ellipse, label="HTTP FD (listen) created"]
+      http_register [label="HTTP FD registered on\nSamplex inside engine"] 
+      http_wait [label="Wait for request"]
+      http_samplex_engine_event [shape=diamond, label="SamplexEngine registered\nFD polls/returns"]
+      http_process [label="Find Samplex from FD\nSend data to samplex"]
+      http_samplex_1 [label="Samplex sends data\nto current_item index\n(in this case items[0])"]
+      http_samplex_2 [label="SamplexItem runs its process_fn"]
+      http_samplex_3 [label="Process decides what\nto do based on incoming data"]
+      http_samplex_4 [label="Create and Register samplex\nHow do I handle immediate enqueue??\nI think I need threadpool as well"]
+      http_samplex_5 [label="Samplex Item returns one of\n1.deregister Samplex\n2. reset Samplex to first item\n3. increment to next Samplex Item\nNOTE: All have option register FD"]
+      
+      http_start -> http_register
+      http_create_http_fd -> http_register
+      http_register -> http_wait
+      http_wait -> http_samplex_engine_event
+      http_samplex_engine_event:w -> http_wait:w [label="FD not registered\nwith SamplexEngine.\nReturn to waiting"]
+      http_samplex_engine_event -> http_samplex_1 [label="FD was registered\nwith SamplexEngine"]
+      http_samplex_1 -> http_samplex_2
+      http_samplex_2 -> http_samplex_3
+      http_samplex_3 -> http_samplex_4
+      http_samplex_4 -> http_samplex_5
+      
+    }
+
+    subgraph cluster_flow {
+        label="Program Flow"
+        node [shape=box]
+
+        start [shape=ellipse, label="start"]
+        main [label="main()"]
+        init [label="init_player()"]
+
+        start -> main
+        main -> init
+    }
+}
