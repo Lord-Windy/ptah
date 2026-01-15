@@ -16,7 +16,9 @@ ptah_add_executable(samtracer
     SOURCES
         src/main.c
         src/ppm.c
+        src/vec3.c
     DEPENDENCIES
         samdata
         samrena
+        m
 )

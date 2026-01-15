@@ -10,6 +10,8 @@
 
 #include <samrena.h>
 
+#include "vec3.h"
+
 typedef struct {
   int width;
   int height;
@@ -18,6 +20,8 @@ typedef struct {
 
 Image* image_create(Samrena* arena, int width, int height);
 
-void image_ppm_write(Image* image, const char* filename);
+void image_ppm_save(Image* image, const char* filename);
+
+void image_write_colour(Image* image, int x, int y, Vec3 colour);
 
 #endif // PTAH_PPM_H
