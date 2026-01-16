@@ -14,56 +14,91 @@
  * limitations under the License.
  */
 
+#include <stdbool.h>
 #include <stdio.h>
 #include <samrena.h>
 #include "ppm.h"
+#include "ray.h"
+
+bool hit_sphere(Point3 center, double radius, Ray r) {
+  Vec3 oc = vec3_sub(center, r.origin);
+  double a = vec3_dot(r.direction, r.direction);
+  double b = -2.0 * vec3_dot(r.direction, oc);
+  double c = vec3_dot(oc, oc) - radius * radius;
+
+  double discriminant = b * b - 4.0 * a * c;
+  return (discriminant >= 0);
+}
+
+Vec3 ray_colour(Ray r) {
+  Vec3 sphere_center = {0.0, 0.0, -1.0};
+  if (hit_sphere(sphere_center, 0.5, r)) {
+    Vec3 red = {1.0, 0, 0};
+    return red;
+  }
+
+  Vec3 unit_direction = vec3_unit(r.direction);
+  double a = 0.5 * (unit_direction.y + 1.0);
+
+  Vec3 color_blue = {0.5, 0.7, 1.0};
+  Vec3 color_white = {1.0, 1.0, 1.0};
+
+  return vec3_add(vec3_mul(color_white, 1-a), vec3_mul(color_blue, a));
+}
 
 int main(void) {
-    Samrena* arena = samrena_create_default();
+  Samrena* arena = samrena_create_default();
 
-    int width = 256;
-    int height = 256;
-    Image* img = image_create(arena, width, height);
+  // Image
+  double aspect_ratio = 16.0 / 9.0;
+  int image_width = 400;
+  int image_height = (int)(image_width / aspect_ratio);
+  Image* img = image_create(arena, image_width, image_height);
 
-    // Background gradient using write_colour
-    for (int y = 0; y < height; y++) {
-        for (int x = 0; x < width; x++) {
-            Vec3 bg = {(double)x / width, (double)y / height, 0.2};
-            image_write_colour(img, x, y, bg);
-        }
+  //Camera
+
+  double focal_length = 1.0;
+  double viewport_height = 2.0;
+  double viewport_width = viewport_height * ((double) image_width)/image_height;
+  Vec3 camera_center = {0.0, 0.0, 0.0};
+
+  // Calculate the vectors across the horizontal and down the vertical viewport edges.
+  Vec3 viewport_u = { viewport_width, 0.0, 0.0 };
+  Vec3 viewport_v = { 0.0, -viewport_height, 0.0 };
+
+  Vec3 pixel_delta_u = vec3_div(viewport_u, image_width);
+  Vec3 pixel_delta_v = vec3_div(viewport_v, image_height);
+
+  Vec3 focal_vec = {0.0, 0.0,focal_length};
+
+  // viewport_upper_left = camera - focal - u/2 - v/2
+  Vec3 viewport_upper_left = vec3_sub(
+    vec3_sub(vec3_sub(camera_center, focal_vec), vec3_div(viewport_u, 2)),
+    vec3_div(viewport_v, 2));
+
+  Vec3 pixel00_loc = vec3_add(viewport_upper_left,
+    vec3_mul(vec3_add(pixel_delta_u, pixel_delta_v), 0.5));
+
+
+  // Render
+  for (int j = 0; j < image_height; j++) {
+    fprintf(stderr, "\rScanlines remaining: %d ", image_height - j);
+    for (int i = 0; i < image_width; i++) {
+      Vec3 pixel_center = vec3_add(pixel00_loc,
+        vec3_add(vec3_mul(pixel_delta_u, i), vec3_mul(pixel_delta_v, j)));
+      Vec3 ray_direction = vec3_sub(pixel_center, camera_center);
+      Ray r = {camera_center, ray_direction};
+
+      Vec3 pixel_color = ray_colour(r);
+      image_write_colour(img, i, j, pixel_color);
     }
+  }
+  fprintf(stderr, "\rDone.                    \n");
 
-    // Draw a filled red rectangle
-    Vec3 red = {1.0, 0.0, 0.0};
-    for (int y = 20; y < 60; y++) {
-        for (int x = 20; x < 100; x++) {
-            image_write_colour(img, x, y, red);
-        }
-    }
 
-    // Draw a filled circle (green)
-    Vec3 green = {0.0, 1.0, 0.0};
-    int cx = 180, cy = 180, radius = 40;
-    for (int y = cy - radius; y <= cy + radius; y++) {
-        for (int x = cx - radius; x <= cx + radius; x++) {
-            int dx = x - cx;
-            int dy = y - cy;
-            if (dx * dx + dy * dy <= radius * radius) {
-                image_write_colour(img, x, y, green);
-            }
-        }
-    }
+  image_ppm_save(img, "test_rgb.ppm");
+  printf("Wrote test_rgb.ppm\n");
 
-    // Draw a blue diagonal line
-    Vec3 blue = {0.0, 0.0, 1.0};
-    for (int i = 0; i < 100; i++) {
-        image_write_colour(img, 70 + i, 100 + i, blue);
-        image_write_colour(img, 71 + i, 100 + i, blue);
-    }
-
-    image_ppm_save(img, "test_rgb.ppm");
-    printf("Wrote test_rgb.ppm\n");
-
-    samrena_destroy(arena);
-    return 0;
+  samrena_destroy(arena);
+  return 0;
 }

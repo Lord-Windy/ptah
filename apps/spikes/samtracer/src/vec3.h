@@ -12,12 +12,13 @@ typedef struct {
   double z;
 } Vec3;
 
+typedef Vec3 Point3;
 
 Vec3 vec3_add(Vec3 a, Vec3 b);
 Vec3 vec3_sub(Vec3 a, Vec3 b);
 Vec3 vec3_mul(Vec3 a, double b);
 Vec3 vec3_div(Vec3 a, double b);
-Vec3 vec3_dot(Vec3 a, Vec3 b);
+double vec3_dot(Vec3 a, Vec3 b);
 Vec3 vec3_cross(Vec3 a, Vec3 b);
 Vec3 vec3_unit(Vec3 a);
 

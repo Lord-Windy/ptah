@@ -34,9 +34,8 @@ Vec3 vec3_div(Vec3 a, double b) {
   return (Vec3){a.x / b, a.y / b, a.z / b};
 }
 
-Vec3 vec3_dot(Vec3 a, Vec3 b) {
-  double dot = a.x * b.x + a.y * b.y + a.z * b.z;
-  return (Vec3){dot, dot, dot};
+double vec3_dot(Vec3 a, Vec3 b) {
+  return a.x * b.x + a.y * b.y + a.z * b.z;
 }
 
 Vec3 vec3_cross(Vec3 a, Vec3 b) {

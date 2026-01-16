@@ -78,10 +78,9 @@ TEST(test_vec3_div) {
 TEST(test_vec3_dot) {
   Vec3 a = {1.0, 2.0, 3.0};
   Vec3 b = {4.0, 5.0, 6.0};
-  Vec3 result = vec3_dot(a, b);
+  double result = vec3_dot(a, b);
   // dot product = 1*4 + 2*5 + 3*6 = 4 + 10 + 18 = 32
-  Vec3 expected = {32.0, 32.0, 32.0};
-  return vec3_eq(result, expected);
+  return double_eq(result, 32.0);
 }
 
 TEST(test_vec3_cross) {
