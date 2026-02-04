@@ -20,21 +20,30 @@
 #include "ppm.h"
 #include "ray.h"
 
-bool hit_sphere(Point3 center, double radius, Ray r) {
-  Vec3 oc = vec3_sub(center, r.origin);
-  double a = vec3_dot(r.direction, r.direction);
-  double b = -2.0 * vec3_dot(r.direction, oc);
-  double c = vec3_dot(oc, oc) - radius * radius;
+#include <math.h>
 
-  double discriminant = b * b - 4.0 * a * c;
-  return (discriminant >= 0);
+double hit_sphere(Point3 center, double radius, Ray r) {
+  Vec3 oc = vec3_sub(center, r.origin);
+  double a = vec3_squared_length(r.direction);
+  double h = vec3_dot(r.direction, oc);
+  double c = vec3_squared_length(oc) - radius * radius;
+
+  double discriminant = h*h - a * c;
+
+  if (discriminant < 0) {
+    return -1.0;
+  } else {
+    return (h - sqrt(discriminant)) / (2.0 * a);
+  }
 }
 
 Vec3 ray_colour(Ray r) {
   Vec3 sphere_center = {0.0, 0.0, -1.0};
-  if (hit_sphere(sphere_center, 0.5, r)) {
-    Vec3 red = {1.0, 0, 0};
-    return red;
+  double t = hit_sphere(sphere_center, 0.5, r);
+  if (t > 0.0) {
+    Vec3 N = vec3_unit(vec3_sub(ray_at(r, t), sphere_center));
+    Vec3 return_color = {N.x + 1, N.y + 1, N.z + 1};
+    return vec3_mul(return_color, 0.5);
   }
 
   Vec3 unit_direction = vec3_unit(r.direction);
@@ -82,7 +91,7 @@ int main(void) {
 
   // Render
   for (int j = 0; j < image_height; j++) {
-    fprintf(stderr, "\rScanlines remaining: %d ", image_height - j);
+    printf("\rScanlines remaining: %d ", image_height - j);
     for (int i = 0; i < image_width; i++) {
       Vec3 pixel_center = vec3_add(pixel00_loc,
         vec3_add(vec3_mul(pixel_delta_u, i), vec3_mul(pixel_delta_v, j)));
