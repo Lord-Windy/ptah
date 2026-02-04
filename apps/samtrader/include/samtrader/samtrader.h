@@ -22,7 +22,7 @@
 #include <stdint.h>
 #include <time.h>
 
-#include <samrena/samrena.h>
+#include <samrena.h>
 #include <samdata/samhashmap.h>
 #include <samdata/samset.h>
 
