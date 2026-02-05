@@ -17,6 +17,9 @@ ptah_add_executable(samtrader
         src/main.c
         src/domain/ohlcv.c
         src/domain/indicator.c
+        src/domain/indicator_sma.c
+        src/domain/indicator_ema.c
+        src/domain/indicator_wma.c
     DEPENDENCIES
         samrena
         samdata
@@ -31,14 +34,43 @@ target_include_directories(samtrader PRIVATE
 if(BUILD_TESTING)
     enable_testing()
 
+    # OHLCV data structure tests
     add_executable(samtrader_ohlcv_test
         test/test_ohlcv.c
         src/domain/ohlcv.c
-        src/domain/indicator.c
     )
     target_include_directories(samtrader_ohlcv_test PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/include
     )
     target_link_libraries(samtrader_ohlcv_test PRIVATE samrena samdata m)
     add_test(NAME samtrader_ohlcv_test COMMAND samtrader_ohlcv_test)
+
+    # Indicator data structure tests
+    add_executable(samtrader_indicator_test
+        test/test_indicator.c
+        src/domain/indicator.c
+        src/domain/indicator_sma.c
+        src/domain/indicator_ema.c
+        src/domain/indicator_wma.c
+    )
+    target_include_directories(samtrader_indicator_test PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/include
+    )
+    target_link_libraries(samtrader_indicator_test PRIVATE samrena samdata m)
+    add_test(NAME samtrader_indicator_test COMMAND samtrader_indicator_test)
+
+    # Indicator calculation tests (SMA, EMA, WMA)
+    add_executable(samtrader_indicator_calc_test
+        test/test_indicator_calc.c
+        src/domain/ohlcv.c
+        src/domain/indicator.c
+        src/domain/indicator_sma.c
+        src/domain/indicator_ema.c
+        src/domain/indicator_wma.c
+    )
+    target_include_directories(samtrader_indicator_calc_test PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/include
+    )
+    target_link_libraries(samtrader_indicator_calc_test PRIVATE samrena samdata m)
+    add_test(NAME samtrader_indicator_calc_test COMMAND samtrader_indicator_calc_test)
 endif()
