@@ -397,4 +397,76 @@ bool samtrader_indicator_latest_bollinger(const SamtraderIndicatorSeries *series
 bool samtrader_indicator_latest_pivot(const SamtraderIndicatorSeries *series,
                                       SamtraderPivotValue *out_value);
 
+/*============================================================================
+ * Indicator Calculation Functions
+ *============================================================================*/
+
+/**
+ * @brief Calculate an indicator series from OHLCV data.
+ *
+ * This is the main entry point for calculating indicators. It dispatches
+ * to the appropriate calculation function based on the indicator type.
+ *
+ * Supported types:
+ *   - SAMTRADER_IND_SMA: Simple Moving Average
+ *   - SAMTRADER_IND_EMA: Exponential Moving Average
+ *   - SAMTRADER_IND_WMA: Weighted Moving Average
+ *
+ * @param arena Memory arena for allocation
+ * @param type Indicator type to calculate
+ * @param ohlcv Vector of SamtraderOhlcv price data
+ * @param period Period parameter for the indicator
+ * @return Pointer to the calculated series, or NULL on failure
+ */
+SamtraderIndicatorSeries *samtrader_indicator_calculate(Samrena *arena, SamtraderIndicatorType type,
+                                                        SamrenaVector *ohlcv, int period);
+
+/**
+ * @brief Calculate Simple Moving Average (SMA) from OHLCV data.
+ *
+ * SMA(n) = (P1 + P2 + ... + Pn) / n
+ *
+ * The first (period - 1) values are marked as invalid (warmup period).
+ * Uses the close price for calculation.
+ *
+ * @param arena Memory arena for allocation
+ * @param ohlcv Vector of SamtraderOhlcv price data
+ * @param period Number of periods for the average
+ * @return Pointer to the calculated series, or NULL on failure
+ */
+SamtraderIndicatorSeries *samtrader_calculate_sma(Samrena *arena, SamrenaVector *ohlcv, int period);
+
+/**
+ * @brief Calculate Exponential Moving Average (EMA) from OHLCV data.
+ *
+ * EMA(n) = Price * k + EMA_prev * (1 - k), where k = 2 / (n + 1)
+ *
+ * The first EMA value is initialized to the SMA of the first n periods.
+ * The first (period - 1) values are marked as invalid (warmup period).
+ * Uses the close price for calculation.
+ *
+ * @param arena Memory arena for allocation
+ * @param ohlcv Vector of SamtraderOhlcv price data
+ * @param period Number of periods for the average
+ * @return Pointer to the calculated series, or NULL on failure
+ */
+SamtraderIndicatorSeries *samtrader_calculate_ema(Samrena *arena, SamrenaVector *ohlcv, int period);
+
+/**
+ * @brief Calculate Weighted Moving Average (WMA) from OHLCV data.
+ *
+ * WMA(n) = (n*Pn + (n-1)*P(n-1) + ... + 1*P1) / (n*(n+1)/2)
+ *
+ * The most recent price has the highest weight (n), and the oldest
+ * price in the window has weight 1.
+ * The first (period - 1) values are marked as invalid (warmup period).
+ * Uses the close price for calculation.
+ *
+ * @param arena Memory arena for allocation
+ * @param ohlcv Vector of SamtraderOhlcv price data
+ * @param period Number of periods for the average
+ * @return Pointer to the calculated series, or NULL on failure
+ */
+SamtraderIndicatorSeries *samtrader_calculate_wma(Samrena *arena, SamrenaVector *ohlcv, int period);
+
 #endif /* SAMTRADER_DOMAIN_INDICATOR_H */

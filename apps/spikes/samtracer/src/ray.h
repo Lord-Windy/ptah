@@ -8,8 +8,8 @@
 #include "vec3.h"
 
 typedef struct Ray {
-    Point3 origin;
-    Vec3 direction;
+  Point3 origin;
+  Vec3 direction;
 } Ray;
 
 Point3 ray_at(Ray ray, double t);

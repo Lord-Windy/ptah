@@ -336,3 +336,26 @@ bool samtrader_indicator_latest_pivot(const SamtraderIndicatorSeries *series,
 
   return false;
 }
+
+/*============================================================================
+ * Indicator Calculation Dispatcher
+ *============================================================================*/
+
+SamtraderIndicatorSeries *samtrader_indicator_calculate(Samrena *arena, SamtraderIndicatorType type,
+                                                        SamrenaVector *ohlcv, int period) {
+  if (!arena || !ohlcv) {
+    return NULL;
+  }
+
+  switch (type) {
+    case SAMTRADER_IND_SMA:
+      return samtrader_calculate_sma(arena, ohlcv, period);
+    case SAMTRADER_IND_EMA:
+      return samtrader_calculate_ema(arena, ohlcv, period);
+    case SAMTRADER_IND_WMA:
+      return samtrader_calculate_wma(arena, ohlcv, period);
+    default:
+      /* Unsupported indicator type */
+      return NULL;
+  }
+}

@@ -5,8 +5,8 @@
 #ifndef PTAH_PPM_H
 #define PTAH_PPM_H
 
-#include <stdio.h>
 #include <stdint.h>
+#include <stdio.h>
 
 #include <samrena.h>
 
@@ -18,10 +18,10 @@ typedef struct {
   uint8_t *pixels;
 } Image;
 
-Image* image_create(Samrena* arena, int width, int height);
+Image *image_create(Samrena *arena, int width, int height);
 
-void image_ppm_save(Image* image, const char* filename);
+void image_ppm_save(Image *image, const char *filename);
 
-void image_write_colour(Image* image, int x, int y, Vec3 colour);
+void image_write_colour(Image *image, int x, int y, Vec3 colour);
 
 #endif // PTAH_PPM_H
