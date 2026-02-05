@@ -20,6 +20,7 @@ ptah_add_executable(samtrader
         src/domain/indicator_sma.c
         src/domain/indicator_ema.c
         src/domain/indicator_wma.c
+        src/adapters/postgres_adapter.c
     DEPENDENCIES
         samrena
         samdata
@@ -38,11 +39,13 @@ if(BUILD_TESTING)
     add_executable(samtrader_ohlcv_test
         test/test_ohlcv.c
         src/domain/ohlcv.c
+        src/domain/indicator.c
+        src/adapters/postgres_adapter.c
     )
     target_include_directories(samtrader_ohlcv_test PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/include
     )
-    target_link_libraries(samtrader_ohlcv_test PRIVATE samrena samdata m)
+    target_link_libraries(samtrader_ohlcv_test PRIVATE samrena samdata PostgreSQL::PostgreSQL m)
     add_test(NAME samtrader_ohlcv_test COMMAND samtrader_ohlcv_test)
 
     # Indicator data structure tests
