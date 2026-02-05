@@ -5,7 +5,6 @@
 #ifndef PTAH_VEC3_H
 #define PTAH_VEC3_H
 
-
 typedef struct {
   double x;
   double y;

@@ -18,25 +18,15 @@
 
 #include <math.h>
 
-Vec3 vec3_add(Vec3 a, Vec3 b) {
-  return (Vec3){a.x + b.x, a.y + b.y, a.z + b.z};
-}
+Vec3 vec3_add(Vec3 a, Vec3 b) { return (Vec3){a.x + b.x, a.y + b.y, a.z + b.z}; }
 
-Vec3 vec3_sub(Vec3 a, Vec3 b) {
-  return (Vec3){a.x - b.x, a.y - b.y, a.z - b.z};
-}
+Vec3 vec3_sub(Vec3 a, Vec3 b) { return (Vec3){a.x - b.x, a.y - b.y, a.z - b.z}; }
 
-Vec3 vec3_mul(Vec3 a, double b) {
-  return (Vec3){a.x * b, a.y * b, a.z * b};
-}
+Vec3 vec3_mul(Vec3 a, double b) { return (Vec3){a.x * b, a.y * b, a.z * b}; }
 
-Vec3 vec3_div(Vec3 a, double b) {
-  return (Vec3){a.x / b, a.y / b, a.z / b};
-}
+Vec3 vec3_div(Vec3 a, double b) { return (Vec3){a.x / b, a.y / b, a.z / b}; }
 
-double vec3_dot(Vec3 a, Vec3 b) {
-  return a.x * b.x + a.y * b.y + a.z * b.z;
-}
+double vec3_dot(Vec3 a, Vec3 b) { return a.x * b.x + a.y * b.y + a.z * b.z; }
 
 Vec3 vec3_cross(Vec3 a, Vec3 b) {
   return (Vec3){
@@ -51,14 +41,8 @@ Vec3 vec3_unit(Vec3 a) {
   return vec3_div(a, len);
 }
 
-double vec3_distance(Vec3 a, Vec3 b) {
-  return vec3_length(vec3_sub(a, b));
-}
+double vec3_distance(Vec3 a, Vec3 b) { return vec3_length(vec3_sub(a, b)); }
 
-double vec3_length(Vec3 a) {
-  return sqrt(vec3_squared_length(a));
-}
+double vec3_length(Vec3 a) { return sqrt(vec3_squared_length(a)); }
 
-double vec3_squared_length(Vec3 a) {
-  return a.x * a.x + a.y * a.y + a.z * a.z;
-}
+double vec3_squared_length(Vec3 a) { return a.x * a.x + a.y * a.y + a.z * a.z; }

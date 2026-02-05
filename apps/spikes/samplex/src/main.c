@@ -132,7 +132,7 @@ void test_plex_registry(void) {
 
   // Test plex_destroy
   printf("\n=== Testing plex_destroy ===\n");
-  uint64_t plex1_id = plex1->id;  // Save ID before destroying
+  uint64_t plex1_id = plex1->id; // Save ID before destroying
   plex_destroy(registry, plex1);
   printf("Destroyed plex1\n");
 
@@ -334,14 +334,11 @@ void test_plex_event_loop_run_stop(void) {
 
   // Create a PlexItem for the timeout operation
   printf("Creating PlexItem for timeout test...\n");
-  PlexItem *timeout_item = plex_item_create(
-      "Timeout Test",
-      registry->arena,
-      timeout_handler,
-      timeout_error_handler,
-      NULL,  // no cleanup needed
-      ctx    // pass context as user data
-  );
+  PlexItem *timeout_item =
+      plex_item_create("Timeout Test", registry->arena, timeout_handler, timeout_error_handler,
+                       NULL, // no cleanup needed
+                       ctx   // pass context as user data
+      );
   if (timeout_item == NULL) {
     printf("ERROR: Failed to create PlexItem\n");
     plex_event_loop_destroy(loop);

@@ -24,9 +24,7 @@
 static int tests_run = 0;
 static int tests_passed = 0;
 
-static int double_eq(double a, double b) {
-  return fabs(a - b) < EPSILON;
-}
+static int double_eq(double a, double b) { return fabs(a - b) < EPSILON; }
 
 static int vec3_eq(Vec3 a, Vec3 b) {
   return double_eq(a.x, b.x) && double_eq(a.y, b.y) && double_eq(a.z, b.z);
@@ -34,15 +32,15 @@ static int vec3_eq(Vec3 a, Vec3 b) {
 
 #define TEST(name) static int name(void)
 
-#define RUN_TEST(name)                                                         \
-  do {                                                                         \
-    tests_run++;                                                               \
-    if (name()) {                                                              \
-      tests_passed++;                                                          \
-      printf("  PASS: %s\n", #name);                                           \
-    } else {                                                                   \
-      printf("  FAIL: %s\n", #name);                                           \
-    }                                                                          \
+#define RUN_TEST(name)                                                                             \
+  do {                                                                                             \
+    tests_run++;                                                                                   \
+    if (name()) {                                                                                  \
+      tests_passed++;                                                                              \
+      printf("  PASS: %s\n", #name);                                                               \
+    } else {                                                                                       \
+      printf("  FAIL: %s\n", #name);                                                               \
+    }                                                                                              \
   } while (0)
 
 TEST(test_vec3_add) {

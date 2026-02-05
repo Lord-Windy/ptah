@@ -1,6 +1,6 @@
 #include "plex.h"
-#include <string.h>
 #include <stdio.h>
+#include <string.h>
 
 PlexRegistry *plex_registry_create(uint64_t initial_capacity) {
   // Create Arena for registry allocations

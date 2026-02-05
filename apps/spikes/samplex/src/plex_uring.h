@@ -37,11 +37,11 @@
  * PlexEventLoop - io_uring-based event loop for async operations
  */
 typedef struct PlexEventLoop {
-  struct io_uring ring;     // io_uring instance
-  PlexRegistry *registry;   // Reference to plex registry
-  bool running;             // Loop state flag
-  Samrena *arena;           // Memory backing
-  uint32_t queue_depth;     // CQ/SQ size
+  struct io_uring ring;   // io_uring instance
+  PlexRegistry *registry; // Reference to plex registry
+  bool running;           // Loop state flag
+  Samrena *arena;         // Memory backing
+  uint32_t queue_depth;   // CQ/SQ size
 } PlexEventLoop;
 
 /**
