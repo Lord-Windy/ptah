@@ -22,35 +22,33 @@
 #include <stdint.h>
 #include <time.h>
 
-#include <samrena.h>
 #include <samdata/samhashmap.h>
 #include <samdata/samset.h>
+#include <samrena.h>
 
 /* Error codes */
 typedef enum {
-    SAMTRADER_ERROR_NONE = 0,
-    SAMTRADER_ERROR_NULL_PARAM,
-    SAMTRADER_ERROR_MEMORY,
-    SAMTRADER_ERROR_DB_CONNECTION,
-    SAMTRADER_ERROR_DB_QUERY,
-    SAMTRADER_ERROR_CONFIG_PARSE,
-    SAMTRADER_ERROR_CONFIG_MISSING,
-    SAMTRADER_ERROR_RULE_PARSE,
-    SAMTRADER_ERROR_RULE_INVALID,
-    SAMTRADER_ERROR_NO_DATA,
-    SAMTRADER_ERROR_INSUFFICIENT_DATA,
-    SAMTRADER_ERROR_IO
+  SAMTRADER_ERROR_NONE = 0,
+  SAMTRADER_ERROR_NULL_PARAM,
+  SAMTRADER_ERROR_MEMORY,
+  SAMTRADER_ERROR_DB_CONNECTION,
+  SAMTRADER_ERROR_DB_QUERY,
+  SAMTRADER_ERROR_CONFIG_PARSE,
+  SAMTRADER_ERROR_CONFIG_MISSING,
+  SAMTRADER_ERROR_RULE_PARSE,
+  SAMTRADER_ERROR_RULE_INVALID,
+  SAMTRADER_ERROR_NO_DATA,
+  SAMTRADER_ERROR_INSUFFICIENT_DATA,
+  SAMTRADER_ERROR_IO
 } SamtraderError;
 
 /* Get human-readable error string */
 const char *samtrader_error_string(SamtraderError error);
 
 /* Error callback type */
-typedef void (*SamtraderErrorCallback)(SamtraderError error, const char *message,
-                                       void *user_data);
+typedef void (*SamtraderErrorCallback)(SamtraderError error, const char *message, void *user_data);
 
 /* Set global error callback */
-void samtrader_set_error_callback(SamtraderErrorCallback callback,
-                                  void *user_data);
+void samtrader_set_error_callback(SamtraderErrorCallback callback, void *user_data);
 
 #endif /* SAMTRADER_H */

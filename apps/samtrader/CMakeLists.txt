@@ -17,6 +17,7 @@ ptah_add_executable(samtrader
         src/main.c
         src/domain/ohlcv.c
         src/domain/indicator.c
+        src/adapters/file_config_adapter.c
     DEPENDENCIES
         samrena
         samdata
@@ -41,4 +42,14 @@ if(BUILD_TESTING)
     )
     target_link_libraries(samtrader_ohlcv_test PRIVATE samrena samdata m)
     add_test(NAME samtrader_ohlcv_test COMMAND samtrader_ohlcv_test)
+
+    add_executable(samtrader_config_test
+        test/test_config.c
+        src/adapters/file_config_adapter.c
+    )
+    target_include_directories(samtrader_config_test PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/include
+    )
+    target_link_libraries(samtrader_config_test PRIVATE samrena samdata)
+    add_test(NAME samtrader_config_test COMMAND samtrader_config_test)
 endif()

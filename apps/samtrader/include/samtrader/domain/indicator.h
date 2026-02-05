@@ -31,28 +31,28 @@
  * with struct fields for each output.
  */
 typedef enum {
-    /* Trend Indicators (single value) */
-    SAMTRADER_IND_SMA,        /**< Simple Moving Average */
-    SAMTRADER_IND_EMA,        /**< Exponential Moving Average */
-    SAMTRADER_IND_WMA,        /**< Weighted Moving Average */
+  /* Trend Indicators (single value) */
+  SAMTRADER_IND_SMA, /**< Simple Moving Average */
+  SAMTRADER_IND_EMA, /**< Exponential Moving Average */
+  SAMTRADER_IND_WMA, /**< Weighted Moving Average */
 
-    /* Momentum Indicators */
-    SAMTRADER_IND_RSI,        /**< Relative Strength Index (single value) */
-    SAMTRADER_IND_MACD,       /**< MACD (line, signal, histogram) */
-    SAMTRADER_IND_STOCHASTIC, /**< Stochastic Oscillator (k, d) */
-    SAMTRADER_IND_ROC,        /**< Rate of Change (single value) */
+  /* Momentum Indicators */
+  SAMTRADER_IND_RSI,        /**< Relative Strength Index (single value) */
+  SAMTRADER_IND_MACD,       /**< MACD (line, signal, histogram) */
+  SAMTRADER_IND_STOCHASTIC, /**< Stochastic Oscillator (k, d) */
+  SAMTRADER_IND_ROC,        /**< Rate of Change (single value) */
 
-    /* Volatility Indicators */
-    SAMTRADER_IND_BOLLINGER,  /**< Bollinger Bands (upper, middle, lower) */
-    SAMTRADER_IND_ATR,        /**< Average True Range (single value) */
-    SAMTRADER_IND_STDDEV,     /**< Standard Deviation (single value) */
+  /* Volatility Indicators */
+  SAMTRADER_IND_BOLLINGER, /**< Bollinger Bands (upper, middle, lower) */
+  SAMTRADER_IND_ATR,       /**< Average True Range (single value) */
+  SAMTRADER_IND_STDDEV,    /**< Standard Deviation (single value) */
 
-    /* Volume Indicators (single value) */
-    SAMTRADER_IND_OBV,        /**< On-Balance Volume */
-    SAMTRADER_IND_VWAP,       /**< Volume-Weighted Average Price */
+  /* Volume Indicators (single value) */
+  SAMTRADER_IND_OBV,  /**< On-Balance Volume */
+  SAMTRADER_IND_VWAP, /**< Volume-Weighted Average Price */
 
-    /* Support/Resistance */
-    SAMTRADER_IND_PIVOT       /**< Pivot Points (pivot, r1-r3, s1-s3) */
+  /* Support/Resistance */
+  SAMTRADER_IND_PIVOT /**< Pivot Points (pivot, r1-r3, s1-s3) */
 } SamtraderIndicatorType;
 
 /*============================================================================
@@ -64,7 +64,7 @@ typedef enum {
  * OBV, VWAP)
  */
 typedef struct {
-    double value;
+  double value;
 } SamtraderSimpleIndValue;
 
 /**
@@ -73,9 +73,9 @@ typedef struct {
  * Parameters: fast_period, slow_period, signal_period (typically 12, 26, 9)
  */
 typedef struct {
-    double line;      /**< MACD line (fast EMA - slow EMA) */
-    double signal;    /**< Signal line (EMA of MACD line) */
-    double histogram; /**< Histogram (line - signal) */
+  double line;      /**< MACD line (fast EMA - slow EMA) */
+  double signal;    /**< Signal line (EMA of MACD line) */
+  double histogram; /**< Histogram (line - signal) */
 } SamtraderMacdValue;
 
 /**
@@ -84,8 +84,8 @@ typedef struct {
  * Parameters: k_period, d_period (typically 14, 3)
  */
 typedef struct {
-    double k; /**< %K (fast stochastic) */
-    double d; /**< %D (slow stochastic, SMA of %K) */
+  double k; /**< %K (fast stochastic) */
+  double d; /**< %D (slow stochastic, SMA of %K) */
 } SamtraderStochasticValue;
 
 /**
@@ -94,9 +94,9 @@ typedef struct {
  * Parameters: period, stddev_multiplier (typically 20, 2.0)
  */
 typedef struct {
-    double upper;  /**< Upper band (middle + stddev * multiplier) */
-    double middle; /**< Middle band (SMA) */
-    double lower;  /**< Lower band (middle - stddev * multiplier) */
+  double upper;  /**< Upper band (middle + stddev * multiplier) */
+  double middle; /**< Middle band (SMA) */
+  double lower;  /**< Lower band (middle - stddev * multiplier) */
 } SamtraderBollingerValue;
 
 /**
@@ -105,13 +105,13 @@ typedef struct {
  * Calculated from previous day's high, low, close.
  */
 typedef struct {
-    double pivot; /**< Pivot point: (H + L + C) / 3 */
-    double r1;    /**< Resistance 1: (2 * pivot) - L */
-    double r2;    /**< Resistance 2: pivot + (H - L) */
-    double r3;    /**< Resistance 3: H + 2 * (pivot - L) */
-    double s1;    /**< Support 1: (2 * pivot) - H */
-    double s2;    /**< Support 2: pivot - (H - L) */
-    double s3;    /**< Support 3: L - 2 * (H - pivot) */
+  double pivot; /**< Pivot point: (H + L + C) / 3 */
+  double r1;    /**< Resistance 1: (2 * pivot) - L */
+  double r2;    /**< Resistance 2: pivot + (H - L) */
+  double r3;    /**< Resistance 3: H + 2 * (pivot - L) */
+  double s1;    /**< Support 1: (2 * pivot) - H */
+  double s2;    /**< Support 2: pivot - (H - L) */
+  double s3;    /**< Support 3: L - 2 * (H - pivot) */
 } SamtraderPivotValue;
 
 /*============================================================================
@@ -132,17 +132,17 @@ typedef struct {
  *   - PIVOT -> data.pivot.pivot, data.pivot.r1, ..., data.pivot.s3
  */
 typedef struct {
-    time_t date;                 /**< Unix timestamp for this value */
-    bool valid;                  /**< False during warmup period */
-    SamtraderIndicatorType type; /**< Indicator type (determines union member) */
+  time_t date;                 /**< Unix timestamp for this value */
+  bool valid;                  /**< False during warmup period */
+  SamtraderIndicatorType type; /**< Indicator type (determines union member) */
 
-    union {
-        SamtraderSimpleIndValue simple;
-        SamtraderMacdValue macd;
-        SamtraderStochasticValue stochastic;
-        SamtraderBollingerValue bollinger;
-        SamtraderPivotValue pivot;
-    } data;
+  union {
+    SamtraderSimpleIndValue simple;
+    SamtraderMacdValue macd;
+    SamtraderStochasticValue stochastic;
+    SamtraderBollingerValue bollinger;
+    SamtraderPivotValue pivot;
+  } data;
 } SamtraderIndicatorValue;
 
 /*============================================================================
@@ -164,19 +164,19 @@ typedef struct {
  * - OBV, VWAP, PIVOT: no parameters
  */
 typedef struct {
-    int period;          /**< Primary period (most indicators) */
-    int param2;          /**< Secondary period (MACD slow, Stochastic D) */
-    int param3;          /**< Tertiary period (MACD signal) */
-    double param_double; /**< Double param (Bollinger stddev multiplier) */
+  int period;          /**< Primary period (most indicators) */
+  int param2;          /**< Secondary period (MACD slow, Stochastic D) */
+  int param3;          /**< Tertiary period (MACD signal) */
+  double param_double; /**< Double param (Bollinger stddev multiplier) */
 } SamtraderIndicatorParams;
 
 /**
  * @brief A time series of indicator values.
  */
 typedef struct {
-    SamtraderIndicatorType type;     /**< Type of indicator */
-    SamtraderIndicatorParams params; /**< Calculation parameters */
-    SamrenaVector *values;           /**< Vector of SamtraderIndicatorValue */
+  SamtraderIndicatorType type;     /**< Type of indicator */
+  SamtraderIndicatorParams params; /**< Calculation parameters */
+  SamrenaVector *values;           /**< Vector of SamtraderIndicatorValue */
 } SamtraderIndicatorSeries;
 
 /*============================================================================
@@ -199,9 +199,9 @@ const char *samtrader_indicator_type_name(SamtraderIndicatorType type);
  * @param initial_capacity Initial capacity for the values vector
  * @return Pointer to the created series, or NULL on failure
  */
-SamtraderIndicatorSeries *samtrader_indicator_series_create(
-    Samrena *arena, SamtraderIndicatorType type, int period,
-    uint64_t initial_capacity);
+SamtraderIndicatorSeries *samtrader_indicator_series_create(Samrena *arena,
+                                                            SamtraderIndicatorType type, int period,
+                                                            uint64_t initial_capacity);
 
 /**
  * @brief Create a MACD indicator series.
@@ -213,9 +213,9 @@ SamtraderIndicatorSeries *samtrader_indicator_series_create(
  * @param initial_capacity Initial capacity for the values vector
  * @return Pointer to the created series, or NULL on failure
  */
-SamtraderIndicatorSeries *samtrader_macd_series_create(
-    Samrena *arena, int fast_period, int slow_period, int signal_period,
-    uint64_t initial_capacity);
+SamtraderIndicatorSeries *samtrader_macd_series_create(Samrena *arena, int fast_period,
+                                                       int slow_period, int signal_period,
+                                                       uint64_t initial_capacity);
 
 /**
  * @brief Create a Stochastic indicator series.
@@ -226,8 +226,9 @@ SamtraderIndicatorSeries *samtrader_macd_series_create(
  * @param initial_capacity Initial capacity for the values vector
  * @return Pointer to the created series, or NULL on failure
  */
-SamtraderIndicatorSeries *samtrader_stochastic_series_create(
-    Samrena *arena, int k_period, int d_period, uint64_t initial_capacity);
+SamtraderIndicatorSeries *samtrader_stochastic_series_create(Samrena *arena, int k_period,
+                                                             int d_period,
+                                                             uint64_t initial_capacity);
 
 /**
  * @brief Create a Bollinger Bands indicator series.
@@ -238,9 +239,9 @@ SamtraderIndicatorSeries *samtrader_stochastic_series_create(
  * @param initial_capacity Initial capacity for the values vector
  * @return Pointer to the created series, or NULL on failure
  */
-SamtraderIndicatorSeries *samtrader_bollinger_series_create(
-    Samrena *arena, int period, double stddev_multiplier,
-    uint64_t initial_capacity);
+SamtraderIndicatorSeries *samtrader_bollinger_series_create(Samrena *arena, int period,
+                                                            double stddev_multiplier,
+                                                            uint64_t initial_capacity);
 
 /**
  * @brief Create a Pivot Points indicator series.
@@ -249,8 +250,7 @@ SamtraderIndicatorSeries *samtrader_bollinger_series_create(
  * @param initial_capacity Initial capacity for the values vector
  * @return Pointer to the created series, or NULL on failure
  */
-SamtraderIndicatorSeries *samtrader_pivot_series_create(Samrena *arena,
-                                                        uint64_t initial_capacity);
+SamtraderIndicatorSeries *samtrader_pivot_series_create(Samrena *arena, uint64_t initial_capacity);
 
 /**
  * @brief Add a simple indicator value to a series.
@@ -263,8 +263,8 @@ SamtraderIndicatorSeries *samtrader_pivot_series_create(Samrena *arena,
  * @param valid Whether the value is valid (false during warmup)
  * @return Pointer to the added value, or NULL on failure
  */
-SamtraderIndicatorValue *samtrader_indicator_add_simple(
-    SamtraderIndicatorSeries *series, time_t date, double value, bool valid);
+SamtraderIndicatorValue *samtrader_indicator_add_simple(SamtraderIndicatorSeries *series,
+                                                        time_t date, double value, bool valid);
 
 /**
  * @brief Add a MACD value to a series.
@@ -277,9 +277,9 @@ SamtraderIndicatorValue *samtrader_indicator_add_simple(
  * @param valid Whether the value is valid (false during warmup)
  * @return Pointer to the added value, or NULL on failure
  */
-SamtraderIndicatorValue *samtrader_indicator_add_macd(
-    SamtraderIndicatorSeries *series, time_t date, double line, double signal,
-    double histogram, bool valid);
+SamtraderIndicatorValue *samtrader_indicator_add_macd(SamtraderIndicatorSeries *series, time_t date,
+                                                      double line, double signal, double histogram,
+                                                      bool valid);
 
 /**
  * @brief Add a Stochastic value to a series.
@@ -291,9 +291,9 @@ SamtraderIndicatorValue *samtrader_indicator_add_macd(
  * @param valid Whether the value is valid (false during warmup)
  * @return Pointer to the added value, or NULL on failure
  */
-SamtraderIndicatorValue *samtrader_indicator_add_stochastic(
-    SamtraderIndicatorSeries *series, time_t date, double k, double d,
-    bool valid);
+SamtraderIndicatorValue *samtrader_indicator_add_stochastic(SamtraderIndicatorSeries *series,
+                                                            time_t date, double k, double d,
+                                                            bool valid);
 
 /**
  * @brief Add a Bollinger Bands value to a series.
@@ -306,9 +306,9 @@ SamtraderIndicatorValue *samtrader_indicator_add_stochastic(
  * @param valid Whether the value is valid (false during warmup)
  * @return Pointer to the added value, or NULL on failure
  */
-SamtraderIndicatorValue *samtrader_indicator_add_bollinger(
-    SamtraderIndicatorSeries *series, time_t date, double upper, double middle,
-    double lower, bool valid);
+SamtraderIndicatorValue *samtrader_indicator_add_bollinger(SamtraderIndicatorSeries *series,
+                                                           time_t date, double upper, double middle,
+                                                           double lower, bool valid);
 
 /**
  * @brief Add a Pivot Points value to a series.
@@ -325,9 +325,10 @@ SamtraderIndicatorValue *samtrader_indicator_add_bollinger(
  * @param valid Whether the value is valid
  * @return Pointer to the added value, or NULL on failure
  */
-SamtraderIndicatorValue *samtrader_indicator_add_pivot(
-    SamtraderIndicatorSeries *series, time_t date, double pivot, double r1,
-    double r2, double r3, double s1, double s2, double s3, bool valid);
+SamtraderIndicatorValue *samtrader_indicator_add_pivot(SamtraderIndicatorSeries *series,
+                                                       time_t date, double pivot, double r1,
+                                                       double r2, double r3, double s1, double s2,
+                                                       double s3, bool valid);
 
 /**
  * @brief Get an indicator value at a specific index.
@@ -336,8 +337,8 @@ SamtraderIndicatorValue *samtrader_indicator_add_pivot(
  * @param index Index into the series (0 = oldest)
  * @return Pointer to the value, or NULL if index out of bounds
  */
-const SamtraderIndicatorValue *samtrader_indicator_series_at(
-    const SamtraderIndicatorSeries *series, size_t index);
+const SamtraderIndicatorValue *samtrader_indicator_series_at(const SamtraderIndicatorSeries *series,
+                                                             size_t index);
 
 /**
  * @brief Get the number of values in an indicator series.
@@ -354,8 +355,7 @@ size_t samtrader_indicator_series_size(const SamtraderIndicatorSeries *series);
  * @param out_value Pointer to store the value (if found)
  * @return true if a valid value was found, false otherwise
  */
-bool samtrader_indicator_latest_simple(const SamtraderIndicatorSeries *series,
-                                       double *out_value);
+bool samtrader_indicator_latest_simple(const SamtraderIndicatorSeries *series, double *out_value);
 
 /**
  * @brief Get the latest valid MACD value from a series.
@@ -374,8 +374,8 @@ bool samtrader_indicator_latest_macd(const SamtraderIndicatorSeries *series,
  * @param out_value Pointer to store the Stochastic values (if found)
  * @return true if a valid value was found, false otherwise
  */
-bool samtrader_indicator_latest_stochastic(
-    const SamtraderIndicatorSeries *series, SamtraderStochasticValue *out_value);
+bool samtrader_indicator_latest_stochastic(const SamtraderIndicatorSeries *series,
+                                           SamtraderStochasticValue *out_value);
 
 /**
  * @brief Get the latest valid Bollinger value from a series.
@@ -384,8 +384,8 @@ bool samtrader_indicator_latest_stochastic(
  * @param out_value Pointer to store the Bollinger values (if found)
  * @return true if a valid value was found, false otherwise
  */
-bool samtrader_indicator_latest_bollinger(
-    const SamtraderIndicatorSeries *series, SamtraderBollingerValue *out_value);
+bool samtrader_indicator_latest_bollinger(const SamtraderIndicatorSeries *series,
+                                          SamtraderBollingerValue *out_value);
 
 /**
  * @brief Get the latest valid Pivot value from a series.
