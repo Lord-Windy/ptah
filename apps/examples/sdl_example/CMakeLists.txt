@@ -12,24 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Include the Ptah Library Manager
-include(${CMAKE_SOURCE_DIR}/cmake/PtahLibraryManager.cmake)
-
-# Add SDL3 library using Ptah Library Manager
-ptah_add_library(
-    NAME SDL3
-    GIT_REPOSITORY https://github.com/libsdl-org/SDL
-    VERSION main
-    BUILD_SYSTEM cmake
-    CMAKE_ARGS
-        -DSDL_STATIC=ON
-        -DSDL_SHARED=OFF
-        -DSDL_TEST=OFF
-        -DSDL_EXAMPLES=OFF
-)
-
-# Find the SDL3 library
-ptah_find_library(SDL3)
+# Find system SDL3
+find_package(SDL3 REQUIRED)
 
 # Create the SDL example executable
 ptah_add_executable(sdl_example
