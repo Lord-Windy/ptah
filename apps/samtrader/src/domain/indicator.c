@@ -356,6 +356,10 @@ SamtraderIndicatorSeries *samtrader_indicator_calculate(Samrena *arena, Samtrade
       return samtrader_calculate_wma(arena, ohlcv, period);
     case SAMTRADER_IND_RSI:
       return samtrader_calculate_rsi(arena, ohlcv, period);
+    case SAMTRADER_IND_MACD:
+      return samtrader_calculate_macd(arena, ohlcv, 12, 26, 9);
+    case SAMTRADER_IND_STOCHASTIC:
+      return samtrader_calculate_stochastic(arena, ohlcv, period, 3);
     case SAMTRADER_IND_BOLLINGER:
       return samtrader_calculate_bollinger(arena, ohlcv, period, 2.0);
     default:

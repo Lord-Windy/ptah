@@ -813,10 +813,22 @@ static int test_indicator_calculate_dispatcher(void) {
   ASSERT(bb != NULL, "Bollinger dispatch should work");
   ASSERT(bb->type == SAMTRADER_IND_BOLLINGER, "Should be BOLLINGER type");
 
-  /* Test unsupported type */
+  /* Test MACD dispatch (uses default 12/26/9) */
   SamtraderIndicatorSeries *macd =
       samtrader_indicator_calculate(arena, SAMTRADER_IND_MACD, ohlcv, 14);
-  ASSERT(macd == NULL, "Unsupported type should return NULL");
+  ASSERT(macd != NULL, "MACD dispatch should work");
+  ASSERT(macd->type == SAMTRADER_IND_MACD, "Should be MACD type");
+
+  /* Test Stochastic dispatch (uses period for %K, default 3 for %D) */
+  SamtraderIndicatorSeries *stoch =
+      samtrader_indicator_calculate(arena, SAMTRADER_IND_STOCHASTIC, ohlcv, 3);
+  ASSERT(stoch != NULL, "Stochastic dispatch should work");
+  ASSERT(stoch->type == SAMTRADER_IND_STOCHASTIC, "Should be STOCHASTIC type");
+
+  /* Test unsupported type */
+  SamtraderIndicatorSeries *roc =
+      samtrader_indicator_calculate(arena, SAMTRADER_IND_ROC, ohlcv, 14);
+  ASSERT(roc == NULL, "Unsupported type should return NULL");
 
   samrena_destroy(arena);
   printf("  PASS\n");

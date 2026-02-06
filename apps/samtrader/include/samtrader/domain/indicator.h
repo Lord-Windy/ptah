@@ -412,6 +412,8 @@ bool samtrader_indicator_latest_pivot(const SamtraderIndicatorSeries *series,
  *   - SAMTRADER_IND_EMA: Exponential Moving Average
  *   - SAMTRADER_IND_WMA: Weighted Moving Average
  *   - SAMTRADER_IND_RSI: Relative Strength Index
+ *   - SAMTRADER_IND_MACD: MACD (uses default 12/26/9 periods)
+ *   - SAMTRADER_IND_STOCHASTIC: Stochastic (uses period for %K, default 3 for %D)
  *   - SAMTRADER_IND_BOLLINGER: Bollinger Bands (uses default 2.0 stddev)
  *
  * @param arena Memory arena for allocation
@@ -507,5 +509,45 @@ SamtraderIndicatorSeries *samtrader_calculate_rsi(Samrena *arena, SamrenaVector 
  */
 SamtraderIndicatorSeries *samtrader_calculate_bollinger(Samrena *arena, SamrenaVector *ohlcv,
                                                         int period, double stddev_multiplier);
+
+/**
+ * @brief Calculate MACD (Moving Average Convergence Divergence) from OHLCV data.
+ *
+ * MACD Line = EMA(fast_period) - EMA(slow_period)
+ * Signal Line = EMA(signal_period) of MACD Line
+ * Histogram = MACD Line - Signal Line
+ *
+ * The first (max(fast, slow) - 1 + signal - 1) values are marked as invalid
+ * (warmup period). Uses the close price for calculation.
+ *
+ * @param arena Memory arena for allocation
+ * @param ohlcv Vector of SamtraderOhlcv price data
+ * @param fast_period Fast EMA period (typically 12)
+ * @param slow_period Slow EMA period (typically 26)
+ * @param signal_period Signal line EMA period (typically 9)
+ * @return Pointer to the calculated series, or NULL on failure
+ */
+SamtraderIndicatorSeries *samtrader_calculate_macd(Samrena *arena, SamrenaVector *ohlcv,
+                                                   int fast_period, int slow_period,
+                                                   int signal_period);
+
+/**
+ * @brief Calculate Stochastic Oscillator from OHLCV data.
+ *
+ * %K = 100 * (close - lowest_low) / (highest_high - lowest_low)
+ * %D = SMA(d_period) of %K
+ *
+ * Uses high and low prices for the lookback window, and close for %K.
+ * The first (k_period - 1 + d_period - 1) values are marked as invalid
+ * (warmup period).
+ *
+ * @param arena Memory arena for allocation
+ * @param ohlcv Vector of SamtraderOhlcv price data
+ * @param k_period %K lookback period (typically 14)
+ * @param d_period %D smoothing period (typically 3)
+ * @return Pointer to the calculated series, or NULL on failure
+ */
+SamtraderIndicatorSeries *samtrader_calculate_stochastic(Samrena *arena, SamrenaVector *ohlcv,
+                                                         int k_period, int d_period);
 
 #endif /* SAMTRADER_DOMAIN_INDICATOR_H */
