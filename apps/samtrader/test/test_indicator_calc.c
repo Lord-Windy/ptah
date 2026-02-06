@@ -345,6 +345,237 @@ static int test_wma_invalid_params(void) {
 }
 
 /*============================================================================
+ * RSI Tests
+ *============================================================================*/
+
+static int test_rsi_basic(void) {
+  printf("Testing RSI basic calculation...\n");
+
+  Samrena *arena = samrena_create_default();
+  ASSERT(arena != NULL, "Failed to create arena");
+
+  /* Data with alternating gains and losses, period 5 */
+  double closes[] = {44.0,  44.25, 44.50, 43.75, 44.50, 44.25, 43.75, 44.00,
+                     43.50, 44.00, 44.50, 44.25, 44.75, 45.00, 45.50};
+  SamrenaVector *ohlcv = create_test_ohlcv(arena, closes, 15);
+  ASSERT(ohlcv != NULL, "Failed to create OHLCV data");
+
+  SamtraderIndicatorSeries *rsi = samtrader_calculate_rsi(arena, ohlcv, 5);
+  ASSERT(rsi != NULL, "Failed to calculate RSI");
+  ASSERT(rsi->type == SAMTRADER_IND_RSI, "Type should be RSI");
+  ASSERT(rsi->params.period == 5, "Period should be 5");
+  ASSERT(samtrader_indicator_series_size(rsi) == 15, "Should have 15 values");
+
+  /* First 5 values (indices 0-4) should be invalid (warmup) */
+  for (size_t i = 0; i < 5; i++) {
+    const SamtraderIndicatorValue *val = samtrader_indicator_series_at(rsi, i);
+    ASSERT(val != NULL && val->valid == false, "Warmup values should be invalid");
+  }
+
+  /* Index 5 should be the first valid RSI value */
+  const SamtraderIndicatorValue *val = samtrader_indicator_series_at(rsi, 5);
+  ASSERT(val != NULL && val->valid == true, "Index 5 should be valid");
+
+  /* All valid RSI values should be in [0, 100] */
+  for (size_t i = 5; i < 15; i++) {
+    val = samtrader_indicator_series_at(rsi, i);
+    ASSERT(val != NULL && val->valid == true, "Should be valid");
+    ASSERT(val->data.simple.value >= 0.0 && val->data.simple.value <= 100.0,
+           "RSI should be between 0 and 100");
+  }
+
+  samrena_destroy(arena);
+  printf("  PASS\n");
+  return 0;
+}
+
+static int test_rsi_all_gains(void) {
+  printf("Testing RSI with all gains (monotonically rising)...\n");
+
+  Samrena *arena = samrena_create_default();
+  ASSERT(arena != NULL, "Failed to create arena");
+
+  /* Monotonically rising prices */
+  double closes[] = {1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0};
+  SamrenaVector *ohlcv = create_test_ohlcv(arena, closes, 10);
+
+  SamtraderIndicatorSeries *rsi = samtrader_calculate_rsi(arena, ohlcv, 5);
+  ASSERT(rsi != NULL, "Failed to calculate RSI");
+
+  /* With all gains and no losses, RSI should be 100 */
+  for (size_t i = 5; i < 10; i++) {
+    const SamtraderIndicatorValue *val = samtrader_indicator_series_at(rsi, i);
+    ASSERT(val != NULL && val->valid == true, "Should be valid");
+    ASSERT_DOUBLE_EQ(val->data.simple.value, 100.0, "RSI should be 100 with all gains");
+  }
+
+  samrena_destroy(arena);
+  printf("  PASS\n");
+  return 0;
+}
+
+static int test_rsi_all_losses(void) {
+  printf("Testing RSI with all losses (monotonically falling)...\n");
+
+  Samrena *arena = samrena_create_default();
+  ASSERT(arena != NULL, "Failed to create arena");
+
+  /* Monotonically falling prices */
+  double closes[] = {10.0, 9.0, 8.0, 7.0, 6.0, 5.0, 4.0, 3.0, 2.0, 1.0};
+  SamrenaVector *ohlcv = create_test_ohlcv(arena, closes, 10);
+
+  SamtraderIndicatorSeries *rsi = samtrader_calculate_rsi(arena, ohlcv, 5);
+  ASSERT(rsi != NULL, "Failed to calculate RSI");
+
+  /* With all losses and no gains, RSI should be 0 */
+  for (size_t i = 5; i < 10; i++) {
+    const SamtraderIndicatorValue *val = samtrader_indicator_series_at(rsi, i);
+    ASSERT(val != NULL && val->valid == true, "Should be valid");
+    ASSERT_DOUBLE_EQ(val->data.simple.value, 0.0, "RSI should be 0 with all losses");
+  }
+
+  samrena_destroy(arena);
+  printf("  PASS\n");
+  return 0;
+}
+
+static int test_rsi_constant(void) {
+  printf("Testing RSI with constant prices...\n");
+
+  Samrena *arena = samrena_create_default();
+  ASSERT(arena != NULL, "Failed to create arena");
+
+  /* Constant prices - no gains or losses */
+  double closes[] = {50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0};
+  SamrenaVector *ohlcv = create_test_ohlcv(arena, closes, 8);
+
+  SamtraderIndicatorSeries *rsi = samtrader_calculate_rsi(arena, ohlcv, 3);
+  ASSERT(rsi != NULL, "Failed to calculate RSI");
+
+  /* With no gains and no losses, RSI should be 50 */
+  for (size_t i = 3; i < 8; i++) {
+    const SamtraderIndicatorValue *val = samtrader_indicator_series_at(rsi, i);
+    ASSERT(val != NULL && val->valid == true, "Should be valid");
+    ASSERT_DOUBLE_EQ(val->data.simple.value, 50.0, "RSI should be 50 with constant prices");
+  }
+
+  samrena_destroy(arena);
+  printf("  PASS\n");
+  return 0;
+}
+
+static int test_rsi_period_1(void) {
+  printf("Testing RSI with period 1...\n");
+
+  Samrena *arena = samrena_create_default();
+  ASSERT(arena != NULL, "Failed to create arena");
+
+  double closes[] = {10.0, 12.0, 11.0, 13.0};
+  SamrenaVector *ohlcv = create_test_ohlcv(arena, closes, 4);
+
+  SamtraderIndicatorSeries *rsi = samtrader_calculate_rsi(arena, ohlcv, 1);
+  ASSERT(rsi != NULL, "Failed to calculate RSI");
+
+  /* Index 0 is invalid, rest should be valid */
+  const SamtraderIndicatorValue *val = samtrader_indicator_series_at(rsi, 0);
+  ASSERT(val != NULL && val->valid == false, "Index 0 should be invalid");
+
+  /* Index 1: gain of 2.0, no loss -> RSI = 100 */
+  val = samtrader_indicator_series_at(rsi, 1);
+  ASSERT(val != NULL && val->valid == true, "Index 1 should be valid");
+  ASSERT_DOUBLE_EQ(val->data.simple.value, 100.0, "RSI should be 100 for pure gain");
+
+  /* Index 2: loss of 1.0, smoothed avg_gain decays -> RSI < 100 */
+  val = samtrader_indicator_series_at(rsi, 2);
+  ASSERT(val != NULL && val->valid == true, "Index 2 should be valid");
+  ASSERT_DOUBLE_EQ(val->data.simple.value, 0.0, "RSI period 1 pure loss");
+
+  /* Index 3: gain of 2.0 -> RSI = 100 */
+  val = samtrader_indicator_series_at(rsi, 3);
+  ASSERT(val != NULL && val->valid == true, "Index 3 should be valid");
+  ASSERT_DOUBLE_EQ(val->data.simple.value, 100.0, "RSI should be 100 for pure gain");
+
+  samrena_destroy(arena);
+  printf("  PASS\n");
+  return 0;
+}
+
+static int test_rsi_invalid_params(void) {
+  printf("Testing RSI with invalid parameters...\n");
+
+  Samrena *arena = samrena_create_default();
+  ASSERT(arena != NULL, "Failed to create arena");
+
+  double closes[] = {1.0, 2.0, 3.0};
+  SamrenaVector *ohlcv = create_test_ohlcv(arena, closes, 3);
+
+  ASSERT(samtrader_calculate_rsi(NULL, ohlcv, 14) == NULL, "NULL arena should fail");
+  ASSERT(samtrader_calculate_rsi(arena, NULL, 14) == NULL, "NULL ohlcv should fail");
+  ASSERT(samtrader_calculate_rsi(arena, ohlcv, 0) == NULL, "Period 0 should fail");
+  ASSERT(samtrader_calculate_rsi(arena, ohlcv, -1) == NULL, "Negative period should fail");
+
+  SamrenaVector *empty = samtrader_ohlcv_vector_create(arena, 10);
+  ASSERT(samtrader_calculate_rsi(arena, empty, 14) == NULL, "Empty vector should fail");
+
+  samrena_destroy(arena);
+  printf("  PASS\n");
+  return 0;
+}
+
+static int test_rsi_known_values(void) {
+  printf("Testing RSI with hand-calculated values...\n");
+
+  Samrena *arena = samrena_create_default();
+  ASSERT(arena != NULL, "Failed to create arena");
+
+  /* Simple dataset for manual verification with period 3:
+   * Prices: 10, 12, 11, 13, 12, 14
+   * Changes:    +2, -1, +2, -1, +2
+   * First 3 changes (i=1,2,3): gains={2,0,2}=4, losses={0,1,0}=1
+   * Avg gain = 4/3 = 1.3333, Avg loss = 1/3 = 0.3333
+   * RS = 1.3333/0.3333 = 4.0, RSI = 100 - 100/(1+4) = 80.0
+   */
+  double closes[] = {10.0, 12.0, 11.0, 13.0, 12.0, 14.0};
+  SamrenaVector *ohlcv = create_test_ohlcv(arena, closes, 6);
+
+  SamtraderIndicatorSeries *rsi = samtrader_calculate_rsi(arena, ohlcv, 3);
+  ASSERT(rsi != NULL, "Failed to calculate RSI");
+
+  /* First valid RSI at index 3 */
+  const SamtraderIndicatorValue *val = samtrader_indicator_series_at(rsi, 3);
+  ASSERT(val != NULL && val->valid == true, "Index 3 should be valid");
+  ASSERT_DOUBLE_EQ(val->data.simple.value, 80.0, "RSI at index 3");
+
+  /* Index 4: change = -1 (loss)
+   * Avg gain = (1.3333 * 2 + 0) / 3 = 0.8889
+   * Avg loss = (0.3333 * 2 + 1) / 3 = 0.5556
+   * RS = 0.8889 / 0.5556 = 1.6, RSI = 100 - 100/2.6 = 61.5385
+   */
+  val = samtrader_indicator_series_at(rsi, 4);
+  ASSERT(val != NULL && val->valid == true, "Index 4 should be valid");
+  ASSERT_DOUBLE_EQ(val->data.simple.value, 100.0 - 100.0 / 2.6, "RSI at index 4");
+
+  /* Index 5: change = +2 (gain)
+   * Avg gain = (0.8889 * 2 + 2) / 3 = 1.2593
+   * Avg loss = (0.5556 * 2 + 0) / 3 = 0.3704
+   * RS = 1.2593 / 0.3704 = 3.4, RSI = 100 - 100/4.4 = 77.2727
+   */
+  val = samtrader_indicator_series_at(rsi, 5);
+  ASSERT(val != NULL && val->valid == true, "Index 5 should be valid");
+  double expected_avg_gain = ((4.0 / 3.0) * 2.0 + 0.0) / 3.0;
+  double expected_avg_loss = ((1.0 / 3.0) * 2.0 + 1.0) / 3.0;
+  expected_avg_gain = (expected_avg_gain * 2.0 + 2.0) / 3.0;
+  expected_avg_loss = (expected_avg_loss * 2.0 + 0.0) / 3.0;
+  double expected_rs = expected_avg_gain / expected_avg_loss;
+  double expected_rsi = 100.0 - (100.0 / (1.0 + expected_rs));
+  ASSERT_DOUBLE_EQ(val->data.simple.value, expected_rsi, "RSI at index 5");
+
+  samrena_destroy(arena);
+  printf("  PASS\n");
+  return 0;
+}
+
+/*============================================================================
  * Dispatcher Tests
  *============================================================================*/
 
@@ -372,10 +603,15 @@ static int test_indicator_calculate_dispatcher(void) {
   ASSERT(wma != NULL, "WMA dispatch should work");
   ASSERT(wma->type == SAMTRADER_IND_WMA, "Should be WMA type");
 
+  /* Test RSI dispatch */
+  SamtraderIndicatorSeries *rsi = samtrader_indicator_calculate(arena, SAMTRADER_IND_RSI, ohlcv, 3);
+  ASSERT(rsi != NULL, "RSI dispatch should work");
+  ASSERT(rsi->type == SAMTRADER_IND_RSI, "Should be RSI type");
+
   /* Test unsupported type */
-  SamtraderIndicatorSeries *rsi =
-      samtrader_indicator_calculate(arena, SAMTRADER_IND_RSI, ohlcv, 14);
-  ASSERT(rsi == NULL, "Unsupported type should return NULL");
+  SamtraderIndicatorSeries *macd =
+      samtrader_indicator_calculate(arena, SAMTRADER_IND_MACD, ohlcv, 14);
+  ASSERT(macd == NULL, "Unsupported type should return NULL");
 
   samrena_destroy(arena);
   printf("  PASS\n");
@@ -442,6 +678,15 @@ int main(void) {
   failures += test_wma_basic();
   failures += test_wma_weighting();
   failures += test_wma_invalid_params();
+
+  /* RSI tests */
+  failures += test_rsi_basic();
+  failures += test_rsi_all_gains();
+  failures += test_rsi_all_losses();
+  failures += test_rsi_constant();
+  failures += test_rsi_period_1();
+  failures += test_rsi_invalid_params();
+  failures += test_rsi_known_values();
 
   /* Dispatcher test */
   failures += test_indicator_calculate_dispatcher();

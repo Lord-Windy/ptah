@@ -20,6 +20,7 @@ ptah_add_executable(samtrader
         src/domain/indicator_sma.c
         src/domain/indicator_ema.c
         src/domain/indicator_wma.c
+        src/domain/indicator_rsi.c
         src/adapters/file_config_adapter.c
         src/adapters/postgres_adapter.c
     DEPENDENCIES
@@ -67,6 +68,7 @@ if(BUILD_TESTING)
         src/domain/indicator_sma.c
         src/domain/indicator_ema.c
         src/domain/indicator_wma.c
+        src/domain/indicator_rsi.c
     )
     target_include_directories(samtrader_indicator_test PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/include
@@ -74,7 +76,7 @@ if(BUILD_TESTING)
     target_link_libraries(samtrader_indicator_test PRIVATE samrena samdata m)
     add_test(NAME samtrader_indicator_test COMMAND samtrader_indicator_test)
 
-    # Indicator calculation tests (SMA, EMA, WMA)
+    # Indicator calculation tests (SMA, EMA, WMA, RSI)
     add_executable(samtrader_indicator_calc_test
         test/test_indicator_calc.c
         src/domain/ohlcv.c
@@ -82,6 +84,7 @@ if(BUILD_TESTING)
         src/domain/indicator_sma.c
         src/domain/indicator_ema.c
         src/domain/indicator_wma.c
+        src/domain/indicator_rsi.c
     )
     target_include_directories(samtrader_indicator_calc_test PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/include

@@ -411,6 +411,7 @@ bool samtrader_indicator_latest_pivot(const SamtraderIndicatorSeries *series,
  *   - SAMTRADER_IND_SMA: Simple Moving Average
  *   - SAMTRADER_IND_EMA: Exponential Moving Average
  *   - SAMTRADER_IND_WMA: Weighted Moving Average
+ *   - SAMTRADER_IND_RSI: Relative Strength Index
  *
  * @param arena Memory arena for allocation
  * @param type Indicator type to calculate
@@ -468,5 +469,22 @@ SamtraderIndicatorSeries *samtrader_calculate_ema(Samrena *arena, SamrenaVector 
  * @return Pointer to the calculated series, or NULL on failure
  */
 SamtraderIndicatorSeries *samtrader_calculate_wma(Samrena *arena, SamrenaVector *ohlcv, int period);
+
+/**
+ * @brief Calculate Relative Strength Index (RSI) from OHLCV data.
+ *
+ * RSI = 100 - (100 / (1 + RS)), where RS = Avg Gain / Avg Loss
+ *
+ * The first average is a simple mean over the period. Subsequent values
+ * use Wilder's smoothing: Avg = (prev_Avg * (period-1) + current) / period.
+ * The first `period` values are marked as invalid (warmup period).
+ * Uses the close price for calculation.
+ *
+ * @param arena Memory arena for allocation
+ * @param ohlcv Vector of SamtraderOhlcv price data
+ * @param period Number of periods (typically 14)
+ * @return Pointer to the calculated series, or NULL on failure
+ */
+SamtraderIndicatorSeries *samtrader_calculate_rsi(Samrena *arena, SamrenaVector *ohlcv, int period);
 
 #endif /* SAMTRADER_DOMAIN_INDICATOR_H */

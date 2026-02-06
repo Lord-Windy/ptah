@@ -354,6 +354,8 @@ SamtraderIndicatorSeries *samtrader_indicator_calculate(Samrena *arena, Samtrade
       return samtrader_calculate_ema(arena, ohlcv, period);
     case SAMTRADER_IND_WMA:
       return samtrader_calculate_wma(arena, ohlcv, period);
+    case SAMTRADER_IND_RSI:
+      return samtrader_calculate_rsi(arena, ohlcv, period);
     default:
       /* Unsupported indicator type */
       return NULL;
