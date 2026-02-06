@@ -576,6 +576,205 @@ static int test_rsi_known_values(void) {
 }
 
 /*============================================================================
+ * Bollinger Bands Tests
+ *============================================================================*/
+
+static int test_bollinger_basic(void) {
+  printf("Testing Bollinger Bands basic calculation...\n");
+
+  Samrena *arena = samrena_create_default();
+  ASSERT(arena != NULL, "Failed to create arena");
+
+  /* Data: 1, 2, 3, 4, 5 with period 3, stddev multiplier 2.0 */
+  double closes[] = {1.0, 2.0, 3.0, 4.0, 5.0};
+  SamrenaVector *ohlcv = create_test_ohlcv(arena, closes, 5);
+  ASSERT(ohlcv != NULL, "Failed to create OHLCV data");
+
+  SamtraderIndicatorSeries *bb = samtrader_calculate_bollinger(arena, ohlcv, 3, 2.0);
+  ASSERT(bb != NULL, "Failed to calculate Bollinger Bands");
+  ASSERT(bb->type == SAMTRADER_IND_BOLLINGER, "Type should be BOLLINGER");
+  ASSERT(bb->params.period == 3, "Period should be 3");
+  ASSERT(samtrader_indicator_series_size(bb) == 5, "Should have 5 values");
+
+  /* First two values should be invalid (warmup) */
+  const SamtraderIndicatorValue *val = samtrader_indicator_series_at(bb, 0);
+  ASSERT(val != NULL && val->valid == false, "Index 0 should be invalid");
+
+  val = samtrader_indicator_series_at(bb, 1);
+  ASSERT(val != NULL && val->valid == false, "Index 1 should be invalid");
+
+  /* Index 2: SMA = (1+2+3)/3 = 2.0
+   * StdDev = sqrt(((1-2)^2 + (2-2)^2 + (3-2)^2) / 3) = sqrt(2/3) = 0.8165
+   * Upper = 2.0 + 2.0 * 0.8165 = 3.6330
+   * Lower = 2.0 - 2.0 * 0.8165 = 0.3670 */
+  val = samtrader_indicator_series_at(bb, 2);
+  ASSERT(val != NULL && val->valid == true, "Index 2 should be valid");
+  ASSERT_DOUBLE_EQ(val->data.bollinger.middle, 2.0, "Middle at index 2");
+  double stddev_2 = sqrt(2.0 / 3.0);
+  ASSERT_DOUBLE_EQ(val->data.bollinger.upper, 2.0 + 2.0 * stddev_2, "Upper at index 2");
+  ASSERT_DOUBLE_EQ(val->data.bollinger.lower, 2.0 - 2.0 * stddev_2, "Lower at index 2");
+
+  /* Index 3: SMA = (2+3+4)/3 = 3.0
+   * StdDev = sqrt(((2-3)^2 + (3-3)^2 + (4-3)^2) / 3) = sqrt(2/3) */
+  val = samtrader_indicator_series_at(bb, 3);
+  ASSERT(val != NULL && val->valid == true, "Index 3 should be valid");
+  ASSERT_DOUBLE_EQ(val->data.bollinger.middle, 3.0, "Middle at index 3");
+  ASSERT_DOUBLE_EQ(val->data.bollinger.upper, 3.0 + 2.0 * stddev_2, "Upper at index 3");
+  ASSERT_DOUBLE_EQ(val->data.bollinger.lower, 3.0 - 2.0 * stddev_2, "Lower at index 3");
+
+  /* Index 4: SMA = (3+4+5)/3 = 4.0
+   * StdDev = sqrt(((3-4)^2 + (4-4)^2 + (5-4)^2) / 3) = sqrt(2/3) */
+  val = samtrader_indicator_series_at(bb, 4);
+  ASSERT(val != NULL && val->valid == true, "Index 4 should be valid");
+  ASSERT_DOUBLE_EQ(val->data.bollinger.middle, 4.0, "Middle at index 4");
+  ASSERT_DOUBLE_EQ(val->data.bollinger.upper, 4.0 + 2.0 * stddev_2, "Upper at index 4");
+  ASSERT_DOUBLE_EQ(val->data.bollinger.lower, 4.0 - 2.0 * stddev_2, "Lower at index 4");
+
+  samrena_destroy(arena);
+  printf("  PASS\n");
+  return 0;
+}
+
+static int test_bollinger_constant_prices(void) {
+  printf("Testing Bollinger Bands with constant prices...\n");
+
+  Samrena *arena = samrena_create_default();
+  ASSERT(arena != NULL, "Failed to create arena");
+
+  /* Constant prices -> stddev = 0, bands collapse to SMA */
+  double closes[] = {50.0, 50.0, 50.0, 50.0, 50.0, 50.0};
+  SamrenaVector *ohlcv = create_test_ohlcv(arena, closes, 6);
+
+  SamtraderIndicatorSeries *bb = samtrader_calculate_bollinger(arena, ohlcv, 3, 2.0);
+  ASSERT(bb != NULL, "Failed to calculate Bollinger Bands");
+
+  for (size_t i = 2; i < 6; i++) {
+    const SamtraderIndicatorValue *val = samtrader_indicator_series_at(bb, i);
+    ASSERT(val != NULL && val->valid == true, "Should be valid");
+    ASSERT_DOUBLE_EQ(val->data.bollinger.middle, 50.0, "Middle should be 50");
+    ASSERT_DOUBLE_EQ(val->data.bollinger.upper, 50.0, "Upper should equal middle");
+    ASSERT_DOUBLE_EQ(val->data.bollinger.lower, 50.0, "Lower should equal middle");
+  }
+
+  samrena_destroy(arena);
+  printf("  PASS\n");
+  return 0;
+}
+
+static int test_bollinger_band_symmetry(void) {
+  printf("Testing Bollinger Bands symmetry around middle...\n");
+
+  Samrena *arena = samrena_create_default();
+  ASSERT(arena != NULL, "Failed to create arena");
+
+  double closes[] = {10.0, 12.0, 11.0, 13.0, 12.0, 14.0, 11.0, 15.0};
+  SamrenaVector *ohlcv = create_test_ohlcv(arena, closes, 8);
+
+  SamtraderIndicatorSeries *bb = samtrader_calculate_bollinger(arena, ohlcv, 5, 2.0);
+  ASSERT(bb != NULL, "Failed to calculate Bollinger Bands");
+
+  /* Upper and lower should be equidistant from middle */
+  for (size_t i = 4; i < 8; i++) {
+    const SamtraderIndicatorValue *val = samtrader_indicator_series_at(bb, i);
+    ASSERT(val != NULL && val->valid == true, "Should be valid");
+
+    double upper_dist = val->data.bollinger.upper - val->data.bollinger.middle;
+    double lower_dist = val->data.bollinger.middle - val->data.bollinger.lower;
+    ASSERT_DOUBLE_EQ(upper_dist, lower_dist, "Bands should be symmetric");
+    ASSERT(val->data.bollinger.upper >= val->data.bollinger.middle, "Upper should be >= middle");
+    ASSERT(val->data.bollinger.lower <= val->data.bollinger.middle, "Lower should be <= middle");
+  }
+
+  samrena_destroy(arena);
+  printf("  PASS\n");
+  return 0;
+}
+
+static int test_bollinger_stddev_multiplier(void) {
+  printf("Testing Bollinger Bands with different stddev multipliers...\n");
+
+  Samrena *arena = samrena_create_default();
+  ASSERT(arena != NULL, "Failed to create arena");
+
+  double closes[] = {10.0, 12.0, 11.0, 13.0, 12.0};
+  SamrenaVector *ohlcv = create_test_ohlcv(arena, closes, 5);
+
+  SamtraderIndicatorSeries *bb1 = samtrader_calculate_bollinger(arena, ohlcv, 3, 1.0);
+  SamtraderIndicatorSeries *bb2 = samtrader_calculate_bollinger(arena, ohlcv, 3, 2.0);
+  SamtraderIndicatorSeries *bb3 = samtrader_calculate_bollinger(arena, ohlcv, 3, 3.0);
+  ASSERT(bb1 && bb2 && bb3, "All calculations should succeed");
+
+  /* Wider multiplier = wider bands, same middle */
+  for (size_t i = 2; i < 5; i++) {
+    const SamtraderIndicatorValue *v1 = samtrader_indicator_series_at(bb1, i);
+    const SamtraderIndicatorValue *v2 = samtrader_indicator_series_at(bb2, i);
+    const SamtraderIndicatorValue *v3 = samtrader_indicator_series_at(bb3, i);
+
+    /* Middle should be the same for all multipliers */
+    ASSERT_DOUBLE_EQ(v1->data.bollinger.middle, v2->data.bollinger.middle,
+                     "Middle should be same regardless of multiplier");
+    ASSERT_DOUBLE_EQ(v2->data.bollinger.middle, v3->data.bollinger.middle,
+                     "Middle should be same regardless of multiplier");
+
+    /* Wider multiplier = wider bands */
+    double width1 = v1->data.bollinger.upper - v1->data.bollinger.lower;
+    double width2 = v2->data.bollinger.upper - v2->data.bollinger.lower;
+    double width3 = v3->data.bollinger.upper - v3->data.bollinger.lower;
+    ASSERT(width2 > width1, "2x multiplier should be wider than 1x");
+    ASSERT(width3 > width2, "3x multiplier should be wider than 2x");
+  }
+
+  samrena_destroy(arena);
+  printf("  PASS\n");
+  return 0;
+}
+
+static int test_bollinger_invalid_params(void) {
+  printf("Testing Bollinger Bands with invalid parameters...\n");
+
+  Samrena *arena = samrena_create_default();
+  ASSERT(arena != NULL, "Failed to create arena");
+
+  double closes[] = {1.0, 2.0, 3.0};
+  SamrenaVector *ohlcv = create_test_ohlcv(arena, closes, 3);
+
+  ASSERT(samtrader_calculate_bollinger(NULL, ohlcv, 20, 2.0) == NULL, "NULL arena should fail");
+  ASSERT(samtrader_calculate_bollinger(arena, NULL, 20, 2.0) == NULL, "NULL ohlcv should fail");
+  ASSERT(samtrader_calculate_bollinger(arena, ohlcv, 0, 2.0) == NULL, "Period 0 should fail");
+  ASSERT(samtrader_calculate_bollinger(arena, ohlcv, -1, 2.0) == NULL,
+         "Negative period should fail");
+
+  SamrenaVector *empty = samtrader_ohlcv_vector_create(arena, 10);
+  ASSERT(samtrader_calculate_bollinger(arena, empty, 20, 2.0) == NULL, "Empty vector should fail");
+
+  samrena_destroy(arena);
+  printf("  PASS\n");
+  return 0;
+}
+
+static int test_bollinger_latest_value(void) {
+  printf("Testing Bollinger Bands latest value retrieval...\n");
+
+  Samrena *arena = samrena_create_default();
+  ASSERT(arena != NULL, "Failed to create arena");
+
+  double closes[] = {1.0, 2.0, 3.0, 4.0, 5.0};
+  SamrenaVector *ohlcv = create_test_ohlcv(arena, closes, 5);
+
+  SamtraderIndicatorSeries *bb = samtrader_calculate_bollinger(arena, ohlcv, 3, 2.0);
+  ASSERT(bb != NULL, "Failed to calculate Bollinger Bands");
+
+  SamtraderBollingerValue latest;
+  ASSERT(samtrader_indicator_latest_bollinger(bb, &latest) == true,
+         "Should find latest valid value");
+  ASSERT_DOUBLE_EQ(latest.middle, 4.0, "Latest middle should be SMA of last 3");
+
+  samrena_destroy(arena);
+  printf("  PASS\n");
+  return 0;
+}
+
+/*============================================================================
  * Dispatcher Tests
  *============================================================================*/
 
@@ -607,6 +806,12 @@ static int test_indicator_calculate_dispatcher(void) {
   SamtraderIndicatorSeries *rsi = samtrader_indicator_calculate(arena, SAMTRADER_IND_RSI, ohlcv, 3);
   ASSERT(rsi != NULL, "RSI dispatch should work");
   ASSERT(rsi->type == SAMTRADER_IND_RSI, "Should be RSI type");
+
+  /* Test Bollinger dispatch (uses default 2.0 stddev) */
+  SamtraderIndicatorSeries *bb =
+      samtrader_indicator_calculate(arena, SAMTRADER_IND_BOLLINGER, ohlcv, 3);
+  ASSERT(bb != NULL, "Bollinger dispatch should work");
+  ASSERT(bb->type == SAMTRADER_IND_BOLLINGER, "Should be BOLLINGER type");
 
   /* Test unsupported type */
   SamtraderIndicatorSeries *macd =
@@ -687,6 +892,14 @@ int main(void) {
   failures += test_rsi_period_1();
   failures += test_rsi_invalid_params();
   failures += test_rsi_known_values();
+
+  /* Bollinger Bands tests */
+  failures += test_bollinger_basic();
+  failures += test_bollinger_constant_prices();
+  failures += test_bollinger_band_symmetry();
+  failures += test_bollinger_stddev_multiplier();
+  failures += test_bollinger_invalid_params();
+  failures += test_bollinger_latest_value();
 
   /* Dispatcher test */
   failures += test_indicator_calculate_dispatcher();

@@ -412,6 +412,7 @@ bool samtrader_indicator_latest_pivot(const SamtraderIndicatorSeries *series,
  *   - SAMTRADER_IND_EMA: Exponential Moving Average
  *   - SAMTRADER_IND_WMA: Weighted Moving Average
  *   - SAMTRADER_IND_RSI: Relative Strength Index
+ *   - SAMTRADER_IND_BOLLINGER: Bollinger Bands (uses default 2.0 stddev)
  *
  * @param arena Memory arena for allocation
  * @param type Indicator type to calculate
@@ -486,5 +487,25 @@ SamtraderIndicatorSeries *samtrader_calculate_wma(Samrena *arena, SamrenaVector 
  * @return Pointer to the calculated series, or NULL on failure
  */
 SamtraderIndicatorSeries *samtrader_calculate_rsi(Samrena *arena, SamrenaVector *ohlcv, int period);
+
+/**
+ * @brief Calculate Bollinger Bands from OHLCV data.
+ *
+ * Middle = SMA(period)
+ * StdDev = sqrt(sum((close - SMA)^2) / period)
+ * Upper = Middle + stddev_multiplier * StdDev
+ * Lower = Middle - stddev_multiplier * StdDev
+ *
+ * The first (period - 1) values are marked as invalid (warmup period).
+ * Uses the close price for calculation.
+ *
+ * @param arena Memory arena for allocation
+ * @param ohlcv Vector of SamtraderOhlcv price data
+ * @param period Number of periods for the moving average (typically 20)
+ * @param stddev_multiplier Standard deviation multiplier (typically 2.0)
+ * @return Pointer to the calculated series, or NULL on failure
+ */
+SamtraderIndicatorSeries *samtrader_calculate_bollinger(Samrena *arena, SamrenaVector *ohlcv,
+                                                        int period, double stddev_multiplier);
 
 #endif /* SAMTRADER_DOMAIN_INDICATOR_H */

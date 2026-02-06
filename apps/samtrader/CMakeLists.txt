@@ -21,6 +21,7 @@ ptah_add_executable(samtrader
         src/domain/indicator_ema.c
         src/domain/indicator_wma.c
         src/domain/indicator_rsi.c
+        src/domain/indicator_bollinger.c
         src/adapters/file_config_adapter.c
         src/adapters/postgres_adapter.c
     DEPENDENCIES
@@ -69,6 +70,7 @@ if(BUILD_TESTING)
         src/domain/indicator_ema.c
         src/domain/indicator_wma.c
         src/domain/indicator_rsi.c
+        src/domain/indicator_bollinger.c
     )
     target_include_directories(samtrader_indicator_test PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/include
@@ -85,6 +87,7 @@ if(BUILD_TESTING)
         src/domain/indicator_ema.c
         src/domain/indicator_wma.c
         src/domain/indicator_rsi.c
+        src/domain/indicator_bollinger.c
     )
     target_include_directories(samtrader_indicator_calc_test PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/include

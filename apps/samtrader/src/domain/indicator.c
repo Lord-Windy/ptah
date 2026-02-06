@@ -356,6 +356,8 @@ SamtraderIndicatorSeries *samtrader_indicator_calculate(Samrena *arena, Samtrade
       return samtrader_calculate_wma(arena, ohlcv, period);
     case SAMTRADER_IND_RSI:
       return samtrader_calculate_rsi(arena, ohlcv, period);
+    case SAMTRADER_IND_BOLLINGER:
+      return samtrader_calculate_bollinger(arena, ohlcv, period, 2.0);
     default:
       /* Unsupported indicator type */
       return NULL;
