@@ -24,6 +24,8 @@ ptah_add_executable(samtrader
         src/domain/indicator_bollinger.c
         src/domain/indicator_macd.c
         src/domain/indicator_stochastic.c
+        src/domain/indicator_atr.c
+        src/domain/indicator_pivot.c
         src/adapters/file_config_adapter.c
         src/adapters/postgres_adapter.c
     DEPENDENCIES
@@ -75,6 +77,8 @@ if(BUILD_TESTING)
         src/domain/indicator_bollinger.c
         src/domain/indicator_macd.c
         src/domain/indicator_stochastic.c
+        src/domain/indicator_atr.c
+        src/domain/indicator_pivot.c
     )
     target_include_directories(samtrader_indicator_test PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/include
@@ -82,7 +86,7 @@ if(BUILD_TESTING)
     target_link_libraries(samtrader_indicator_test PRIVATE samrena samdata m)
     add_test(NAME samtrader_indicator_test COMMAND samtrader_indicator_test)
 
-    # Indicator calculation tests (SMA, EMA, WMA, RSI, MACD, Stochastic, Bollinger)
+    # Indicator calculation tests (SMA, EMA, WMA, RSI, MACD, Stochastic, Bollinger, ATR, Pivot)
     add_executable(samtrader_indicator_calc_test
         test/test_indicator_calc.c
         src/domain/ohlcv.c
@@ -94,6 +98,8 @@ if(BUILD_TESTING)
         src/domain/indicator_bollinger.c
         src/domain/indicator_macd.c
         src/domain/indicator_stochastic.c
+        src/domain/indicator_atr.c
+        src/domain/indicator_pivot.c
     )
     target_include_directories(samtrader_indicator_calc_test PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/include

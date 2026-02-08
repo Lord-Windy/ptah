@@ -362,6 +362,10 @@ SamtraderIndicatorSeries *samtrader_indicator_calculate(Samrena *arena, Samtrade
       return samtrader_calculate_stochastic(arena, ohlcv, period, 3);
     case SAMTRADER_IND_BOLLINGER:
       return samtrader_calculate_bollinger(arena, ohlcv, period, 2.0);
+    case SAMTRADER_IND_ATR:
+      return samtrader_calculate_atr(arena, ohlcv, period);
+    case SAMTRADER_IND_PIVOT:
+      return samtrader_calculate_pivot(arena, ohlcv);
     default:
       /* Unsupported indicator type */
       return NULL;

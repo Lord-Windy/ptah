@@ -415,6 +415,8 @@ bool samtrader_indicator_latest_pivot(const SamtraderIndicatorSeries *series,
  *   - SAMTRADER_IND_MACD: MACD (uses default 12/26/9 periods)
  *   - SAMTRADER_IND_STOCHASTIC: Stochastic (uses period for %K, default 3 for %D)
  *   - SAMTRADER_IND_BOLLINGER: Bollinger Bands (uses default 2.0 stddev)
+ *   - SAMTRADER_IND_ATR: Average True Range
+ *   - SAMTRADER_IND_PIVOT: Standard Pivot Points (period param ignored)
  *
  * @param arena Memory arena for allocation
  * @param type Indicator type to calculate
@@ -549,5 +551,40 @@ SamtraderIndicatorSeries *samtrader_calculate_macd(Samrena *arena, SamrenaVector
  */
 SamtraderIndicatorSeries *samtrader_calculate_stochastic(Samrena *arena, SamrenaVector *ohlcv,
                                                          int k_period, int d_period);
+
+/**
+ * @brief Calculate Average True Range (ATR) from OHLCV data.
+ *
+ * ATR = Wilder's smoothed average of True Range
+ * TR = max(high - low, |high - prev_close|, |low - prev_close|)
+ *
+ * The first TR value (bar 0) uses high - low since no previous close exists.
+ * The first valid ATR (at index period - 1) is the simple average of the
+ * first `period` true range values. Subsequent values use Wilder's smoothing:
+ * ATR = (prev_ATR * (period - 1) + current_TR) / period.
+ *
+ * @param arena Memory arena for allocation
+ * @param ohlcv Vector of SamtraderOhlcv price data
+ * @param period Number of periods (typically 14)
+ * @return Pointer to the calculated series, or NULL on failure
+ */
+SamtraderIndicatorSeries *samtrader_calculate_atr(Samrena *arena, SamrenaVector *ohlcv, int period);
+
+/**
+ * @brief Calculate Standard Pivot Points from OHLCV data.
+ *
+ * Pivot = (H + L + C) / 3
+ * R1 = (2 * Pivot) - L,  S1 = (2 * Pivot) - H
+ * R2 = Pivot + (H - L),  S2 = Pivot - (H - L)
+ * R3 = H + 2*(Pivot-L),  S3 = L - 2*(H - Pivot)
+ *
+ * Each bar's pivot levels are calculated from the previous bar's high, low,
+ * and close. The first bar is marked invalid (no previous data).
+ *
+ * @param arena Memory arena for allocation
+ * @param ohlcv Vector of SamtraderOhlcv price data
+ * @return Pointer to the calculated series, or NULL on failure
+ */
+SamtraderIndicatorSeries *samtrader_calculate_pivot(Samrena *arena, SamrenaVector *ohlcv);
 
 #endif /* SAMTRADER_DOMAIN_INDICATOR_H */

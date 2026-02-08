@@ -775,6 +775,370 @@ static int test_bollinger_latest_value(void) {
 }
 
 /*============================================================================
+ * ATR Tests
+ *============================================================================*/
+
+static int test_atr_basic(void) {
+  printf("Testing ATR basic calculation...\n");
+
+  Samrena *arena = samrena_create_default();
+  ASSERT(arena != NULL, "Failed to create arena");
+
+  /* Data with known close prices; create_test_ohlcv sets H=close+1, L=close-1
+   * Bar 0: H=11, L=9,  C=10, TR = H-L = 2.0
+   * Bar 1: H=13, L=11, C=12, prev_close=10, TR = max(2, 3, 1) = 3.0
+   * Bar 2: H=12, L=10, C=11, prev_close=12, TR = max(2, 0, 2) = 2.0
+   * Bar 3: H=14, L=12, C=13, prev_close=11, TR = max(2, 3, 1) = 3.0
+   * Bar 4: H=13, L=11, C=12, prev_close=13, TR = max(2, 0, 2) = 2.0
+   */
+  double closes[] = {10.0, 12.0, 11.0, 13.0, 12.0};
+  SamrenaVector *ohlcv = create_test_ohlcv(arena, closes, 5);
+  ASSERT(ohlcv != NULL, "Failed to create OHLCV data");
+
+  SamtraderIndicatorSeries *atr = samtrader_calculate_atr(arena, ohlcv, 3);
+  ASSERT(atr != NULL, "Failed to calculate ATR");
+  ASSERT(atr->type == SAMTRADER_IND_ATR, "Type should be ATR");
+  ASSERT(atr->params.period == 3, "Period should be 3");
+  ASSERT(samtrader_indicator_series_size(atr) == 5, "Should have 5 values");
+
+  /* First two values should be invalid (warmup for period 3) */
+  const SamtraderIndicatorValue *val = samtrader_indicator_series_at(atr, 0);
+  ASSERT(val != NULL && val->valid == false, "Index 0 should be invalid");
+
+  val = samtrader_indicator_series_at(atr, 1);
+  ASSERT(val != NULL && val->valid == false, "Index 1 should be invalid");
+
+  /* ATR at index 2: simple avg of first 3 TRs = (2.0 + 3.0 + 2.0) / 3 */
+  val = samtrader_indicator_series_at(atr, 2);
+  ASSERT(val != NULL && val->valid == true, "Index 2 should be valid");
+  ASSERT_DOUBLE_EQ(val->data.simple.value, 7.0 / 3.0, "ATR at index 2");
+
+  /* ATR at index 3: Wilder's = (prev_ATR * 2 + TR) / 3 = (7/3 * 2 + 3.0) / 3 */
+  val = samtrader_indicator_series_at(atr, 3);
+  ASSERT(val != NULL && val->valid == true, "Index 3 should be valid");
+  double expected_atr3 = ((7.0 / 3.0) * 2.0 + 3.0) / 3.0;
+  ASSERT_DOUBLE_EQ(val->data.simple.value, expected_atr3, "ATR at index 3");
+
+  /* ATR at index 4: Wilder's = (prev_ATR * 2 + TR) / 3 */
+  val = samtrader_indicator_series_at(atr, 4);
+  ASSERT(val != NULL && val->valid == true, "Index 4 should be valid");
+  double expected_atr4 = (expected_atr3 * 2.0 + 2.0) / 3.0;
+  ASSERT_DOUBLE_EQ(val->data.simple.value, expected_atr4, "ATR at index 4");
+
+  samrena_destroy(arena);
+  printf("  PASS\n");
+  return 0;
+}
+
+static int test_atr_constant_prices(void) {
+  printf("Testing ATR with constant prices...\n");
+
+  Samrena *arena = samrena_create_default();
+  ASSERT(arena != NULL, "Failed to create arena");
+
+  /* Constant prices: H=close+1, L=close-1, so H-L = 2.0 always.
+   * With constant close, |H-prev_close| = 1.0 and |L-prev_close| = 1.0
+   * TR = max(2.0, 1.0, 1.0) = 2.0 for all bars */
+  double closes[] = {50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0};
+  SamrenaVector *ohlcv = create_test_ohlcv(arena, closes, 8);
+
+  SamtraderIndicatorSeries *atr = samtrader_calculate_atr(arena, ohlcv, 3);
+  ASSERT(atr != NULL, "Failed to calculate ATR");
+
+  /* All valid ATR values should be 2.0 */
+  for (size_t i = 2; i < 8; i++) {
+    const SamtraderIndicatorValue *val = samtrader_indicator_series_at(atr, i);
+    ASSERT(val != NULL && val->valid == true, "Should be valid");
+    ASSERT_DOUBLE_EQ(val->data.simple.value, 2.0, "ATR should be 2.0 for constant prices");
+  }
+
+  samrena_destroy(arena);
+  printf("  PASS\n");
+  return 0;
+}
+
+static int test_atr_period_1(void) {
+  printf("Testing ATR with period 1...\n");
+
+  Samrena *arena = samrena_create_default();
+  ASSERT(arena != NULL, "Failed to create arena");
+
+  double closes[] = {10.0, 12.0, 11.0};
+  SamrenaVector *ohlcv = create_test_ohlcv(arena, closes, 3);
+
+  SamtraderIndicatorSeries *atr = samtrader_calculate_atr(arena, ohlcv, 1);
+  ASSERT(atr != NULL, "Failed to calculate ATR");
+
+  /* Period 1: every value should be valid and equal to that bar's TR */
+  /* Bar 0: TR = H-L = 2.0 */
+  const SamtraderIndicatorValue *val = samtrader_indicator_series_at(atr, 0);
+  ASSERT(val != NULL && val->valid == true, "Index 0 should be valid with period 1");
+  ASSERT_DOUBLE_EQ(val->data.simple.value, 2.0, "ATR at index 0");
+
+  /* Bar 1: H=13, L=11, prev_close=10, TR = max(2, 3, 1) = 3.0 */
+  val = samtrader_indicator_series_at(atr, 1);
+  ASSERT(val != NULL && val->valid == true, "Index 1 should be valid");
+  ASSERT_DOUBLE_EQ(val->data.simple.value, 3.0, "ATR at index 1");
+
+  /* Bar 2: H=12, L=10, prev_close=12, TR = max(2, 0, 2) = 2.0 */
+  val = samtrader_indicator_series_at(atr, 2);
+  ASSERT(val != NULL && val->valid == true, "Index 2 should be valid");
+  ASSERT_DOUBLE_EQ(val->data.simple.value, 2.0, "ATR at index 2");
+
+  samrena_destroy(arena);
+  printf("  PASS\n");
+  return 0;
+}
+
+static int test_atr_always_positive(void) {
+  printf("Testing ATR is always positive...\n");
+
+  Samrena *arena = samrena_create_default();
+  ASSERT(arena != NULL, "Failed to create arena");
+
+  double closes[] = {100.0, 95.0, 98.0, 90.0, 93.0, 88.0, 92.0, 85.0, 89.0, 87.0};
+  SamrenaVector *ohlcv = create_test_ohlcv(arena, closes, 10);
+
+  SamtraderIndicatorSeries *atr = samtrader_calculate_atr(arena, ohlcv, 5);
+  ASSERT(atr != NULL, "Failed to calculate ATR");
+
+  for (size_t i = 4; i < 10; i++) {
+    const SamtraderIndicatorValue *val = samtrader_indicator_series_at(atr, i);
+    ASSERT(val != NULL && val->valid == true, "Should be valid");
+    ASSERT(val->data.simple.value > 0.0, "ATR should always be positive");
+  }
+
+  samrena_destroy(arena);
+  printf("  PASS\n");
+  return 0;
+}
+
+static int test_atr_invalid_params(void) {
+  printf("Testing ATR with invalid parameters...\n");
+
+  Samrena *arena = samrena_create_default();
+  ASSERT(arena != NULL, "Failed to create arena");
+
+  double closes[] = {1.0, 2.0, 3.0};
+  SamrenaVector *ohlcv = create_test_ohlcv(arena, closes, 3);
+
+  ASSERT(samtrader_calculate_atr(NULL, ohlcv, 14) == NULL, "NULL arena should fail");
+  ASSERT(samtrader_calculate_atr(arena, NULL, 14) == NULL, "NULL ohlcv should fail");
+  ASSERT(samtrader_calculate_atr(arena, ohlcv, 0) == NULL, "Period 0 should fail");
+  ASSERT(samtrader_calculate_atr(arena, ohlcv, -1) == NULL, "Negative period should fail");
+
+  SamrenaVector *empty = samtrader_ohlcv_vector_create(arena, 10);
+  ASSERT(samtrader_calculate_atr(arena, empty, 14) == NULL, "Empty vector should fail");
+
+  samrena_destroy(arena);
+  printf("  PASS\n");
+  return 0;
+}
+
+static int test_atr_latest_value(void) {
+  printf("Testing ATR latest value retrieval...\n");
+
+  Samrena *arena = samrena_create_default();
+  ASSERT(arena != NULL, "Failed to create arena");
+
+  double closes[] = {50.0, 50.0, 50.0, 50.0, 50.0};
+  SamrenaVector *ohlcv = create_test_ohlcv(arena, closes, 5);
+
+  SamtraderIndicatorSeries *atr = samtrader_calculate_atr(arena, ohlcv, 3);
+  ASSERT(atr != NULL, "Failed to calculate ATR");
+
+  double latest;
+  ASSERT(samtrader_indicator_latest_simple(atr, &latest) == true, "Should find latest valid value");
+  ASSERT_DOUBLE_EQ(latest, 2.0, "Latest ATR should be 2.0");
+
+  samrena_destroy(arena);
+  printf("  PASS\n");
+  return 0;
+}
+
+/*============================================================================
+ * Pivot Points Tests
+ *============================================================================*/
+
+static int test_pivot_basic(void) {
+  printf("Testing Pivot Points basic calculation...\n");
+
+  Samrena *arena = samrena_create_default();
+  ASSERT(arena != NULL, "Failed to create arena");
+
+  /* create_test_ohlcv sets: O=close, H=close+1, L=close-1, C=close
+   * Bar 0: H=11, L=9,  C=10
+   * Bar 1: H=13, L=11, C=12
+   * Bar 2: H=12, L=10, C=11
+   */
+  double closes[] = {10.0, 12.0, 11.0, 13.0, 12.0};
+  SamrenaVector *ohlcv = create_test_ohlcv(arena, closes, 5);
+  ASSERT(ohlcv != NULL, "Failed to create OHLCV data");
+
+  SamtraderIndicatorSeries *pivot = samtrader_calculate_pivot(arena, ohlcv);
+  ASSERT(pivot != NULL, "Failed to calculate Pivot Points");
+  ASSERT(pivot->type == SAMTRADER_IND_PIVOT, "Type should be PIVOT");
+  ASSERT(samtrader_indicator_series_size(pivot) == 5, "Should have 5 values");
+
+  /* First value should be invalid (no previous bar) */
+  const SamtraderIndicatorValue *val = samtrader_indicator_series_at(pivot, 0);
+  ASSERT(val != NULL && val->valid == false, "Index 0 should be invalid");
+
+  /* Index 1: from bar 0 (H=11, L=9, C=10)
+   * pivot = (11+9+10)/3 = 10.0
+   * r1 = 2*10 - 9 = 11.0
+   * r2 = 10 + (11-9) = 12.0
+   * r3 = 11 + 2*(10-9) = 13.0
+   * s1 = 2*10 - 11 = 9.0
+   * s2 = 10 - (11-9) = 8.0
+   * s3 = 9 - 2*(11-10) = 7.0
+   */
+  val = samtrader_indicator_series_at(pivot, 1);
+  ASSERT(val != NULL && val->valid == true, "Index 1 should be valid");
+  ASSERT_DOUBLE_EQ(val->data.pivot.pivot, 10.0, "Pivot at index 1");
+  ASSERT_DOUBLE_EQ(val->data.pivot.r1, 11.0, "R1 at index 1");
+  ASSERT_DOUBLE_EQ(val->data.pivot.r2, 12.0, "R2 at index 1");
+  ASSERT_DOUBLE_EQ(val->data.pivot.r3, 13.0, "R3 at index 1");
+  ASSERT_DOUBLE_EQ(val->data.pivot.s1, 9.0, "S1 at index 1");
+  ASSERT_DOUBLE_EQ(val->data.pivot.s2, 8.0, "S2 at index 1");
+  ASSERT_DOUBLE_EQ(val->data.pivot.s3, 7.0, "S3 at index 1");
+
+  /* Index 2: from bar 1 (H=13, L=11, C=12)
+   * pivot = (13+11+12)/3 = 12.0
+   * r1 = 2*12 - 11 = 13.0
+   * r2 = 12 + (13-11) = 14.0
+   * r3 = 13 + 2*(12-11) = 15.0
+   * s1 = 2*12 - 13 = 11.0
+   * s2 = 12 - (13-11) = 10.0
+   * s3 = 11 - 2*(13-12) = 9.0
+   */
+  val = samtrader_indicator_series_at(pivot, 2);
+  ASSERT(val != NULL && val->valid == true, "Index 2 should be valid");
+  ASSERT_DOUBLE_EQ(val->data.pivot.pivot, 12.0, "Pivot at index 2");
+  ASSERT_DOUBLE_EQ(val->data.pivot.r1, 13.0, "R1 at index 2");
+  ASSERT_DOUBLE_EQ(val->data.pivot.r2, 14.0, "R2 at index 2");
+  ASSERT_DOUBLE_EQ(val->data.pivot.r3, 15.0, "R3 at index 2");
+  ASSERT_DOUBLE_EQ(val->data.pivot.s1, 11.0, "S1 at index 2");
+  ASSERT_DOUBLE_EQ(val->data.pivot.s2, 10.0, "S2 at index 2");
+  ASSERT_DOUBLE_EQ(val->data.pivot.s3, 9.0, "S3 at index 2");
+
+  samrena_destroy(arena);
+  printf("  PASS\n");
+  return 0;
+}
+
+static int test_pivot_level_ordering(void) {
+  printf("Testing Pivot Points level ordering (S3 < S2 < S1 < P < R1 < R2 < R3)...\n");
+
+  Samrena *arena = samrena_create_default();
+  ASSERT(arena != NULL, "Failed to create arena");
+
+  double closes[] = {10.0, 12.0, 11.0, 15.0, 9.0, 13.0, 11.0, 14.0};
+  SamrenaVector *ohlcv = create_test_ohlcv(arena, closes, 8);
+
+  SamtraderIndicatorSeries *pivot = samtrader_calculate_pivot(arena, ohlcv);
+  ASSERT(pivot != NULL, "Failed to calculate Pivot Points");
+
+  /* For all valid values, S3 < S2 < S1 < Pivot < R1 < R2 < R3 */
+  for (size_t i = 1; i < 8; i++) {
+    const SamtraderIndicatorValue *val = samtrader_indicator_series_at(pivot, i);
+    ASSERT(val != NULL && val->valid == true, "Should be valid");
+    ASSERT(val->data.pivot.s3 < val->data.pivot.s2, "S3 < S2");
+    ASSERT(val->data.pivot.s2 < val->data.pivot.s1, "S2 < S1");
+    ASSERT(val->data.pivot.s1 < val->data.pivot.pivot, "S1 < Pivot");
+    ASSERT(val->data.pivot.pivot < val->data.pivot.r1, "Pivot < R1");
+    ASSERT(val->data.pivot.r1 < val->data.pivot.r2, "R1 < R2");
+    ASSERT(val->data.pivot.r2 < val->data.pivot.r3, "R2 < R3");
+  }
+
+  samrena_destroy(arena);
+  printf("  PASS\n");
+  return 0;
+}
+
+static int test_pivot_constant_prices(void) {
+  printf("Testing Pivot Points with constant prices...\n");
+
+  Samrena *arena = samrena_create_default();
+  ASSERT(arena != NULL, "Failed to create arena");
+
+  /* Constant prices: H=51, L=49, C=50
+   * pivot = (51+49+50)/3 = 50.0
+   * r1 = 2*50 - 49 = 51.0
+   * r2 = 50 + (51-49) = 52.0
+   * r3 = 51 + 2*(50-49) = 53.0
+   * s1 = 2*50 - 51 = 49.0
+   * s2 = 50 - (51-49) = 48.0
+   * s3 = 49 - 2*(51-50) = 47.0
+   */
+  double closes[] = {50.0, 50.0, 50.0, 50.0, 50.0};
+  SamrenaVector *ohlcv = create_test_ohlcv(arena, closes, 5);
+
+  SamtraderIndicatorSeries *pivot = samtrader_calculate_pivot(arena, ohlcv);
+  ASSERT(pivot != NULL, "Failed to calculate Pivot Points");
+
+  for (size_t i = 1; i < 5; i++) {
+    const SamtraderIndicatorValue *val = samtrader_indicator_series_at(pivot, i);
+    ASSERT(val != NULL && val->valid == true, "Should be valid");
+    ASSERT_DOUBLE_EQ(val->data.pivot.pivot, 50.0, "Pivot should be 50");
+    ASSERT_DOUBLE_EQ(val->data.pivot.r1, 51.0, "R1 should be 51");
+    ASSERT_DOUBLE_EQ(val->data.pivot.r2, 52.0, "R2 should be 52");
+    ASSERT_DOUBLE_EQ(val->data.pivot.r3, 53.0, "R3 should be 53");
+    ASSERT_DOUBLE_EQ(val->data.pivot.s1, 49.0, "S1 should be 49");
+    ASSERT_DOUBLE_EQ(val->data.pivot.s2, 48.0, "S2 should be 48");
+    ASSERT_DOUBLE_EQ(val->data.pivot.s3, 47.0, "S3 should be 47");
+  }
+
+  samrena_destroy(arena);
+  printf("  PASS\n");
+  return 0;
+}
+
+static int test_pivot_invalid_params(void) {
+  printf("Testing Pivot Points with invalid parameters...\n");
+
+  Samrena *arena = samrena_create_default();
+  ASSERT(arena != NULL, "Failed to create arena");
+
+  double closes[] = {1.0, 2.0, 3.0};
+  SamrenaVector *ohlcv = create_test_ohlcv(arena, closes, 3);
+
+  ASSERT(samtrader_calculate_pivot(NULL, ohlcv) == NULL, "NULL arena should fail");
+  ASSERT(samtrader_calculate_pivot(arena, NULL) == NULL, "NULL ohlcv should fail");
+
+  SamrenaVector *empty = samtrader_ohlcv_vector_create(arena, 10);
+  ASSERT(samtrader_calculate_pivot(arena, empty) == NULL, "Empty vector should fail");
+
+  samrena_destroy(arena);
+  printf("  PASS\n");
+  return 0;
+}
+
+static int test_pivot_latest_value(void) {
+  printf("Testing Pivot Points latest value retrieval...\n");
+
+  Samrena *arena = samrena_create_default();
+  ASSERT(arena != NULL, "Failed to create arena");
+
+  double closes[] = {50.0, 50.0, 50.0};
+  SamrenaVector *ohlcv = create_test_ohlcv(arena, closes, 3);
+
+  SamtraderIndicatorSeries *pivot = samtrader_calculate_pivot(arena, ohlcv);
+  ASSERT(pivot != NULL, "Failed to calculate Pivot Points");
+
+  SamtraderPivotValue latest;
+  ASSERT(samtrader_indicator_latest_pivot(pivot, &latest) == true,
+         "Should find latest valid value");
+  ASSERT_DOUBLE_EQ(latest.pivot, 50.0, "Latest pivot should be 50");
+  ASSERT_DOUBLE_EQ(latest.r1, 51.0, "Latest R1 should be 51");
+  ASSERT_DOUBLE_EQ(latest.s1, 49.0, "Latest S1 should be 49");
+
+  samrena_destroy(arena);
+  printf("  PASS\n");
+  return 0;
+}
+
+/*============================================================================
  * Dispatcher Tests
  *============================================================================*/
 
@@ -824,6 +1188,17 @@ static int test_indicator_calculate_dispatcher(void) {
       samtrader_indicator_calculate(arena, SAMTRADER_IND_STOCHASTIC, ohlcv, 3);
   ASSERT(stoch != NULL, "Stochastic dispatch should work");
   ASSERT(stoch->type == SAMTRADER_IND_STOCHASTIC, "Should be STOCHASTIC type");
+
+  /* Test ATR dispatch */
+  SamtraderIndicatorSeries *atr = samtrader_indicator_calculate(arena, SAMTRADER_IND_ATR, ohlcv, 3);
+  ASSERT(atr != NULL, "ATR dispatch should work");
+  ASSERT(atr->type == SAMTRADER_IND_ATR, "Should be ATR type");
+
+  /* Test Pivot dispatch */
+  SamtraderIndicatorSeries *pvt =
+      samtrader_indicator_calculate(arena, SAMTRADER_IND_PIVOT, ohlcv, 0);
+  ASSERT(pvt != NULL, "Pivot dispatch should work");
+  ASSERT(pvt->type == SAMTRADER_IND_PIVOT, "Should be PIVOT type");
 
   /* Test unsupported type */
   SamtraderIndicatorSeries *roc =
@@ -912,6 +1287,21 @@ int main(void) {
   failures += test_bollinger_stddev_multiplier();
   failures += test_bollinger_invalid_params();
   failures += test_bollinger_latest_value();
+
+  /* ATR tests */
+  failures += test_atr_basic();
+  failures += test_atr_constant_prices();
+  failures += test_atr_period_1();
+  failures += test_atr_always_positive();
+  failures += test_atr_invalid_params();
+  failures += test_atr_latest_value();
+
+  /* Pivot Points tests */
+  failures += test_pivot_basic();
+  failures += test_pivot_level_ordering();
+  failures += test_pivot_constant_prices();
+  failures += test_pivot_invalid_params();
+  failures += test_pivot_latest_value();
 
   /* Dispatcher test */
   failures += test_indicator_calculate_dispatcher();
