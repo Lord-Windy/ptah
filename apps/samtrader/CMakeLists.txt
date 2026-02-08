@@ -207,6 +207,18 @@ if(BUILD_TESTING)
     target_link_libraries(samtrader_metrics_test PRIVATE samrena samdata m)
     add_test(NAME samtrader_metrics_test COMMAND samtrader_metrics_test)
 
+    # PostgreSQL adapter tests
+    add_executable(samtrader_postgres_test
+        test/test_postgres.c
+        src/adapters/postgres_adapter.c
+        src/domain/ohlcv.c
+    )
+    target_include_directories(samtrader_postgres_test PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/include
+    )
+    target_link_libraries(samtrader_postgres_test PRIVATE samrena samdata PostgreSQL::PostgreSQL m)
+    add_test(NAME samtrader_postgres_test COMMAND samtrader_postgres_test)
+
     # Rule parser tests
     add_executable(samtrader_rule_parser_test
         test/test_rule_parser.c
