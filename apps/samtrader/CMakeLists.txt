@@ -268,4 +268,21 @@ if(BUILD_TESTING)
     )
     target_link_libraries(samtrader_report_test PRIVATE samrena samdata m)
     add_test(NAME samtrader_report_test COMMAND samtrader_report_test)
+
+    # End-to-end pipeline tests
+    add_executable(samtrader_e2e_test
+        test/test_e2e.c
+        src/domain/ohlcv.c
+        src/domain/indicator.c
+        src/domain/indicator_sma.c src/domain/indicator_ema.c src/domain/indicator_wma.c
+        src/domain/indicator_rsi.c src/domain/indicator_bollinger.c src/domain/indicator_macd.c
+        src/domain/indicator_stochastic.c src/domain/indicator_atr.c src/domain/indicator_pivot.c
+        src/domain/rule.c src/domain/rule_eval.c src/domain/rule_parser.c
+        src/domain/position.c src/domain/portfolio.c src/domain/execution.c src/domain/metrics.c
+        src/adapters/file_config_adapter.c src/adapters/postgres_adapter.c
+        src/adapters/typst_report_adapter.c
+    )
+    target_include_directories(samtrader_e2e_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+    target_link_libraries(samtrader_e2e_test PRIVATE samrena samdata PostgreSQL::PostgreSQL m)
+    add_test(NAME samtrader_e2e_test COMMAND samtrader_e2e_test)
 endif()
