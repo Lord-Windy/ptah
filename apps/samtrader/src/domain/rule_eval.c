@@ -268,12 +268,36 @@ bool samtrader_rule_evaluate(const SamtraderRule *rule, const SamrenaVector *ohl
       return prev_left >= prev_right && curr_left < curr_right;
     }
 
-    case SAMTRADER_RULE_AND:
-    case SAMTRADER_RULE_OR:
-    case SAMTRADER_RULE_NOT:
+    case SAMTRADER_RULE_AND: {
+      if (!rule->children) return false;
+      for (size_t i = 0; rule->children[i] != NULL; i++) {
+        if (!samtrader_rule_evaluate(rule->children[i], ohlcv, indicators,
+                                     index)) {
+          return false;
+        }
+      }
+      return true;
+    }
+
+    case SAMTRADER_RULE_OR: {
+      if (!rule->children) return false;
+      for (size_t i = 0; rule->children[i] != NULL; i++) {
+        if (samtrader_rule_evaluate(rule->children[i], ohlcv, indicators,
+                                    index)) {
+          return true;
+        }
+      }
+      return false;
+    }
+
+    case SAMTRADER_RULE_NOT: {
+      if (!rule->child) return false;
+      return !samtrader_rule_evaluate(rule->child, ohlcv, indicators, index);
+    }
+
     case SAMTRADER_RULE_CONSECUTIVE:
     case SAMTRADER_RULE_ANY_OF:
-      /* Composite and temporal rules: not yet implemented */
+      /* Temporal rules: not yet implemented */
       return false;
   }
 
