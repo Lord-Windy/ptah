@@ -894,6 +894,265 @@ static int test_cross_above_two_indicators(void) {
 }
 
 /*============================================================================
+ * CONSECUTIVE Rule Tests
+ *============================================================================*/
+
+static int test_consecutive_all_true(void) {
+  printf("Testing CONSECUTIVE all true...\n");
+  Samrena *arena = samrena_create_default();
+  /* All closes above 50 */
+  double closes[] = {60.0, 70.0, 80.0, 90.0, 100.0};
+  SamrenaVector *ohlcv = make_ohlcv(arena, closes, 5);
+
+  /* CONSECUTIVE(ABOVE(close, 50), 3) */
+  SamtraderRule *child =
+      samtrader_rule_create_comparison(arena, SAMTRADER_RULE_ABOVE,
+                                       samtrader_operand_price(SAMTRADER_OPERAND_PRICE_CLOSE),
+                                       samtrader_operand_constant(50.0));
+  SamtraderRule *rule = samtrader_rule_create_temporal(arena, SAMTRADER_RULE_CONSECUTIVE, child, 3);
+
+  /* Index 0,1: not enough lookback (need 3 bars) -> false */
+  ASSERT(!samtrader_rule_evaluate(rule, ohlcv, NULL, 0), "Not enough lookback at index 0");
+  ASSERT(!samtrader_rule_evaluate(rule, ohlcv, NULL, 1), "Not enough lookback at index 1");
+  /* Index 2: bars [0,1,2] = [60,70,80] all > 50 -> true */
+  ASSERT(samtrader_rule_evaluate(rule, ohlcv, NULL, 2), "3 consecutive above 50");
+  /* Index 4: bars [2,3,4] = [80,90,100] all > 50 -> true */
+  ASSERT(samtrader_rule_evaluate(rule, ohlcv, NULL, 4), "3 consecutive above 50 at end");
+
+  samrena_destroy(arena);
+  printf("  PASS\n");
+  return 0;
+}
+
+static int test_consecutive_broken_streak(void) {
+  printf("Testing CONSECUTIVE with broken streak...\n");
+  Samrena *arena = samrena_create_default();
+  /* close dips below 50 at index 2 */
+  double closes[] = {60.0, 70.0, 40.0, 80.0, 90.0};
+  SamrenaVector *ohlcv = make_ohlcv(arena, closes, 5);
+
+  SamtraderRule *child =
+      samtrader_rule_create_comparison(arena, SAMTRADER_RULE_ABOVE,
+                                       samtrader_operand_price(SAMTRADER_OPERAND_PRICE_CLOSE),
+                                       samtrader_operand_constant(50.0));
+  SamtraderRule *rule = samtrader_rule_create_temporal(arena, SAMTRADER_RULE_CONSECUTIVE, child, 3);
+
+  /* Index 2: bars [0,1,2] = [60,70,40], bar 2 fails -> false */
+  ASSERT(!samtrader_rule_evaluate(rule, ohlcv, NULL, 2), "Streak broken at bar 2");
+  /* Index 3: bars [1,2,3] = [70,40,80], bar 2 fails -> false */
+  ASSERT(!samtrader_rule_evaluate(rule, ohlcv, NULL, 3), "Streak broken includes bar 2");
+  /* Index 4: bars [2,3,4] = [40,80,90], bar 2 fails -> false */
+  ASSERT(!samtrader_rule_evaluate(rule, ohlcv, NULL, 4), "Streak broken includes bar 2");
+
+  samrena_destroy(arena);
+  printf("  PASS\n");
+  return 0;
+}
+
+static int test_consecutive_lookback_one(void) {
+  printf("Testing CONSECUTIVE with lookback=1...\n");
+  Samrena *arena = samrena_create_default();
+  double closes[] = {60.0, 40.0};
+  SamrenaVector *ohlcv = make_ohlcv(arena, closes, 2);
+
+  SamtraderRule *child =
+      samtrader_rule_create_comparison(arena, SAMTRADER_RULE_ABOVE,
+                                       samtrader_operand_price(SAMTRADER_OPERAND_PRICE_CLOSE),
+                                       samtrader_operand_constant(50.0));
+  SamtraderRule *rule = samtrader_rule_create_temporal(arena, SAMTRADER_RULE_CONSECUTIVE, child, 1);
+
+  /* lookback=1: just checks current bar */
+  ASSERT(samtrader_rule_evaluate(rule, ohlcv, NULL, 0), "60 > 50 at index 0");
+  ASSERT(!samtrader_rule_evaluate(rule, ohlcv, NULL, 1), "40 not > 50 at index 1");
+
+  samrena_destroy(arena);
+  printf("  PASS\n");
+  return 0;
+}
+
+static int test_consecutive_with_indicator(void) {
+  printf("Testing CONSECUTIVE with indicator...\n");
+  Samrena *arena = samrena_create_default();
+  double closes[] = {100.0, 110.0, 120.0, 90.0, 130.0};
+  SamrenaVector *ohlcv = make_ohlcv(arena, closes, 5);
+
+  double sma_vals[] = {95.0, 105.0, 110.0, 100.0, 120.0};
+  SamtraderOperand sma_op = samtrader_operand_indicator(SAMTRADER_IND_SMA, 20);
+  SamtraderIndicatorSeries *sma = make_simple_series(arena, SAMTRADER_IND_SMA, 20, sma_vals, 5);
+
+  SamHashMap *indicators = samhashmap_create(16, arena);
+  put_indicator(indicators, &sma_op, sma);
+
+  /* CONSECUTIVE(ABOVE(close, SMA(20)), 3) */
+  SamtraderRule *child =
+      samtrader_rule_create_comparison(arena, SAMTRADER_RULE_ABOVE,
+                                       samtrader_operand_price(SAMTRADER_OPERAND_PRICE_CLOSE),
+                                       sma_op);
+  SamtraderRule *rule = samtrader_rule_create_temporal(arena, SAMTRADER_RULE_CONSECUTIVE, child, 3);
+
+  /* Bars [0,1,2]: close=[100,110,120] vs SMA=[95,105,110] -> all above -> true */
+  ASSERT(samtrader_rule_evaluate(rule, ohlcv, indicators, 2), "3 consecutive close > SMA");
+  /* Bars [1,2,3]: close=[110,120,90] vs SMA=[105,110,100] -> bar 3: 90 < 100 -> false */
+  ASSERT(!samtrader_rule_evaluate(rule, ohlcv, indicators, 3), "Bar 3 breaks consecutive");
+
+  samrena_destroy(arena);
+  printf("  PASS\n");
+  return 0;
+}
+
+static int test_consecutive_null_child(void) {
+  printf("Testing CONSECUTIVE with NULL child...\n");
+  Samrena *arena = samrena_create_default();
+  double closes[] = {100.0, 100.0, 100.0};
+  SamrenaVector *ohlcv = make_ohlcv(arena, closes, 3);
+
+  /* Create temporal rule that should fail due to NULL child */
+  SamtraderRule *rule = samtrader_rule_create_temporal(arena, SAMTRADER_RULE_CONSECUTIVE, NULL, 3);
+
+  ASSERT(rule == NULL || !samtrader_rule_evaluate(rule, ohlcv, NULL, 2),
+         "NULL child should return false");
+
+  samrena_destroy(arena);
+  printf("  PASS\n");
+  return 0;
+}
+
+/*============================================================================
+ * ANY_OF Rule Tests
+ *============================================================================*/
+
+static int test_any_of_found(void) {
+  printf("Testing ANY_OF found in window...\n");
+  Samrena *arena = samrena_create_default();
+  /* Only bar 1 has close > 100 */
+  double closes[] = {90.0, 110.0, 80.0, 70.0, 60.0};
+  SamrenaVector *ohlcv = make_ohlcv(arena, closes, 5);
+
+  /* ANY_OF(ABOVE(close, 100), 3) */
+  SamtraderRule *child =
+      samtrader_rule_create_comparison(arena, SAMTRADER_RULE_ABOVE,
+                                       samtrader_operand_price(SAMTRADER_OPERAND_PRICE_CLOSE),
+                                       samtrader_operand_constant(100.0));
+  SamtraderRule *rule = samtrader_rule_create_temporal(arena, SAMTRADER_RULE_ANY_OF, child, 3);
+
+  /* Index 2: window [0,1,2], bar 1 has 110 > 100 -> true */
+  ASSERT(samtrader_rule_evaluate(rule, ohlcv, NULL, 2), "Found in window [0,1,2]");
+  /* Index 3: window [1,2,3], bar 1 has 110 > 100 -> true */
+  ASSERT(samtrader_rule_evaluate(rule, ohlcv, NULL, 3), "Found in window [1,2,3]");
+  /* Index 4: window [2,3,4] = [80,70,60], none > 100 -> false */
+  ASSERT(!samtrader_rule_evaluate(rule, ohlcv, NULL, 4), "Not found in window [2,3,4]");
+
+  samrena_destroy(arena);
+  printf("  PASS\n");
+  return 0;
+}
+
+static int test_any_of_not_found(void) {
+  printf("Testing ANY_OF not found...\n");
+  Samrena *arena = samrena_create_default();
+  /* No closes above 100 */
+  double closes[] = {50.0, 60.0, 70.0, 80.0, 90.0};
+  SamrenaVector *ohlcv = make_ohlcv(arena, closes, 5);
+
+  SamtraderRule *child =
+      samtrader_rule_create_comparison(arena, SAMTRADER_RULE_ABOVE,
+                                       samtrader_operand_price(SAMTRADER_OPERAND_PRICE_CLOSE),
+                                       samtrader_operand_constant(100.0));
+  SamtraderRule *rule = samtrader_rule_create_temporal(arena, SAMTRADER_RULE_ANY_OF, child, 3);
+
+  ASSERT(!samtrader_rule_evaluate(rule, ohlcv, NULL, 2), "None > 100 in [50,60,70]");
+  ASSERT(!samtrader_rule_evaluate(rule, ohlcv, NULL, 4), "None > 100 in [70,80,90]");
+
+  samrena_destroy(arena);
+  printf("  PASS\n");
+  return 0;
+}
+
+static int test_any_of_insufficient_lookback(void) {
+  printf("Testing ANY_OF insufficient lookback...\n");
+  Samrena *arena = samrena_create_default();
+  double closes[] = {110.0, 120.0};
+  SamrenaVector *ohlcv = make_ohlcv(arena, closes, 2);
+
+  SamtraderRule *child =
+      samtrader_rule_create_comparison(arena, SAMTRADER_RULE_ABOVE,
+                                       samtrader_operand_price(SAMTRADER_OPERAND_PRICE_CLOSE),
+                                       samtrader_operand_constant(100.0));
+  SamtraderRule *rule = samtrader_rule_create_temporal(arena, SAMTRADER_RULE_ANY_OF, child, 5);
+
+  /* Need 5 bars but only have 2 -> false at any index */
+  ASSERT(!samtrader_rule_evaluate(rule, ohlcv, NULL, 0), "Not enough bars at index 0");
+  ASSERT(!samtrader_rule_evaluate(rule, ohlcv, NULL, 1), "Not enough bars at index 1");
+
+  samrena_destroy(arena);
+  printf("  PASS\n");
+  return 0;
+}
+
+static int test_any_of_lookback_one(void) {
+  printf("Testing ANY_OF with lookback=1...\n");
+  Samrena *arena = samrena_create_default();
+  double closes[] = {110.0, 40.0};
+  SamrenaVector *ohlcv = make_ohlcv(arena, closes, 2);
+
+  SamtraderRule *child =
+      samtrader_rule_create_comparison(arena, SAMTRADER_RULE_ABOVE,
+                                       samtrader_operand_price(SAMTRADER_OPERAND_PRICE_CLOSE),
+                                       samtrader_operand_constant(100.0));
+  SamtraderRule *rule = samtrader_rule_create_temporal(arena, SAMTRADER_RULE_ANY_OF, child, 1);
+
+  /* lookback=1: just checks current bar */
+  ASSERT(samtrader_rule_evaluate(rule, ohlcv, NULL, 0), "110 > 100 at index 0");
+  ASSERT(!samtrader_rule_evaluate(rule, ohlcv, NULL, 1), "40 not > 100 at index 1");
+
+  samrena_destroy(arena);
+  printf("  PASS\n");
+  return 0;
+}
+
+static int test_any_of_cross_above(void) {
+  printf("Testing ANY_OF with CROSS_ABOVE child...\n");
+  Samrena *arena = samrena_create_default();
+  /* Cross above happens at index 2 (prev=95, curr=105 vs threshold 100) */
+  double closes[] = {90.0, 95.0, 105.0, 108.0, 112.0, 115.0};
+  SamrenaVector *ohlcv = make_ohlcv(arena, closes, 6);
+
+  /* ANY_OF(CROSS_ABOVE(close, 100), 3) */
+  SamtraderRule *child =
+      samtrader_rule_create_comparison(arena, SAMTRADER_RULE_CROSS_ABOVE,
+                                       samtrader_operand_price(SAMTRADER_OPERAND_PRICE_CLOSE),
+                                       samtrader_operand_constant(100.0));
+  SamtraderRule *rule = samtrader_rule_create_temporal(arena, SAMTRADER_RULE_ANY_OF, child, 3);
+
+  /* Index 2: window [0,1,2], cross at bar 2 -> true */
+  ASSERT(samtrader_rule_evaluate(rule, ohlcv, NULL, 2), "Cross at bar 2 in window");
+  /* Index 4: window [2,3,4], cross at bar 2 -> true */
+  ASSERT(samtrader_rule_evaluate(rule, ohlcv, NULL, 4), "Cross at bar 2 still in window");
+  /* Index 5: window [3,4,5] = [108,112,115], no cross -> false */
+  ASSERT(!samtrader_rule_evaluate(rule, ohlcv, NULL, 5), "Cross at bar 2 outside window");
+
+  samrena_destroy(arena);
+  printf("  PASS\n");
+  return 0;
+}
+
+static int test_any_of_null_child(void) {
+  printf("Testing ANY_OF with NULL child...\n");
+  Samrena *arena = samrena_create_default();
+  double closes[] = {100.0, 100.0, 100.0};
+  SamrenaVector *ohlcv = make_ohlcv(arena, closes, 3);
+
+  SamtraderRule *rule = samtrader_rule_create_temporal(arena, SAMTRADER_RULE_ANY_OF, NULL, 3);
+
+  ASSERT(rule == NULL || !samtrader_rule_evaluate(rule, ohlcv, NULL, 2),
+         "NULL child should return false");
+
+  samrena_destroy(arena);
+  printf("  PASS\n");
+  return 0;
+}
+
+/*============================================================================
  * Main
  *============================================================================*/
 
@@ -954,6 +1213,21 @@ int main(void) {
 
   /* Two-indicator cross tests */
   failures += test_cross_above_two_indicators();
+
+  /* CONSECUTIVE tests */
+  failures += test_consecutive_all_true();
+  failures += test_consecutive_broken_streak();
+  failures += test_consecutive_lookback_one();
+  failures += test_consecutive_with_indicator();
+  failures += test_consecutive_null_child();
+
+  /* ANY_OF tests */
+  failures += test_any_of_found();
+  failures += test_any_of_not_found();
+  failures += test_any_of_insufficient_lookback();
+  failures += test_any_of_lookback_one();
+  failures += test_any_of_cross_above();
+  failures += test_any_of_null_child();
 
   printf("\n=== Results: %d failures ===\n", failures);
 

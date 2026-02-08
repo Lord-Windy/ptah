@@ -269,10 +269,10 @@ bool samtrader_rule_evaluate(const SamtraderRule *rule, const SamrenaVector *ohl
     }
 
     case SAMTRADER_RULE_AND: {
-      if (!rule->children) return false;
+      if (!rule->children)
+        return false;
       for (size_t i = 0; rule->children[i] != NULL; i++) {
-        if (!samtrader_rule_evaluate(rule->children[i], ohlcv, indicators,
-                                     index)) {
+        if (!samtrader_rule_evaluate(rule->children[i], ohlcv, indicators, index)) {
           return false;
         }
       }
@@ -280,10 +280,10 @@ bool samtrader_rule_evaluate(const SamtraderRule *rule, const SamrenaVector *ohl
     }
 
     case SAMTRADER_RULE_OR: {
-      if (!rule->children) return false;
+      if (!rule->children)
+        return false;
       for (size_t i = 0; rule->children[i] != NULL; i++) {
-        if (samtrader_rule_evaluate(rule->children[i], ohlcv, indicators,
-                                    index)) {
+        if (samtrader_rule_evaluate(rule->children[i], ohlcv, indicators, index)) {
           return true;
         }
       }
@@ -291,14 +291,38 @@ bool samtrader_rule_evaluate(const SamtraderRule *rule, const SamrenaVector *ohl
     }
 
     case SAMTRADER_RULE_NOT: {
-      if (!rule->child) return false;
+      if (!rule->child)
+        return false;
       return !samtrader_rule_evaluate(rule->child, ohlcv, indicators, index);
     }
 
-    case SAMTRADER_RULE_CONSECUTIVE:
-    case SAMTRADER_RULE_ANY_OF:
-      /* Temporal rules: not yet implemented */
+    case SAMTRADER_RULE_CONSECUTIVE: {
+      if (!rule->child || rule->lookback <= 0)
+        return false;
+      if (index < (size_t)(rule->lookback - 1))
+        return false;
+      size_t start = index - (size_t)(rule->lookback - 1);
+      for (size_t i = start; i <= index; i++) {
+        if (!samtrader_rule_evaluate(rule->child, ohlcv, indicators, i)) {
+          return false;
+        }
+      }
+      return true;
+    }
+
+    case SAMTRADER_RULE_ANY_OF: {
+      if (!rule->child || rule->lookback <= 0)
+        return false;
+      if (index < (size_t)(rule->lookback - 1))
+        return false;
+      size_t start = index - (size_t)(rule->lookback - 1);
+      for (size_t i = start; i <= index; i++) {
+        if (samtrader_rule_evaluate(rule->child, ohlcv, indicators, i)) {
+          return true;
+        }
+      }
       return false;
+    }
   }
 
   return false;
