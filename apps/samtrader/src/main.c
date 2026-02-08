@@ -14,10 +14,34 @@
  * limitations under the License.
  */
 
+#define _POSIX_C_SOURCE 200809L
+
 #include <getopt.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
+
+#include <samdata/samhashmap.h>
+#include <samrena.h>
+#include <samvector.h>
+
+#include <samtrader/adapters/file_config_adapter.h>
+#include <samtrader/adapters/postgres_adapter.h>
+#include <samtrader/adapters/typst_report_adapter.h>
+#include <samtrader/domain/backtest.h>
+#include <samtrader/domain/execution.h>
+#include <samtrader/domain/indicator.h>
+#include <samtrader/domain/metrics.h>
+#include <samtrader/domain/ohlcv.h>
+#include <samtrader/domain/portfolio.h>
+#include <samtrader/domain/position.h>
+#include <samtrader/domain/rule.h>
+#include <samtrader/domain/strategy.h>
+#include <samtrader/ports/config_port.h>
+#include <samtrader/ports/data_port.h>
+#include <samtrader/ports/report_port.h>
+#include <samtrader/samtrader.h>
 
 /* TRD Section 10.2 exit codes */
 #define EXIT_GENERAL_ERROR 1
@@ -25,6 +49,9 @@
 #define EXIT_DB_ERROR 3
 #define EXIT_INVALID_STRATEGY 4
 #define EXIT_INSUFFICIENT_DATA 5
+
+#define INDICATOR_KEY_BUF_SIZE 64
+#define MIN_OHLCV_BARS 30
 
 typedef struct {
   const char *config_path;   /* -c / --config */
@@ -170,29 +197,550 @@ static int validate_args(Command cmd, const CliArgs *args) {
   return 0;
 }
 
+/*============================================================================
+ * Helper Functions
+ *============================================================================*/
+
+static time_t parse_date(const char *date_str) {
+  if (!date_str)
+    return (time_t)-1;
+  int year, month, day;
+  if (sscanf(date_str, "%d-%d-%d", &year, &month, &day) != 3)
+    return (time_t)-1;
+  struct tm tm_val = {0};
+  tm_val.tm_year = year - 1900;
+  tm_val.tm_mon = month - 1;
+  tm_val.tm_mday = day;
+  tm_val.tm_isdst = -1;
+  return mktime(&tm_val);
+}
+
+static void collect_from_operand(const SamtraderOperand *op, SamHashMap *seen_keys,
+                                 SamrenaVector *operands, Samrena *arena) {
+  if (op->type != SAMTRADER_OPERAND_INDICATOR)
+    return;
+  char key_buf[INDICATOR_KEY_BUF_SIZE];
+  if (samtrader_operand_indicator_key(key_buf, sizeof(key_buf), op) < 0)
+    return;
+  if (samhashmap_contains(seen_keys, key_buf))
+    return;
+  samhashmap_put(seen_keys, key_buf, (void *)1);
+  samrena_vector_push(operands, op);
+  (void)arena;
+}
+
+static void collect_indicator_operands(const SamtraderRule *rule, SamHashMap *seen_keys,
+                                       SamrenaVector *operands, Samrena *arena) {
+  if (!rule)
+    return;
+  switch (rule->type) {
+    case SAMTRADER_RULE_CROSS_ABOVE:
+    case SAMTRADER_RULE_CROSS_BELOW:
+    case SAMTRADER_RULE_ABOVE:
+    case SAMTRADER_RULE_BELOW:
+    case SAMTRADER_RULE_BETWEEN:
+    case SAMTRADER_RULE_EQUALS:
+      collect_from_operand(&rule->left, seen_keys, operands, arena);
+      collect_from_operand(&rule->right, seen_keys, operands, arena);
+      break;
+    case SAMTRADER_RULE_AND:
+    case SAMTRADER_RULE_OR:
+      if (rule->children) {
+        for (size_t i = 0; rule->children[i] != NULL; i++)
+          collect_indicator_operands(rule->children[i], seen_keys, operands, arena);
+      }
+      break;
+    case SAMTRADER_RULE_NOT:
+      collect_indicator_operands(rule->child, seen_keys, operands, arena);
+      break;
+    case SAMTRADER_RULE_CONSECUTIVE:
+    case SAMTRADER_RULE_ANY_OF:
+      collect_indicator_operands(rule->child, seen_keys, operands, arena);
+      break;
+  }
+}
+
+static SamtraderIndicatorSeries *
+calculate_indicator_for_operand(Samrena *arena, const SamtraderOperand *op, SamrenaVector *ohlcv) {
+  switch (op->indicator.indicator_type) {
+    case SAMTRADER_IND_MACD:
+      return samtrader_calculate_macd(arena, ohlcv, op->indicator.period, op->indicator.param2,
+                                      op->indicator.param3);
+    case SAMTRADER_IND_BOLLINGER:
+      return samtrader_calculate_bollinger(arena, ohlcv, op->indicator.period,
+                                           op->indicator.param2 / 100.0);
+    case SAMTRADER_IND_STOCHASTIC:
+      return samtrader_calculate_stochastic(arena, ohlcv, op->indicator.period,
+                                            op->indicator.param2);
+    case SAMTRADER_IND_PIVOT:
+      return samtrader_calculate_pivot(arena, ohlcv);
+    default:
+      return samtrader_indicator_calculate(arena, op->indicator.indicator_type, ohlcv,
+                                           op->indicator.period);
+  }
+}
+
+static SamHashMap *build_price_map(Samrena *arena, const SamtraderOhlcv *bar) {
+  SamHashMap *price_map = samhashmap_create(4, arena);
+  if (!price_map)
+    return NULL;
+  double *price = SAMRENA_PUSH_TYPE(arena, double);
+  if (!price)
+    return NULL;
+  *price = bar->close;
+  samhashmap_put(price_map, bar->code, price);
+  return price_map;
+}
+
+static int load_strategy_from_config(SamtraderConfigPort *config, Samrena *arena,
+                                     SamtraderStrategy *strategy) {
+  memset(strategy, 0, sizeof(*strategy));
+
+  strategy->name = config->get_string(config, "strategy", "name");
+  if (!strategy->name)
+    strategy->name = "Unnamed Strategy";
+
+  strategy->description = config->get_string(config, "strategy", "description");
+  if (!strategy->description)
+    strategy->description = "";
+
+  const char *entry_long_str = config->get_string(config, "strategy", "entry_long");
+  if (!entry_long_str || entry_long_str[0] == '\0') {
+    fprintf(stderr, "Error: strategy requires entry_long rule\n");
+    return EXIT_INVALID_STRATEGY;
+  }
+  strategy->entry_long = samtrader_rule_parse(arena, entry_long_str);
+  if (!strategy->entry_long) {
+    fprintf(stderr, "Error: failed to parse entry_long rule: %s\n", entry_long_str);
+    return EXIT_INVALID_STRATEGY;
+  }
+
+  const char *exit_long_str = config->get_string(config, "strategy", "exit_long");
+  if (!exit_long_str || exit_long_str[0] == '\0') {
+    fprintf(stderr, "Error: strategy requires exit_long rule\n");
+    return EXIT_INVALID_STRATEGY;
+  }
+  strategy->exit_long = samtrader_rule_parse(arena, exit_long_str);
+  if (!strategy->exit_long) {
+    fprintf(stderr, "Error: failed to parse exit_long rule: %s\n", exit_long_str);
+    return EXIT_INVALID_STRATEGY;
+  }
+
+  const char *entry_short_str = config->get_string(config, "strategy", "entry_short");
+  if (entry_short_str && entry_short_str[0] != '\0')
+    strategy->entry_short = samtrader_rule_parse(arena, entry_short_str);
+
+  const char *exit_short_str = config->get_string(config, "strategy", "exit_short");
+  if (exit_short_str && exit_short_str[0] != '\0')
+    strategy->exit_short = samtrader_rule_parse(arena, exit_short_str);
+
+  strategy->position_size = config->get_double(config, "strategy", "position_size", 0.25);
+  strategy->stop_loss_pct = config->get_double(config, "strategy", "stop_loss", 0.0);
+  strategy->take_profit_pct = config->get_double(config, "strategy", "take_profit", 0.0);
+  strategy->max_positions = config->get_int(config, "strategy", "max_positions", 1);
+
+  return 0;
+}
+
+static int load_strategy_from_file(const char *strategy_path, Samrena *arena,
+                                   SamtraderStrategy *strategy) {
+  SamtraderConfigPort *config = samtrader_file_config_adapter_create(arena, strategy_path);
+  if (!config) {
+    fprintf(stderr, "Error: failed to load strategy file: %s\n", strategy_path);
+    return EXIT_INVALID_STRATEGY;
+  }
+  int rc = load_strategy_from_config(config, arena, strategy);
+  config->close(config);
+  return rc;
+}
+
+/*============================================================================
+ * Command Implementations
+ *============================================================================*/
+
 static int cmd_backtest(const CliArgs *args) {
-  printf("Backtest: config=%s", args->config_path);
-  if (args->strategy_path)
-    printf(", strategy=%s", args->strategy_path);
-  if (args->output_path)
-    printf(", output=%s", args->output_path);
-  printf("\n");
-  return EXIT_SUCCESS;
+  int rc = EXIT_SUCCESS;
+  Samrena *arena = samrena_create_default();
+  if (!arena) {
+    fprintf(stderr, "Error: failed to create memory arena\n");
+    return EXIT_GENERAL_ERROR;
+  }
+
+  SamtraderConfigPort *config = NULL;
+  SamtraderDataPort *data = NULL;
+  SamtraderReportPort *report = NULL;
+
+  /* Load config */
+  config = samtrader_file_config_adapter_create(arena, args->config_path);
+  if (!config) {
+    fprintf(stderr, "Error: failed to load config: %s\n", args->config_path);
+    rc = EXIT_CONFIG_ERROR;
+    goto cleanup;
+  }
+
+  /* Read backtest parameters */
+  const char *conninfo = config->get_string(config, "database", "conninfo");
+  if (!conninfo) {
+    fprintf(stderr, "Error: missing [database] conninfo in config\n");
+    rc = EXIT_CONFIG_ERROR;
+    goto cleanup;
+  }
+
+  const char *code = args->code ? args->code : config->get_string(config, "backtest", "code");
+  const char *exchange =
+      args->exchange ? args->exchange : config->get_string(config, "backtest", "exchange");
+  if (!code || !exchange) {
+    fprintf(stderr, "Error: backtest requires code and exchange\n");
+    rc = EXIT_CONFIG_ERROR;
+    goto cleanup;
+  }
+
+  const char *start_str = config->get_string(config, "backtest", "start_date");
+  const char *end_str = config->get_string(config, "backtest", "end_date");
+  time_t start_date = parse_date(start_str);
+  time_t end_date = parse_date(end_str);
+  if (start_date == (time_t)-1 || end_date == (time_t)-1) {
+    fprintf(stderr, "Error: invalid start_date or end_date (expected YYYY-MM-DD)\n");
+    rc = EXIT_CONFIG_ERROR;
+    goto cleanup;
+  }
+
+  double initial_capital = config->get_double(config, "backtest", "initial_capital", 100000.0);
+  double commission_flat = config->get_double(config, "backtest", "commission_per_trade", 0.0);
+  double commission_pct = config->get_double(config, "backtest", "commission_pct", 0.0);
+  double slippage_pct = config->get_double(config, "backtest", "slippage_pct", 0.0);
+  bool allow_shorting = config->get_bool(config, "backtest", "allow_shorting", false);
+  double risk_free_rate = config->get_double(config, "backtest", "risk_free_rate", 0.05);
+
+  /* Load strategy */
+  SamtraderStrategy strategy;
+  if (args->strategy_path) {
+    rc = load_strategy_from_file(args->strategy_path, arena, &strategy);
+  } else {
+    rc = load_strategy_from_config(config, arena, &strategy);
+  }
+  if (rc != 0)
+    goto cleanup;
+
+  /* Connect to database */
+  data = samtrader_postgres_adapter_create(arena, conninfo);
+  if (!data) {
+    fprintf(stderr, "Error: failed to connect to database\n");
+    rc = EXIT_DB_ERROR;
+    goto cleanup;
+  }
+
+  /* Fetch OHLCV data */
+  SamrenaVector *ohlcv = data->fetch_ohlcv(data, code, exchange, start_date, end_date);
+  if (!ohlcv) {
+    fprintf(stderr, "Error: failed to fetch OHLCV data for %s.%s\n", code, exchange);
+    rc = EXIT_DB_ERROR;
+    goto cleanup;
+  }
+
+  size_t bar_count = samrena_vector_size(ohlcv);
+  if (bar_count < MIN_OHLCV_BARS) {
+    fprintf(stderr, "Error: insufficient data (%zu bars, minimum %d required)\n", bar_count,
+            MIN_OHLCV_BARS);
+    rc = EXIT_INSUFFICIENT_DATA;
+    goto cleanup;
+  }
+
+  /* Collect indicator operands from all rules */
+  SamHashMap *seen_keys = samhashmap_create(32, arena);
+  SamrenaVector *operands = samrena_vector_init(arena, sizeof(SamtraderOperand), 16);
+  collect_indicator_operands(strategy.entry_long, seen_keys, operands, arena);
+  collect_indicator_operands(strategy.exit_long, seen_keys, operands, arena);
+  if (strategy.entry_short)
+    collect_indicator_operands(strategy.entry_short, seen_keys, operands, arena);
+  if (strategy.exit_short)
+    collect_indicator_operands(strategy.exit_short, seen_keys, operands, arena);
+
+  /* Calculate indicators */
+  SamHashMap *indicators = samhashmap_create(32, arena);
+  for (size_t i = 0; i < samrena_vector_size(operands); i++) {
+    const SamtraderOperand *op = (const SamtraderOperand *)samrena_vector_at_const(operands, i);
+    SamtraderIndicatorSeries *series = calculate_indicator_for_operand(arena, op, ohlcv);
+    if (!series) {
+      fprintf(stderr, "Error: failed to calculate indicator\n");
+      rc = EXIT_GENERAL_ERROR;
+      goto cleanup;
+    }
+    char key_buf[INDICATOR_KEY_BUF_SIZE];
+    samtrader_operand_indicator_key(key_buf, sizeof(key_buf), op);
+    samhashmap_put(indicators, key_buf, series);
+  }
+
+  /* Create portfolio */
+  SamtraderPortfolio *portfolio = samtrader_portfolio_create(arena, initial_capital);
+  if (!portfolio) {
+    fprintf(stderr, "Error: failed to create portfolio\n");
+    rc = EXIT_GENERAL_ERROR;
+    goto cleanup;
+  }
+
+  /* Main backtest loop */
+  for (size_t i = 0; i < bar_count; i++) {
+    const SamtraderOhlcv *bar = (const SamtraderOhlcv *)samrena_vector_at_const(ohlcv, i);
+
+    SamHashMap *price_map = build_price_map(arena, bar);
+    if (!price_map)
+      continue;
+
+    /* Check stop loss / take profit triggers */
+    samtrader_execution_check_triggers(portfolio, arena, price_map, bar->date, commission_flat,
+                                       commission_pct, slippage_pct);
+
+    /* Evaluate exit rules for existing positions */
+    if (samtrader_portfolio_has_position(portfolio, code)) {
+      SamtraderPosition *pos = samtrader_portfolio_get_position(portfolio, code);
+      bool should_exit = false;
+      if (pos && samtrader_position_is_long(pos)) {
+        should_exit = samtrader_rule_evaluate(strategy.exit_long, ohlcv, indicators, i);
+      } else if (pos && samtrader_position_is_short(pos) && strategy.exit_short) {
+        should_exit = samtrader_rule_evaluate(strategy.exit_short, ohlcv, indicators, i);
+      }
+      if (should_exit) {
+        samtrader_execution_exit_position(portfolio, arena, code, bar->close, bar->date,
+                                          commission_flat, commission_pct, slippage_pct);
+      }
+    }
+
+    /* Evaluate entry rules */
+    if (!samtrader_portfolio_has_position(portfolio, code)) {
+      bool enter_long = samtrader_rule_evaluate(strategy.entry_long, ohlcv, indicators, i);
+      bool enter_short = allow_shorting && strategy.entry_short
+                             ? samtrader_rule_evaluate(strategy.entry_short, ohlcv, indicators, i)
+                             : false;
+
+      if (enter_long) {
+        samtrader_execution_enter_long(portfolio, arena, code, exchange, bar->close, bar->date,
+                                       strategy.position_size, strategy.stop_loss_pct,
+                                       strategy.take_profit_pct, strategy.max_positions,
+                                       commission_flat, commission_pct, slippage_pct);
+      } else if (enter_short) {
+        samtrader_execution_enter_short(portfolio, arena, code, exchange, bar->close, bar->date,
+                                        strategy.position_size, strategy.stop_loss_pct,
+                                        strategy.take_profit_pct, strategy.max_positions,
+                                        commission_flat, commission_pct, slippage_pct);
+      }
+    }
+
+    /* Record equity */
+    double equity = samtrader_portfolio_total_equity(portfolio, price_map);
+    samtrader_portfolio_record_equity(portfolio, arena, bar->date, equity);
+  }
+
+  /* Calculate metrics */
+  SamtraderMetrics *metrics = samtrader_metrics_calculate(arena, portfolio->closed_trades,
+                                                          portfolio->equity_curve, risk_free_rate);
+  if (!metrics) {
+    fprintf(stderr, "Error: failed to calculate metrics\n");
+    rc = EXIT_GENERAL_ERROR;
+    goto cleanup;
+  }
+
+  /* Build backtest result */
+  SamtraderBacktestResult *result = SAMRENA_PUSH_TYPE_ZERO(arena, SamtraderBacktestResult);
+  if (!result) {
+    fprintf(stderr, "Error: failed to allocate backtest result\n");
+    rc = EXIT_GENERAL_ERROR;
+    goto cleanup;
+  }
+  result->total_return = metrics->total_return;
+  result->annualized_return = metrics->annualized_return;
+  result->sharpe_ratio = metrics->sharpe_ratio;
+  result->sortino_ratio = metrics->sortino_ratio;
+  result->max_drawdown = metrics->max_drawdown;
+  result->max_drawdown_duration = metrics->max_drawdown_duration;
+  result->win_rate = metrics->win_rate;
+  result->profit_factor = metrics->profit_factor;
+  result->total_trades = metrics->total_trades;
+  result->winning_trades = metrics->winning_trades;
+  result->losing_trades = metrics->losing_trades;
+  result->average_win = metrics->average_win;
+  result->average_loss = metrics->average_loss;
+  result->largest_win = metrics->largest_win;
+  result->largest_loss = metrics->largest_loss;
+  result->average_trade_duration = metrics->average_trade_duration;
+  result->equity_curve = portfolio->equity_curve;
+  result->trades = portfolio->closed_trades;
+
+  /* Generate report */
+  const char *output_path = args->output_path ? args->output_path : "backtest_report.typ";
+  const char *template_path = config->get_string(config, "report", "template_path");
+  report = samtrader_typst_adapter_create(arena, template_path);
+  if (report) {
+    report->write(report, result, &strategy, output_path);
+    printf("Report written to: %s\n", output_path);
+  }
+
+  /* Print metrics summary */
+  samtrader_metrics_print(metrics);
+
+cleanup:
+  if (report)
+    report->close(report);
+  if (data)
+    data->close(data);
+  if (config)
+    config->close(config);
+  samrena_destroy(arena);
+  return rc;
 }
 
 static int cmd_list_symbols(const CliArgs *args) {
-  printf("List symbols: exchange=%s\n", args->exchange);
-  return EXIT_SUCCESS;
+  int rc = EXIT_SUCCESS;
+  Samrena *arena = samrena_create_default();
+  if (!arena) {
+    fprintf(stderr, "Error: failed to create memory arena\n");
+    return EXIT_GENERAL_ERROR;
+  }
+
+  SamtraderDataPort *data = NULL;
+  const char *conninfo = NULL;
+
+  if (args->config_path) {
+    SamtraderConfigPort *config = samtrader_file_config_adapter_create(arena, args->config_path);
+    if (config) {
+      conninfo = config->get_string(config, "database", "conninfo");
+      config->close(config);
+    }
+  }
+  if (!conninfo)
+    conninfo = getenv("SAMTRADER_DB");
+  if (!conninfo) {
+    fprintf(stderr, "Error: no database connection (use -c config or SAMTRADER_DB env)\n");
+    rc = EXIT_DB_ERROR;
+    goto cleanup;
+  }
+
+  data = samtrader_postgres_adapter_create(arena, conninfo);
+  if (!data) {
+    fprintf(stderr, "Error: failed to connect to database\n");
+    rc = EXIT_DB_ERROR;
+    goto cleanup;
+  }
+
+  SamrenaVector *symbols = data->list_symbols(data, args->exchange);
+  if (!symbols) {
+    fprintf(stderr, "Error: failed to list symbols\n");
+    rc = EXIT_DB_ERROR;
+    goto cleanup;
+  }
+
+  size_t count = samrena_vector_size(symbols);
+  printf("Symbols on %s (%zu):\n", args->exchange, count);
+  for (size_t i = 0; i < count; i++) {
+    const char *const *sym = (const char *const *)samrena_vector_at_const(symbols, i);
+    if (sym)
+      printf("  %s\n", *sym);
+  }
+
+cleanup:
+  if (data)
+    data->close(data);
+  samrena_destroy(arena);
+  return rc;
 }
 
 static int cmd_validate(const CliArgs *args) {
-  printf("Validate: strategy=%s\n", args->strategy_path);
-  return EXIT_SUCCESS;
+  int rc = EXIT_SUCCESS;
+  Samrena *arena = samrena_create_default();
+  if (!arena) {
+    fprintf(stderr, "Error: failed to create memory arena\n");
+    return EXIT_GENERAL_ERROR;
+  }
+
+  SamtraderStrategy strategy;
+  rc = load_strategy_from_file(args->strategy_path, arena, &strategy);
+  if (rc != 0) {
+    samrena_destroy(arena);
+    return rc;
+  }
+
+  printf("Strategy: %s\n", strategy.name);
+  printf("Description: %s\n", strategy.description);
+  printf("Entry Long: parsed successfully\n");
+  printf("Exit Long: parsed successfully\n");
+  printf("Entry Short: %s\n", strategy.entry_short ? "parsed successfully" : "not defined");
+  printf("Exit Short: %s\n", strategy.exit_short ? "parsed successfully" : "not defined");
+  printf("Position Size: %.2f\n", strategy.position_size);
+  printf("Stop Loss: %.2f%%\n", strategy.stop_loss_pct);
+  printf("Take Profit: %.2f%%\n", strategy.take_profit_pct);
+  printf("Max Positions: %d\n", strategy.max_positions);
+  printf("\nStrategy is valid.\n");
+
+  samrena_destroy(arena);
+  return rc;
 }
 
 static int cmd_info(const CliArgs *args) {
-  printf("Info: code=%s, exchange=%s\n", args->code, args->exchange);
-  return EXIT_SUCCESS;
+  int rc = EXIT_SUCCESS;
+  Samrena *arena = samrena_create_default();
+  if (!arena) {
+    fprintf(stderr, "Error: failed to create memory arena\n");
+    return EXIT_GENERAL_ERROR;
+  }
+
+  SamtraderDataPort *data = NULL;
+  const char *conninfo = NULL;
+
+  if (args->config_path) {
+    SamtraderConfigPort *config = samtrader_file_config_adapter_create(arena, args->config_path);
+    if (config) {
+      conninfo = config->get_string(config, "database", "conninfo");
+      config->close(config);
+    }
+  }
+  if (!conninfo)
+    conninfo = getenv("SAMTRADER_DB");
+  if (!conninfo) {
+    fprintf(stderr, "Error: no database connection (use -c config or SAMTRADER_DB env)\n");
+    rc = EXIT_DB_ERROR;
+    goto cleanup;
+  }
+
+  data = samtrader_postgres_adapter_create(arena, conninfo);
+  if (!data) {
+    fprintf(stderr, "Error: failed to connect to database\n");
+    rc = EXIT_DB_ERROR;
+    goto cleanup;
+  }
+
+  /* Fetch all available data (epoch 0 to far future) */
+  time_t epoch_start = 0;
+  time_t epoch_end = (time_t)4102444800; /* 2100-01-01 */
+  SamrenaVector *ohlcv =
+      data->fetch_ohlcv(data, args->code, args->exchange, epoch_start, epoch_end);
+  if (!ohlcv || samrena_vector_size(ohlcv) == 0) {
+    fprintf(stderr, "Error: no data found for %s.%s\n", args->code, args->exchange);
+    rc = EXIT_INSUFFICIENT_DATA;
+    goto cleanup;
+  }
+
+  size_t count = samrena_vector_size(ohlcv);
+  const SamtraderOhlcv *first = (const SamtraderOhlcv *)samrena_vector_at_const(ohlcv, 0);
+  const SamtraderOhlcv *last = (const SamtraderOhlcv *)samrena_vector_at_const(ohlcv, count - 1);
+
+  char first_date_str[32], last_date_str[32];
+  struct tm first_tm, last_tm;
+  localtime_r(&first->date, &first_tm);
+  localtime_r(&last->date, &last_tm);
+  strftime(first_date_str, sizeof(first_date_str), "%Y-%m-%d", &first_tm);
+  strftime(last_date_str, sizeof(last_date_str), "%Y-%m-%d", &last_tm);
+
+  printf("Symbol: %s.%s\n", args->code, args->exchange);
+  printf("Date Range: %s to %s\n", first_date_str, last_date_str);
+  printf("Total Bars: %zu\n", count);
+  printf("First Close: %.2f\n", first->close);
+  printf("Last Close: %.2f\n", last->close);
+
+cleanup:
+  if (data)
+    data->close(data);
+  samrena_destroy(arena);
+  return rc;
 }
 
 int main(int argc, char *argv[]) {
