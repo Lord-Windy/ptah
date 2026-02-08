@@ -257,4 +257,15 @@ if(BUILD_TESTING)
     )
     target_link_libraries(samtrader_backtest_test PRIVATE samrena samdata m)
     add_test(NAME samtrader_backtest_test COMMAND samtrader_backtest_test)
+
+    # Typst report adapter tests
+    add_executable(samtrader_report_test
+        test/test_report.c
+        src/adapters/typst_report_adapter.c
+    )
+    target_include_directories(samtrader_report_test PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/include
+    )
+    target_link_libraries(samtrader_report_test PRIVATE samrena samdata m)
+    add_test(NAME samtrader_report_test COMMAND samtrader_report_test)
 endif()
