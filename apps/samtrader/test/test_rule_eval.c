@@ -1153,6 +1153,462 @@ static int test_any_of_null_child(void) {
 }
 
 /*============================================================================
+ * AND Rule Evaluation Tests
+ *============================================================================*/
+
+static int test_and_both_true(void) {
+  printf("Testing AND both children true...\n");
+  Samrena *arena = samrena_create_default();
+  double closes[] = {100.0};
+  SamrenaVector *ohlcv = make_ohlcv(arena, closes, 1);
+
+  /* AND(ABOVE(close, 50), BELOW(close, 200)) with close=100 -> true */
+  SamtraderRule *above =
+      samtrader_rule_create_comparison(arena, SAMTRADER_RULE_ABOVE,
+                                       samtrader_operand_price(SAMTRADER_OPERAND_PRICE_CLOSE),
+                                       samtrader_operand_constant(50.0));
+  SamtraderRule *below =
+      samtrader_rule_create_comparison(arena, SAMTRADER_RULE_BELOW,
+                                       samtrader_operand_price(SAMTRADER_OPERAND_PRICE_CLOSE),
+                                       samtrader_operand_constant(200.0));
+  SamtraderRule *children[] = {above, below};
+  SamtraderRule *rule = samtrader_rule_create_composite(arena, SAMTRADER_RULE_AND, children, 2);
+
+  ASSERT(samtrader_rule_evaluate(rule, ohlcv, NULL, 0), "AND(100>50, 100<200) should be true");
+
+  samrena_destroy(arena);
+  printf("  PASS\n");
+  return 0;
+}
+
+static int test_and_one_false(void) {
+  printf("Testing AND one child false...\n");
+  Samrena *arena = samrena_create_default();
+  double closes[] = {100.0};
+  SamrenaVector *ohlcv = make_ohlcv(arena, closes, 1);
+
+  /* AND(ABOVE(close, 50), ABOVE(close, 200)) with close=100 -> false */
+  SamtraderRule *above1 =
+      samtrader_rule_create_comparison(arena, SAMTRADER_RULE_ABOVE,
+                                       samtrader_operand_price(SAMTRADER_OPERAND_PRICE_CLOSE),
+                                       samtrader_operand_constant(50.0));
+  SamtraderRule *above2 =
+      samtrader_rule_create_comparison(arena, SAMTRADER_RULE_ABOVE,
+                                       samtrader_operand_price(SAMTRADER_OPERAND_PRICE_CLOSE),
+                                       samtrader_operand_constant(200.0));
+  SamtraderRule *children[] = {above1, above2};
+  SamtraderRule *rule = samtrader_rule_create_composite(arena, SAMTRADER_RULE_AND, children, 2);
+
+  ASSERT(!samtrader_rule_evaluate(rule, ohlcv, NULL, 0), "AND(100>50, 100>200) should be false");
+
+  samrena_destroy(arena);
+  printf("  PASS\n");
+  return 0;
+}
+
+static int test_and_null_children(void) {
+  printf("Testing AND with NULL children...\n");
+  Samrena *arena = samrena_create_default();
+  double closes[] = {100.0};
+  SamrenaVector *ohlcv = make_ohlcv(arena, closes, 1);
+
+  SamtraderRule *rule = samtrader_rule_create_composite(arena, SAMTRADER_RULE_AND, NULL, 0);
+
+  ASSERT(rule == NULL || !samtrader_rule_evaluate(rule, ohlcv, NULL, 0),
+         "AND with NULL children should return false");
+
+  samrena_destroy(arena);
+  printf("  PASS\n");
+  return 0;
+}
+
+/*============================================================================
+ * OR Rule Evaluation Tests
+ *============================================================================*/
+
+static int test_or_one_true(void) {
+  printf("Testing OR one child true...\n");
+  Samrena *arena = samrena_create_default();
+  double closes[] = {100.0};
+  SamrenaVector *ohlcv = make_ohlcv(arena, closes, 1);
+
+  /* OR(ABOVE(close, 200), ABOVE(close, 50)) with close=100 -> true */
+  SamtraderRule *above1 =
+      samtrader_rule_create_comparison(arena, SAMTRADER_RULE_ABOVE,
+                                       samtrader_operand_price(SAMTRADER_OPERAND_PRICE_CLOSE),
+                                       samtrader_operand_constant(200.0));
+  SamtraderRule *above2 =
+      samtrader_rule_create_comparison(arena, SAMTRADER_RULE_ABOVE,
+                                       samtrader_operand_price(SAMTRADER_OPERAND_PRICE_CLOSE),
+                                       samtrader_operand_constant(50.0));
+  SamtraderRule *children[] = {above1, above2};
+  SamtraderRule *rule = samtrader_rule_create_composite(arena, SAMTRADER_RULE_OR, children, 2);
+
+  ASSERT(samtrader_rule_evaluate(rule, ohlcv, NULL, 0), "OR(100>200, 100>50) should be true");
+
+  samrena_destroy(arena);
+  printf("  PASS\n");
+  return 0;
+}
+
+static int test_or_none_true(void) {
+  printf("Testing OR none true...\n");
+  Samrena *arena = samrena_create_default();
+  double closes[] = {100.0};
+  SamrenaVector *ohlcv = make_ohlcv(arena, closes, 1);
+
+  /* OR(ABOVE(close, 200), ABOVE(close, 300)) with close=100 -> false */
+  SamtraderRule *above1 =
+      samtrader_rule_create_comparison(arena, SAMTRADER_RULE_ABOVE,
+                                       samtrader_operand_price(SAMTRADER_OPERAND_PRICE_CLOSE),
+                                       samtrader_operand_constant(200.0));
+  SamtraderRule *above2 =
+      samtrader_rule_create_comparison(arena, SAMTRADER_RULE_ABOVE,
+                                       samtrader_operand_price(SAMTRADER_OPERAND_PRICE_CLOSE),
+                                       samtrader_operand_constant(300.0));
+  SamtraderRule *children[] = {above1, above2};
+  SamtraderRule *rule = samtrader_rule_create_composite(arena, SAMTRADER_RULE_OR, children, 2);
+
+  ASSERT(!samtrader_rule_evaluate(rule, ohlcv, NULL, 0), "OR(100>200, 100>300) should be false");
+
+  samrena_destroy(arena);
+  printf("  PASS\n");
+  return 0;
+}
+
+static int test_or_null_children(void) {
+  printf("Testing OR with NULL children...\n");
+  Samrena *arena = samrena_create_default();
+  double closes[] = {100.0};
+  SamrenaVector *ohlcv = make_ohlcv(arena, closes, 1);
+
+  SamtraderRule *rule = samtrader_rule_create_composite(arena, SAMTRADER_RULE_OR, NULL, 0);
+
+  ASSERT(rule == NULL || !samtrader_rule_evaluate(rule, ohlcv, NULL, 0),
+         "OR with NULL children should return false");
+
+  samrena_destroy(arena);
+  printf("  PASS\n");
+  return 0;
+}
+
+/*============================================================================
+ * NOT Rule Evaluation Tests
+ *============================================================================*/
+
+static int test_not_true_to_false(void) {
+  printf("Testing NOT true->false...\n");
+  Samrena *arena = samrena_create_default();
+  double closes[] = {100.0};
+  SamrenaVector *ohlcv = make_ohlcv(arena, closes, 1);
+
+  /* NOT(ABOVE(close, 50)) with close=100 -> inner true, NOT -> false */
+  SamtraderRule *above =
+      samtrader_rule_create_comparison(arena, SAMTRADER_RULE_ABOVE,
+                                       samtrader_operand_price(SAMTRADER_OPERAND_PRICE_CLOSE),
+                                       samtrader_operand_constant(50.0));
+  SamtraderRule *rule = samtrader_rule_create_not(arena, above);
+
+  ASSERT(!samtrader_rule_evaluate(rule, ohlcv, NULL, 0), "NOT(100>50) should be false");
+
+  samrena_destroy(arena);
+  printf("  PASS\n");
+  return 0;
+}
+
+static int test_not_false_to_true(void) {
+  printf("Testing NOT false->true...\n");
+  Samrena *arena = samrena_create_default();
+  double closes[] = {100.0};
+  SamrenaVector *ohlcv = make_ohlcv(arena, closes, 1);
+
+  /* NOT(ABOVE(close, 200)) with close=100 -> inner false, NOT -> true */
+  SamtraderRule *above =
+      samtrader_rule_create_comparison(arena, SAMTRADER_RULE_ABOVE,
+                                       samtrader_operand_price(SAMTRADER_OPERAND_PRICE_CLOSE),
+                                       samtrader_operand_constant(200.0));
+  SamtraderRule *rule = samtrader_rule_create_not(arena, above);
+
+  ASSERT(samtrader_rule_evaluate(rule, ohlcv, NULL, 0), "NOT(100>200) should be true");
+
+  samrena_destroy(arena);
+  printf("  PASS\n");
+  return 0;
+}
+
+static int test_not_null_child(void) {
+  printf("Testing NOT with NULL child...\n");
+  Samrena *arena = samrena_create_default();
+  double closes[] = {100.0};
+  SamrenaVector *ohlcv = make_ohlcv(arena, closes, 1);
+
+  SamtraderRule *rule = samtrader_rule_create_not(arena, NULL);
+
+  ASSERT(rule == NULL || !samtrader_rule_evaluate(rule, ohlcv, NULL, 0),
+         "NOT with NULL child should return false");
+
+  samrena_destroy(arena);
+  printf("  PASS\n");
+  return 0;
+}
+
+/*============================================================================
+ * Nested Composite Evaluation Tests
+ *============================================================================*/
+
+static int test_nested_and_or(void) {
+  printf("Testing nested AND(OR(...), ...)...\n");
+  Samrena *arena = samrena_create_default();
+  double closes[] = {100.0};
+  SamrenaVector *ohlcv = make_ohlcv(arena, closes, 1);
+
+  /* AND(OR(ABOVE(close,200), ABOVE(close,50)), BELOW(close,150)) with close=100
+   * OR: 100>200=false, 100>50=true -> true
+   * AND: true && 100<150=true -> true */
+  SamtraderRule *above200 =
+      samtrader_rule_create_comparison(arena, SAMTRADER_RULE_ABOVE,
+                                       samtrader_operand_price(SAMTRADER_OPERAND_PRICE_CLOSE),
+                                       samtrader_operand_constant(200.0));
+  SamtraderRule *above50 =
+      samtrader_rule_create_comparison(arena, SAMTRADER_RULE_ABOVE,
+                                       samtrader_operand_price(SAMTRADER_OPERAND_PRICE_CLOSE),
+                                       samtrader_operand_constant(50.0));
+  SamtraderRule *or_children[] = {above200, above50};
+  SamtraderRule *or_rule =
+      samtrader_rule_create_composite(arena, SAMTRADER_RULE_OR, or_children, 2);
+
+  SamtraderRule *below150 =
+      samtrader_rule_create_comparison(arena, SAMTRADER_RULE_BELOW,
+                                       samtrader_operand_price(SAMTRADER_OPERAND_PRICE_CLOSE),
+                                       samtrader_operand_constant(150.0));
+
+  SamtraderRule *and_children[] = {or_rule, below150};
+  SamtraderRule *rule = samtrader_rule_create_composite(arena, SAMTRADER_RULE_AND, and_children, 2);
+
+  ASSERT(samtrader_rule_evaluate(rule, ohlcv, NULL, 0), "AND(OR(false,true), true) should be true");
+
+  samrena_destroy(arena);
+  printf("  PASS\n");
+  return 0;
+}
+
+static int test_nested_or_and(void) {
+  printf("Testing nested OR(AND(...), ...)...\n");
+  Samrena *arena = samrena_create_default();
+  double closes[] = {100.0};
+  SamrenaVector *ohlcv = make_ohlcv(arena, closes, 1);
+
+  /* OR(AND(ABOVE(close,200), BELOW(close,50)), ABOVE(close,80)) with close=100
+   * AND: 100>200=false, 100<50=false -> false
+   * OR: false || 100>80=true -> true */
+  SamtraderRule *above200 =
+      samtrader_rule_create_comparison(arena, SAMTRADER_RULE_ABOVE,
+                                       samtrader_operand_price(SAMTRADER_OPERAND_PRICE_CLOSE),
+                                       samtrader_operand_constant(200.0));
+  SamtraderRule *below50 =
+      samtrader_rule_create_comparison(arena, SAMTRADER_RULE_BELOW,
+                                       samtrader_operand_price(SAMTRADER_OPERAND_PRICE_CLOSE),
+                                       samtrader_operand_constant(50.0));
+  SamtraderRule *and_children[] = {above200, below50};
+  SamtraderRule *and_rule =
+      samtrader_rule_create_composite(arena, SAMTRADER_RULE_AND, and_children, 2);
+
+  SamtraderRule *above80 =
+      samtrader_rule_create_comparison(arena, SAMTRADER_RULE_ABOVE,
+                                       samtrader_operand_price(SAMTRADER_OPERAND_PRICE_CLOSE),
+                                       samtrader_operand_constant(80.0));
+
+  SamtraderRule *or_children[] = {and_rule, above80};
+  SamtraderRule *rule = samtrader_rule_create_composite(arena, SAMTRADER_RULE_OR, or_children, 2);
+
+  ASSERT(samtrader_rule_evaluate(rule, ohlcv, NULL, 0),
+         "OR(AND(false,false), true) should be true");
+
+  samrena_destroy(arena);
+  printf("  PASS\n");
+  return 0;
+}
+
+static int test_not_composite(void) {
+  printf("Testing NOT(AND(...))...\n");
+  Samrena *arena = samrena_create_default();
+  double closes[] = {100.0};
+  SamrenaVector *ohlcv = make_ohlcv(arena, closes, 1);
+
+  /* NOT(AND(ABOVE(close,50), BELOW(close,200))) with close=100
+   * AND: 100>50=true, 100<200=true -> true
+   * NOT: !true -> false */
+  SamtraderRule *above50 =
+      samtrader_rule_create_comparison(arena, SAMTRADER_RULE_ABOVE,
+                                       samtrader_operand_price(SAMTRADER_OPERAND_PRICE_CLOSE),
+                                       samtrader_operand_constant(50.0));
+  SamtraderRule *below200 =
+      samtrader_rule_create_comparison(arena, SAMTRADER_RULE_BELOW,
+                                       samtrader_operand_price(SAMTRADER_OPERAND_PRICE_CLOSE),
+                                       samtrader_operand_constant(200.0));
+  SamtraderRule *and_children[] = {above50, below200};
+  SamtraderRule *and_rule =
+      samtrader_rule_create_composite(arena, SAMTRADER_RULE_AND, and_children, 2);
+
+  SamtraderRule *rule = samtrader_rule_create_not(arena, and_rule);
+
+  ASSERT(!samtrader_rule_evaluate(rule, ohlcv, NULL, 0), "NOT(AND(true,true)) should be false");
+
+  samrena_destroy(arena);
+  printf("  PASS\n");
+  return 0;
+}
+
+/*============================================================================
+ * Temporal + Composite Combination Tests
+ *============================================================================*/
+
+static int test_consecutive_and_child(void) {
+  printf("Testing CONSECUTIVE(AND(...), 3)...\n");
+  Samrena *arena = samrena_create_default();
+  /* All closes: >50 and <200 for all bars */
+  double closes[] = {100.0, 110.0, 120.0, 130.0};
+  SamrenaVector *ohlcv = make_ohlcv(arena, closes, 4);
+
+  /* CONSECUTIVE(AND(ABOVE(close,50), BELOW(close,200)), 3) */
+  SamtraderRule *above50 =
+      samtrader_rule_create_comparison(arena, SAMTRADER_RULE_ABOVE,
+                                       samtrader_operand_price(SAMTRADER_OPERAND_PRICE_CLOSE),
+                                       samtrader_operand_constant(50.0));
+  SamtraderRule *below200 =
+      samtrader_rule_create_comparison(arena, SAMTRADER_RULE_BELOW,
+                                       samtrader_operand_price(SAMTRADER_OPERAND_PRICE_CLOSE),
+                                       samtrader_operand_constant(200.0));
+  SamtraderRule *and_children[] = {above50, below200};
+  SamtraderRule *and_rule =
+      samtrader_rule_create_composite(arena, SAMTRADER_RULE_AND, and_children, 2);
+
+  SamtraderRule *rule =
+      samtrader_rule_create_temporal(arena, SAMTRADER_RULE_CONSECUTIVE, and_rule, 3);
+
+  /* Index 2: bars [0,1,2] all satisfy AND -> true */
+  ASSERT(samtrader_rule_evaluate(rule, ohlcv, NULL, 2), "3 consecutive bars satisfying AND");
+  /* Index 3: bars [1,2,3] all satisfy AND -> true */
+  ASSERT(samtrader_rule_evaluate(rule, ohlcv, NULL, 3), "3 consecutive bars satisfying AND at end");
+
+  samrena_destroy(arena);
+  printf("  PASS\n");
+  return 0;
+}
+
+static int test_any_of_or_child(void) {
+  printf("Testing ANY_OF(OR(...), 3)...\n");
+  Samrena *arena = samrena_create_default();
+  /* Only bar 1 has close > 200 */
+  double closes[] = {50.0, 250.0, 30.0, 20.0, 10.0};
+  SamrenaVector *ohlcv = make_ohlcv(arena, closes, 5);
+
+  /* ANY_OF(OR(ABOVE(close,200), ABOVE(close,300)), 3) */
+  SamtraderRule *above200 =
+      samtrader_rule_create_comparison(arena, SAMTRADER_RULE_ABOVE,
+                                       samtrader_operand_price(SAMTRADER_OPERAND_PRICE_CLOSE),
+                                       samtrader_operand_constant(200.0));
+  SamtraderRule *above300 =
+      samtrader_rule_create_comparison(arena, SAMTRADER_RULE_ABOVE,
+                                       samtrader_operand_price(SAMTRADER_OPERAND_PRICE_CLOSE),
+                                       samtrader_operand_constant(300.0));
+  SamtraderRule *or_children[] = {above200, above300};
+  SamtraderRule *or_rule =
+      samtrader_rule_create_composite(arena, SAMTRADER_RULE_OR, or_children, 2);
+
+  SamtraderRule *rule = samtrader_rule_create_temporal(arena, SAMTRADER_RULE_ANY_OF, or_rule, 3);
+
+  /* Index 2: window [0,1,2], bar 1 has 250>200 -> true */
+  ASSERT(samtrader_rule_evaluate(rule, ohlcv, NULL, 2), "Found OR match in window [0,1,2]");
+  /* Index 3: window [1,2,3], bar 1 has 250>200 -> true */
+  ASSERT(samtrader_rule_evaluate(rule, ohlcv, NULL, 3), "Found OR match in window [1,2,3]");
+  /* Index 4: window [2,3,4] = [30,20,10], none match -> false */
+  ASSERT(!samtrader_rule_evaluate(rule, ohlcv, NULL, 4), "No OR match in window [2,3,4]");
+
+  samrena_destroy(arena);
+  printf("  PASS\n");
+  return 0;
+}
+
+static int test_and_temporal_children(void) {
+  printf("Testing AND(CONSECUTIVE(...), ANY_OF(...))...\n");
+  Samrena *arena = samrena_create_default();
+  /* close: 100, 110, 120, 95, 130 */
+  double closes[] = {100.0, 110.0, 120.0, 95.0, 130.0};
+  SamrenaVector *ohlcv = make_ohlcv(arena, closes, 5);
+
+  /* AND(CONSECUTIVE(ABOVE(close,50), 3), ANY_OF(ABOVE(close,90), 3)) */
+  SamtraderRule *above50 =
+      samtrader_rule_create_comparison(arena, SAMTRADER_RULE_ABOVE,
+                                       samtrader_operand_price(SAMTRADER_OPERAND_PRICE_CLOSE),
+                                       samtrader_operand_constant(50.0));
+  SamtraderRule *consec =
+      samtrader_rule_create_temporal(arena, SAMTRADER_RULE_CONSECUTIVE, above50, 3);
+
+  SamtraderRule *above90 =
+      samtrader_rule_create_comparison(arena, SAMTRADER_RULE_ABOVE,
+                                       samtrader_operand_price(SAMTRADER_OPERAND_PRICE_CLOSE),
+                                       samtrader_operand_constant(90.0));
+  SamtraderRule *any_of = samtrader_rule_create_temporal(arena, SAMTRADER_RULE_ANY_OF, above90, 3);
+
+  SamtraderRule *and_children[] = {consec, any_of};
+  SamtraderRule *rule = samtrader_rule_create_composite(arena, SAMTRADER_RULE_AND, and_children, 2);
+
+  /* Index 2: CONSECUTIVE bars [0,1,2]=[100,110,120] all>50 -> true
+   *          ANY_OF bars [0,1,2]=[100,110,120] any>90 -> true
+   *          AND -> true */
+  ASSERT(samtrader_rule_evaluate(rule, ohlcv, NULL, 2),
+         "AND(CONSECUTIVE, ANY_OF) both true at index 2");
+
+  /* Index 3: CONSECUTIVE bars [1,2,3]=[110,120,95] all>50 -> true
+   *          ANY_OF bars [1,2,3]=[110,120,95] any>90 -> true (110,120)
+   *          AND -> true */
+  ASSERT(samtrader_rule_evaluate(rule, ohlcv, NULL, 3),
+         "AND(CONSECUTIVE, ANY_OF) both true at index 3");
+
+  samrena_destroy(arena);
+  printf("  PASS\n");
+  return 0;
+}
+
+static int test_deep_nesting(void) {
+  printf("Testing deep nesting NOT(AND(ABOVE, CONSECUTIVE))...\n");
+  Samrena *arena = samrena_create_default();
+  double closes[] = {100.0, 110.0, 120.0};
+  SamrenaVector *ohlcv = make_ohlcv(arena, closes, 3);
+
+  /* NOT(AND(ABOVE(close,50), CONSECUTIVE(BELOW(close,200), 2)))
+   * At index 2:
+   *   ABOVE(close=120, 50) -> true
+   *   CONSECUTIVE(BELOW(close,200), 2): bars [1,2]=[110,120] both <200 -> true
+   *   AND -> true
+   *   NOT -> false */
+  SamtraderRule *above50 =
+      samtrader_rule_create_comparison(arena, SAMTRADER_RULE_ABOVE,
+                                       samtrader_operand_price(SAMTRADER_OPERAND_PRICE_CLOSE),
+                                       samtrader_operand_constant(50.0));
+  SamtraderRule *below200 =
+      samtrader_rule_create_comparison(arena, SAMTRADER_RULE_BELOW,
+                                       samtrader_operand_price(SAMTRADER_OPERAND_PRICE_CLOSE),
+                                       samtrader_operand_constant(200.0));
+  SamtraderRule *consec =
+      samtrader_rule_create_temporal(arena, SAMTRADER_RULE_CONSECUTIVE, below200, 2);
+
+  SamtraderRule *and_children[] = {above50, consec};
+  SamtraderRule *and_rule =
+      samtrader_rule_create_composite(arena, SAMTRADER_RULE_AND, and_children, 2);
+
+  SamtraderRule *rule = samtrader_rule_create_not(arena, and_rule);
+
+  ASSERT(!samtrader_rule_evaluate(rule, ohlcv, NULL, 2),
+         "NOT(AND(true, CONSECUTIVE(true,2))) should be false");
+
+  samrena_destroy(arena);
+  printf("  PASS\n");
+  return 0;
+}
+
+/*============================================================================
  * Main
  *============================================================================*/
 
@@ -1228,6 +1684,32 @@ int main(void) {
   failures += test_any_of_lookback_one();
   failures += test_any_of_cross_above();
   failures += test_any_of_null_child();
+
+  /* AND evaluation tests */
+  failures += test_and_both_true();
+  failures += test_and_one_false();
+  failures += test_and_null_children();
+
+  /* OR evaluation tests */
+  failures += test_or_one_true();
+  failures += test_or_none_true();
+  failures += test_or_null_children();
+
+  /* NOT evaluation tests */
+  failures += test_not_true_to_false();
+  failures += test_not_false_to_true();
+  failures += test_not_null_child();
+
+  /* Nested composite evaluation tests */
+  failures += test_nested_and_or();
+  failures += test_nested_or_and();
+  failures += test_not_composite();
+
+  /* Temporal + composite combination tests */
+  failures += test_consecutive_and_child();
+  failures += test_any_of_or_child();
+  failures += test_and_temporal_children();
+  failures += test_deep_nesting();
 
   printf("\n=== Results: %d failures ===\n", failures);
 

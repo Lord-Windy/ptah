@@ -582,6 +582,119 @@ static int test_parse_integer_constant(void) {
 }
 
 /*============================================================================
+ * Additional Indicator Parsing Tests
+ *============================================================================*/
+
+static int test_parse_unsupported_indicators(void) {
+  printf("Testing parse unsupported indicator types...\n");
+
+  Samrena *arena = samrena_create_default();
+  ASSERT(arena != NULL, "Failed to create arena");
+
+  /* These indicator types are not yet supported by the parser */
+  ASSERT(samtrader_rule_parse(arena, "ABOVE(WMA(20), 100)") == NULL, "WMA should not be parseable");
+  ASSERT(samtrader_rule_parse(arena, "ABOVE(STDDEV(20), 1.5)") == NULL,
+         "STDDEV should not be parseable");
+  ASSERT(samtrader_rule_parse(arena, "ABOVE(ROC(14), 0)") == NULL, "ROC should not be parseable");
+  ASSERT(samtrader_rule_parse(arena, "ABOVE(OBV, 1000000)") == NULL, "OBV should not be parseable");
+  ASSERT(samtrader_rule_parse(arena, "ABOVE(VWAP, 100)") == NULL, "VWAP should not be parseable");
+  ASSERT(samtrader_rule_parse(arena, "ABOVE(STOCHASTIC(14, 3), 80)") == NULL,
+         "STOCHASTIC should not be parseable");
+
+  samrena_destroy(arena);
+  printf("  PASS\n");
+  return 0;
+}
+
+/*============================================================================
+ * Negative Constant Parsing Tests
+ *============================================================================*/
+
+static int test_parse_negative_constant(void) {
+  printf("Testing parse with negative constant...\n");
+
+  Samrena *arena = samrena_create_default();
+  ASSERT(arena != NULL, "Failed to create arena");
+
+  SamtraderRule *rule = samtrader_rule_parse(arena, "ABOVE(close, -50)");
+  ASSERT(rule != NULL, "Failed to parse rule with negative constant");
+  ASSERT(rule->type == SAMTRADER_RULE_ABOVE, "Type should be ABOVE");
+  ASSERT(rule->left.type == SAMTRADER_OPERAND_PRICE_CLOSE, "Left should be PRICE_CLOSE");
+  ASSERT(rule->right.type == SAMTRADER_OPERAND_CONSTANT, "Right should be CONSTANT");
+  ASSERT_DOUBLE_EQ(rule->right.constant, -50.0, "Constant should be -50");
+
+  /* Negative float */
+  rule = samtrader_rule_parse(arena, "BELOW(close, -3.14)");
+  ASSERT(rule != NULL, "Failed to parse rule with negative float");
+  ASSERT_DOUBLE_EQ(rule->right.constant, -3.14, "Constant should be -3.14");
+
+  samrena_destroy(arena);
+  printf("  PASS\n");
+  return 0;
+}
+
+/*============================================================================
+ * Temporal Rule Invalid Lookback Tests
+ *============================================================================*/
+
+static int test_parse_temporal_invalid_lookback(void) {
+  printf("Testing parse temporal with invalid lookback...\n");
+
+  Samrena *arena = samrena_create_default();
+  ASSERT(arena != NULL, "Failed to create arena");
+
+  /* lookback=0 should fail (samtrader_rule_create_temporal rejects lookback <= 0) */
+  ASSERT(samtrader_rule_parse(arena, "CONSECUTIVE(ABOVE(close, 50), 0)") == NULL,
+         "CONSECUTIVE with lookback 0 should return NULL");
+
+  /* lookback=-1 should fail */
+  ASSERT(samtrader_rule_parse(arena, "CONSECUTIVE(ABOVE(close, 50), -1)") == NULL,
+         "CONSECUTIVE with lookback -1 should return NULL");
+
+  /* ANY_OF with lookback=0 should also fail */
+  ASSERT(samtrader_rule_parse(arena, "ANY_OF(ABOVE(close, 50), 0)") == NULL,
+         "ANY_OF with lookback 0 should return NULL");
+
+  samrena_destroy(arena);
+  printf("  PASS\n");
+  return 0;
+}
+
+/*============================================================================
+ * Nested Temporal + Composite Parsing Tests
+ *============================================================================*/
+
+static int test_parse_nested_temporal_composite(void) {
+  printf("Testing parse nested temporal+composite rule...\n");
+
+  Samrena *arena = samrena_create_default();
+  ASSERT(arena != NULL, "Failed to create arena");
+
+  /* ANY_OF(AND(ABOVE(close, SMA(20)), BELOW(RSI(14), 70)), 5) */
+  SamtraderRule *rule =
+      samtrader_rule_parse(arena, "ANY_OF(AND(ABOVE(close, SMA(20)), BELOW(RSI(14), 70)), 5)");
+  ASSERT(rule != NULL, "Failed to parse nested temporal+composite rule");
+  ASSERT(rule->type == SAMTRADER_RULE_ANY_OF, "Root should be ANY_OF");
+  ASSERT(rule->lookback == 5, "Lookback should be 5");
+  ASSERT(rule->child != NULL, "Child should not be NULL");
+  ASSERT(rule->child->type == SAMTRADER_RULE_AND, "Child should be AND");
+  ASSERT(samtrader_rule_child_count(rule->child) == 2, "AND should have 2 children");
+  ASSERT(rule->child->children[0]->type == SAMTRADER_RULE_ABOVE, "AND child 0 should be ABOVE");
+  ASSERT(rule->child->children[0]->right.indicator.indicator_type == SAMTRADER_IND_SMA,
+         "ABOVE right should be SMA");
+  ASSERT(rule->child->children[0]->right.indicator.period == 20, "SMA period should be 20");
+  ASSERT(rule->child->children[1]->type == SAMTRADER_RULE_BELOW, "AND child 1 should be BELOW");
+  ASSERT(rule->child->children[1]->left.indicator.indicator_type == SAMTRADER_IND_RSI,
+         "BELOW left should be RSI");
+  ASSERT(rule->child->children[1]->left.indicator.period == 14, "RSI period should be 14");
+  ASSERT_DOUBLE_EQ(rule->child->children[1]->right.constant, 70.0, "BELOW right should be 70");
+
+  samrena_destroy(arena);
+  printf("  PASS\n");
+  return 0;
+}
+
+/*============================================================================
  * Main
  *============================================================================*/
 
@@ -632,6 +745,18 @@ int main(void) {
 
   /* Whitespace tests */
   failures += test_parse_whitespace();
+
+  /* Additional indicator tests */
+  failures += test_parse_unsupported_indicators();
+
+  /* Negative constant tests */
+  failures += test_parse_negative_constant();
+
+  /* Temporal invalid lookback tests */
+  failures += test_parse_temporal_invalid_lookback();
+
+  /* Nested temporal + composite tests */
+  failures += test_parse_nested_temporal_composite();
 
   printf("\n=== Results: %d failures ===\n", failures);
 
