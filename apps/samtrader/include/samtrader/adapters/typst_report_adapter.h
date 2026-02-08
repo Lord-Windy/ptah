@@ -38,6 +38,7 @@
  *   - {{AVG_TRADE_DURATION}}, {{GENERATED_DATE}}
  *   - {{EQUITY_CURVE_CHART}}: Inline SVG equity curve (multi-KB, writes directly)
  *   - {{DRAWDOWN_CHART}}: Inline SVG drawdown visualization (multi-KB, writes directly)
+ *   - {{TRADE_LOG}}: Typst table of all closed trades (multi-KB, writes directly)
  *
  * If template_path is NULL, a default report layout is generated.
  *

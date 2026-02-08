@@ -55,6 +55,7 @@ static bool typst_report_write(SamtraderReportPort *port, SamtraderBacktestResul
 static void typst_report_close(SamtraderReportPort *port);
 static void write_equity_curve_chart(FILE *out, SamrenaVector *equity_curve);
 static void write_drawdown_chart(FILE *out, SamrenaVector *equity_curve);
+static void write_trade_log(FILE *out, SamrenaVector *trades);
 
 /* ============================================================================
  * Template Placeholder Resolution
@@ -262,6 +263,11 @@ static bool write_template_report(const char *template_path, SamtraderBacktestRe
     }
     if (strcmp(key, "DRAWDOWN_CHART") == 0) {
       write_drawdown_chart(out, result->equity_curve);
+      pos = close_marker + 2;
+      continue;
+    }
+    if (strcmp(key, "TRADE_LOG") == 0) {
+      write_trade_log(out, result->trades);
       pos = close_marker + 2;
       continue;
     }
@@ -714,6 +720,64 @@ static void write_performance_metrics(FILE *out, SamtraderBacktestResult *result
 }
 
 /**
+ * @brief Write the trade log section as a Typst table.
+ */
+static void write_trade_log(FILE *out, SamrenaVector *trades) {
+  if (trades == NULL || samrena_vector_size(trades) == 0) {
+    return;
+  }
+
+  size_t n = samrena_vector_size(trades);
+
+  fprintf(out, "== Trade Log\n");
+  fprintf(out, "\n");
+  fprintf(out, "#table(\n");
+  fprintf(out, "  columns: (auto, auto, auto, auto, auto, auto, auto, auto, auto),\n");
+  fprintf(out, "  inset: 8pt,\n");
+  fprintf(out, "  fill: (x, y) => if y == 0 { luma(230) },\n");
+  fprintf(out, "  [*Symbol*], [*Side*], [*Qty*], [*Entry Price*], [*Exit Price*], "
+               "[*Entry Date*], [*Exit Date*], [*Duration*], [*P&L*],\n");
+
+  for (size_t i = 0; i < n; i++) {
+    const SamtraderClosedTrade *trade =
+        (const SamtraderClosedTrade *)samrena_vector_at_unchecked_const(trades, i);
+
+    const char *symbol = trade->code ? trade->code : "N/A";
+    const char *side = (trade->quantity > 0) ? "Long" : "Short";
+    int64_t qty = (trade->quantity >= 0) ? trade->quantity : -trade->quantity;
+
+    char entry_date[16];
+    char exit_date[16];
+    struct tm *tm_info;
+
+    tm_info = localtime(&trade->entry_date);
+    strftime(entry_date, sizeof(entry_date), "%Y-%m-%d", tm_info);
+
+    tm_info = localtime(&trade->exit_date);
+    strftime(exit_date, sizeof(exit_date), "%Y-%m-%d", tm_info);
+
+    double duration_days = difftime(trade->exit_date, trade->entry_date) / 86400.0;
+
+    if (trade->pnl >= 0.0) {
+      fprintf(out,
+              "  [%s], [%s], [%lld], [$%.2f], [$%.2f], [%s], [%s], [%.1f days], "
+              "[#text(fill: rgb(\"#16a34a\"))[$%.2f]],\n",
+              symbol, side, (long long)qty, trade->entry_price, trade->exit_price, entry_date,
+              exit_date, duration_days, trade->pnl);
+    } else {
+      fprintf(out,
+              "  [%s], [%s], [%lld], [$%.2f], [$%.2f], [%s], [%s], [%.1f days], "
+              "[#text(fill: rgb(\"#dc2626\"))[$%.2f]],\n",
+              symbol, side, (long long)qty, trade->entry_price, trade->exit_price, entry_date,
+              exit_date, duration_days, trade->pnl);
+    }
+  }
+
+  fprintf(out, ")\n");
+  fprintf(out, "\n");
+}
+
+/**
  * @brief Write the default report (no custom template).
  */
 static bool write_default_report(SamtraderBacktestResult *result, SamtraderStrategy *strategy,
@@ -732,6 +796,7 @@ static bool write_default_report(SamtraderBacktestResult *result, SamtraderStrat
   write_performance_metrics(out, result);
   write_equity_curve_chart(out, result->equity_curve);
   write_drawdown_chart(out, result->equity_curve);
+  write_trade_log(out, result->trades);
 
   fclose(out);
   return true;
