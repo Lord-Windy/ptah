@@ -26,6 +26,7 @@ ptah_add_executable(samtrader
         src/domain/indicator_stochastic.c
         src/domain/indicator_atr.c
         src/domain/indicator_pivot.c
+        src/domain/rule.c
         src/adapters/file_config_adapter.c
         src/adapters/postgres_adapter.c
     DEPENDENCIES
@@ -116,4 +117,15 @@ if(BUILD_TESTING)
     )
     target_link_libraries(samtrader_indicator_calc_test PRIVATE samrena samdata m)
     add_test(NAME samtrader_indicator_calc_test COMMAND samtrader_indicator_calc_test)
+
+    # Rule data structure tests
+    add_executable(samtrader_rule_test
+        test/test_rule.c
+        src/domain/rule.c
+    )
+    target_include_directories(samtrader_rule_test PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/include
+    )
+    target_link_libraries(samtrader_rule_test PRIVATE samrena samdata m)
+    add_test(NAME samtrader_rule_test COMMAND samtrader_rule_test)
 endif()
