@@ -230,4 +230,31 @@ if(BUILD_TESTING)
     )
     target_link_libraries(samtrader_rule_parser_test PRIVATE samrena samdata m)
     add_test(NAME samtrader_rule_parser_test COMMAND samtrader_rule_parser_test)
+
+    # Backtest integration tests
+    add_executable(samtrader_backtest_test
+        test/test_backtest.c
+        src/domain/ohlcv.c
+        src/domain/indicator.c
+        src/domain/indicator_sma.c
+        src/domain/indicator_ema.c
+        src/domain/indicator_wma.c
+        src/domain/indicator_rsi.c
+        src/domain/indicator_bollinger.c
+        src/domain/indicator_macd.c
+        src/domain/indicator_stochastic.c
+        src/domain/indicator_atr.c
+        src/domain/indicator_pivot.c
+        src/domain/rule.c
+        src/domain/rule_eval.c
+        src/domain/position.c
+        src/domain/portfolio.c
+        src/domain/execution.c
+        src/domain/metrics.c
+    )
+    target_include_directories(samtrader_backtest_test PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/include
+    )
+    target_link_libraries(samtrader_backtest_test PRIVATE samrena samdata m)
+    add_test(NAME samtrader_backtest_test COMMAND samtrader_backtest_test)
 endif()
