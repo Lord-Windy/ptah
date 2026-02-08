@@ -31,12 +31,14 @@ ptah_add_executable(samtrader
         src/domain/rule_parser.c
         src/domain/position.c
         src/domain/portfolio.c
+        src/domain/execution.c
         src/adapters/file_config_adapter.c
         src/adapters/postgres_adapter.c
     DEPENDENCIES
         samrena
         samdata
         PostgreSQL::PostgreSQL
+        m
 )
 
 target_include_directories(samtrader PRIVATE
@@ -177,6 +179,19 @@ if(BUILD_TESTING)
     )
     target_link_libraries(samtrader_portfolio_test PRIVATE samrena samdata m)
     add_test(NAME samtrader_portfolio_test COMMAND samtrader_portfolio_test)
+
+    # Execution tests
+    add_executable(samtrader_execution_test
+        test/test_execution.c
+        src/domain/execution.c
+        src/domain/portfolio.c
+        src/domain/position.c
+    )
+    target_include_directories(samtrader_execution_test PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/include
+    )
+    target_link_libraries(samtrader_execution_test PRIVATE samrena samdata m)
+    add_test(NAME samtrader_execution_test COMMAND samtrader_execution_test)
 
     # Rule parser tests
     add_executable(samtrader_rule_parser_test
