@@ -160,6 +160,50 @@ static int test_sma_invalid_params(void) {
   return 0;
 }
 
+static int test_sma_constant_prices(void) {
+  printf("Testing SMA with constant prices...\n");
+
+  Samrena *arena = samrena_create_default();
+  ASSERT(arena != NULL, "Failed to create arena");
+
+  double closes[] = {50.0, 50.0, 50.0, 50.0, 50.0, 50.0};
+  SamrenaVector *ohlcv = create_test_ohlcv(arena, closes, 6);
+
+  SamtraderIndicatorSeries *sma = samtrader_calculate_sma(arena, ohlcv, 3);
+  ASSERT(sma != NULL, "Failed to calculate SMA");
+
+  for (size_t i = 2; i < 6; i++) {
+    const SamtraderIndicatorValue *val = samtrader_indicator_series_at(sma, i);
+    ASSERT(val != NULL && val->valid == true, "Should be valid");
+    ASSERT_DOUBLE_EQ(val->data.simple.value, 50.0, "SMA should be 50 for constant prices");
+  }
+
+  samrena_destroy(arena);
+  printf("  PASS\n");
+  return 0;
+}
+
+static int test_sma_latest_value(void) {
+  printf("Testing SMA latest value retrieval...\n");
+
+  Samrena *arena = samrena_create_default();
+  ASSERT(arena != NULL, "Failed to create arena");
+
+  double closes[] = {1.0, 2.0, 3.0, 4.0, 5.0};
+  SamrenaVector *ohlcv = create_test_ohlcv(arena, closes, 5);
+
+  SamtraderIndicatorSeries *sma = samtrader_calculate_sma(arena, ohlcv, 3);
+  ASSERT(sma != NULL, "Failed to calculate SMA");
+
+  double latest;
+  ASSERT(samtrader_indicator_latest_simple(sma, &latest) == true, "Should find latest valid value");
+  ASSERT_DOUBLE_EQ(latest, 4.0, "Latest SMA should be (3+4+5)/3 = 4.0");
+
+  samrena_destroy(arena);
+  printf("  PASS\n");
+  return 0;
+}
+
 /*============================================================================
  * EMA Tests
  *============================================================================*/
@@ -244,6 +288,52 @@ static int test_ema_invalid_params(void) {
   ASSERT(samtrader_calculate_ema(NULL, ohlcv, 3) == NULL, "NULL arena should fail");
   ASSERT(samtrader_calculate_ema(arena, NULL, 3) == NULL, "NULL ohlcv should fail");
   ASSERT(samtrader_calculate_ema(arena, ohlcv, 0) == NULL, "Period 0 should fail");
+
+  samrena_destroy(arena);
+  printf("  PASS\n");
+  return 0;
+}
+
+static int test_ema_period_1(void) {
+  printf("Testing EMA with period 1...\n");
+
+  Samrena *arena = samrena_create_default();
+  ASSERT(arena != NULL, "Failed to create arena");
+
+  double closes[] = {10.0, 20.0, 30.0};
+  SamrenaVector *ohlcv = create_test_ohlcv(arena, closes, 3);
+
+  SamtraderIndicatorSeries *ema = samtrader_calculate_ema(arena, ohlcv, 1);
+  ASSERT(ema != NULL, "Failed to calculate EMA");
+
+  /* EMA(1) with k=2/2=1.0 should equal the close price at every point */
+  for (size_t i = 0; i < 3; i++) {
+    const SamtraderIndicatorValue *val = samtrader_indicator_series_at(ema, i);
+    ASSERT(val != NULL && val->valid == true, "All values should be valid");
+    ASSERT_DOUBLE_EQ(val->data.simple.value, closes[i], "EMA(1) should equal close price");
+  }
+
+  samrena_destroy(arena);
+  printf("  PASS\n");
+  return 0;
+}
+
+static int test_ema_latest_value(void) {
+  printf("Testing EMA latest value retrieval...\n");
+
+  Samrena *arena = samrena_create_default();
+  ASSERT(arena != NULL, "Failed to create arena");
+
+  double closes[] = {1.0, 2.0, 3.0, 4.0, 5.0};
+  SamrenaVector *ohlcv = create_test_ohlcv(arena, closes, 5);
+
+  SamtraderIndicatorSeries *ema = samtrader_calculate_ema(arena, ohlcv, 3);
+  ASSERT(ema != NULL, "Failed to calculate EMA");
+
+  /* EMA(3) at index 4: k=0.5, EMA = 5*0.5 + 3.0*0.5 = 4.0 */
+  double latest;
+  ASSERT(samtrader_indicator_latest_simple(ema, &latest) == true, "Should find latest valid value");
+  ASSERT_DOUBLE_EQ(latest, 4.0, "Latest EMA value");
 
   samrena_destroy(arena);
   printf("  PASS\n");
@@ -338,6 +428,75 @@ static int test_wma_invalid_params(void) {
   ASSERT(samtrader_calculate_wma(NULL, ohlcv, 3) == NULL, "NULL arena should fail");
   ASSERT(samtrader_calculate_wma(arena, NULL, 3) == NULL, "NULL ohlcv should fail");
   ASSERT(samtrader_calculate_wma(arena, ohlcv, 0) == NULL, "Period 0 should fail");
+
+  samrena_destroy(arena);
+  printf("  PASS\n");
+  return 0;
+}
+
+static int test_wma_period_1(void) {
+  printf("Testing WMA with period 1...\n");
+
+  Samrena *arena = samrena_create_default();
+  ASSERT(arena != NULL, "Failed to create arena");
+
+  double closes[] = {10.0, 20.0, 30.0};
+  SamrenaVector *ohlcv = create_test_ohlcv(arena, closes, 3);
+
+  SamtraderIndicatorSeries *wma = samtrader_calculate_wma(arena, ohlcv, 1);
+  ASSERT(wma != NULL, "Failed to calculate WMA");
+
+  /* WMA(1) should equal the close price at every point */
+  for (size_t i = 0; i < 3; i++) {
+    const SamtraderIndicatorValue *val = samtrader_indicator_series_at(wma, i);
+    ASSERT(val != NULL && val->valid == true, "All values should be valid");
+    ASSERT_DOUBLE_EQ(val->data.simple.value, closes[i], "WMA(1) should equal close price");
+  }
+
+  samrena_destroy(arena);
+  printf("  PASS\n");
+  return 0;
+}
+
+static int test_wma_constant_prices(void) {
+  printf("Testing WMA with constant prices...\n");
+
+  Samrena *arena = samrena_create_default();
+  ASSERT(arena != NULL, "Failed to create arena");
+
+  double closes[] = {50.0, 50.0, 50.0, 50.0, 50.0, 50.0};
+  SamrenaVector *ohlcv = create_test_ohlcv(arena, closes, 6);
+
+  SamtraderIndicatorSeries *wma = samtrader_calculate_wma(arena, ohlcv, 3);
+  ASSERT(wma != NULL, "Failed to calculate WMA");
+
+  for (size_t i = 2; i < 6; i++) {
+    const SamtraderIndicatorValue *val = samtrader_indicator_series_at(wma, i);
+    ASSERT(val != NULL && val->valid == true, "Should be valid");
+    ASSERT_DOUBLE_EQ(val->data.simple.value, 50.0, "WMA should be 50 for constant prices");
+  }
+
+  samrena_destroy(arena);
+  printf("  PASS\n");
+  return 0;
+}
+
+static int test_wma_latest_value(void) {
+  printf("Testing WMA latest value retrieval...\n");
+
+  Samrena *arena = samrena_create_default();
+  ASSERT(arena != NULL, "Failed to create arena");
+
+  double closes[] = {1.0, 2.0, 3.0, 4.0, 5.0};
+  SamrenaVector *ohlcv = create_test_ohlcv(arena, closes, 5);
+
+  SamtraderIndicatorSeries *wma = samtrader_calculate_wma(arena, ohlcv, 3);
+  ASSERT(wma != NULL, "Failed to calculate WMA");
+
+  /* WMA at index 4: (3*1 + 4*2 + 5*3) / 6 = 26/6 */
+  double latest;
+  ASSERT(samtrader_indicator_latest_simple(wma, &latest) == true, "Should find latest valid value");
+  ASSERT_DOUBLE_EQ(latest, 26.0 / 6.0, "Latest WMA value");
 
   samrena_destroy(arena);
   printf("  PASS\n");
@@ -569,6 +728,474 @@ static int test_rsi_known_values(void) {
   double expected_rs = expected_avg_gain / expected_avg_loss;
   double expected_rsi = 100.0 - (100.0 / (1.0 + expected_rs));
   ASSERT_DOUBLE_EQ(val->data.simple.value, expected_rsi, "RSI at index 5");
+
+  samrena_destroy(arena);
+  printf("  PASS\n");
+  return 0;
+}
+
+static int test_rsi_latest_value(void) {
+  printf("Testing RSI latest value retrieval...\n");
+
+  Samrena *arena = samrena_create_default();
+  ASSERT(arena != NULL, "Failed to create arena");
+
+  /* All gains -> RSI = 100 */
+  double closes[] = {1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0};
+  SamrenaVector *ohlcv = create_test_ohlcv(arena, closes, 8);
+
+  SamtraderIndicatorSeries *rsi = samtrader_calculate_rsi(arena, ohlcv, 3);
+  ASSERT(rsi != NULL, "Failed to calculate RSI");
+
+  double latest;
+  ASSERT(samtrader_indicator_latest_simple(rsi, &latest) == true, "Should find latest valid value");
+  ASSERT_DOUBLE_EQ(latest, 100.0, "Latest RSI should be 100 for all gains");
+
+  samrena_destroy(arena);
+  printf("  PASS\n");
+  return 0;
+}
+
+/*============================================================================
+ * MACD Tests
+ *============================================================================*/
+
+static int test_macd_basic(void) {
+  printf("Testing MACD basic calculation...\n");
+
+  Samrena *arena = samrena_create_default();
+  ASSERT(arena != NULL, "Failed to create arena");
+
+  /* Linearly rising data with fast=3, slow=5, signal=3
+   * With perfectly linear data, the MACD line converges to a constant.
+   * Fast EMA converges faster than slow, so fast > slow when prices rise. */
+  double closes[] = {10.0, 11.0, 12.0, 13.0, 14.0, 15.0, 16.0, 17.0, 18.0, 19.0};
+  SamrenaVector *ohlcv = create_test_ohlcv(arena, closes, 10);
+  ASSERT(ohlcv != NULL, "Failed to create OHLCV data");
+
+  SamtraderIndicatorSeries *macd = samtrader_calculate_macd(arena, ohlcv, 3, 5, 3);
+  ASSERT(macd != NULL, "Failed to calculate MACD");
+  ASSERT(macd->type == SAMTRADER_IND_MACD, "Type should be MACD");
+  ASSERT(macd->params.period == 3, "Fast period should be 3");
+  ASSERT(macd->params.param2 == 5, "Slow period should be 5");
+  ASSERT(macd->params.param3 == 3, "Signal period should be 3");
+  ASSERT(samtrader_indicator_series_size(macd) == 10, "Should have 10 values");
+
+  /* First 4 values (indices 0-3) should be invalid (max(3,5)-1 = 4 for MACD line,
+   * then need signal_period more for signal. Invalid until macd_line_count >= signal_period.
+   * MACD line valid from i=4 (max_period-1=4). macd_line_count reaches 3 at i=6. */
+  for (size_t i = 0; i < 6; i++) {
+    const SamtraderIndicatorValue *val = samtrader_indicator_series_at(macd, i);
+    ASSERT(val != NULL && val->valid == false, "Warmup values should be invalid");
+  }
+
+  /* First valid value at index 6 */
+  const SamtraderIndicatorValue *val = samtrader_indicator_series_at(macd, 6);
+  ASSERT(val != NULL && val->valid == true, "Index 6 should be first valid value");
+
+  /* With linearly rising data, MACD line should be positive (fast > slow) */
+  ASSERT(val->data.macd.line > 0.0, "MACD line should be positive for rising prices");
+
+  /* Histogram should equal line - signal */
+  ASSERT_DOUBLE_EQ(val->data.macd.histogram, val->data.macd.line - val->data.macd.signal,
+                   "Histogram should be line - signal");
+
+  samrena_destroy(arena);
+  printf("  PASS\n");
+  return 0;
+}
+
+static int test_macd_known_values(void) {
+  printf("Testing MACD with hand-calculated values...\n");
+
+  Samrena *arena = samrena_create_default();
+  ASSERT(arena != NULL, "Failed to create arena");
+
+  /* fast=2, slow=3, signal=2
+   * fast_k = 2/3, slow_k = 2/4 = 0.5, signal_k = 2/3
+   * max_period = 3, MACD line valid from i=2 */
+  double closes[] = {10.0, 12.0, 11.0, 14.0, 13.0};
+  SamrenaVector *ohlcv = create_test_ohlcv(arena, closes, 5);
+
+  SamtraderIndicatorSeries *macd = samtrader_calculate_macd(arena, ohlcv, 2, 3, 2);
+  ASSERT(macd != NULL, "Failed to calculate MACD");
+  ASSERT(samtrader_indicator_series_size(macd) == 5, "Should have 5 values");
+
+  /* i=0,1: invalid (warmup for slow EMA) */
+  const SamtraderIndicatorValue *val = samtrader_indicator_series_at(macd, 0);
+  ASSERT(val != NULL && val->valid == false, "Index 0 should be invalid");
+  val = samtrader_indicator_series_at(macd, 1);
+  ASSERT(val != NULL && val->valid == false, "Index 1 should be invalid");
+
+  /* i=2: fast_ema = (10+12)/2 = 11.0, slow_ema = (10+12+11)/3 = 11.0
+   * macd_line = 11.0 - 11.0 = 0.0, macd_line_count=1
+   * signal_sum = 0.0, not yet valid (need signal_period=2) */
+  val = samtrader_indicator_series_at(macd, 2);
+  ASSERT(val != NULL && val->valid == false, "Index 2 should be invalid (signal warmup)");
+  ASSERT_DOUBLE_EQ(val->data.macd.line, 0.0, "MACD line at index 2");
+
+  /* i=3: fast_ema = 14*(2/3) + 11.0*(1/3) = 13.0
+   *       slow_ema = 14*0.5 + 11.0*0.5 = 12.5
+   *       macd_line = 13.0 - 12.5 = 0.5, macd_line_count=2
+   *       signal_sum = 0.0 + 0.5 = 0.5, signal_ema = 0.5/2 = 0.25
+   *       histogram = 0.5 - 0.25 = 0.25 -> FIRST VALID */
+  val = samtrader_indicator_series_at(macd, 3);
+  ASSERT(val != NULL && val->valid == true, "Index 3 should be first valid");
+  ASSERT_DOUBLE_EQ(val->data.macd.line, 0.5, "MACD line at index 3");
+  ASSERT_DOUBLE_EQ(val->data.macd.signal, 0.25, "MACD signal at index 3");
+  ASSERT_DOUBLE_EQ(val->data.macd.histogram, 0.25, "MACD histogram at index 3");
+
+  /* i=4: fast_ema = 13*(2/3) + 13.0*(1/3) = 13.0
+   *       slow_ema = 13*0.5 + 12.5*0.5 = 12.75
+   *       macd_line = 13.0 - 12.75 = 0.25, macd_line_count=3
+   *       signal_ema = 0.25*(2/3) + 0.25*(1/3) = 0.25
+   *       histogram = 0.25 - 0.25 = 0.0 */
+  val = samtrader_indicator_series_at(macd, 4);
+  ASSERT(val != NULL && val->valid == true, "Index 4 should be valid");
+  ASSERT_DOUBLE_EQ(val->data.macd.line, 0.25, "MACD line at index 4");
+  ASSERT_DOUBLE_EQ(val->data.macd.signal, 0.25, "MACD signal at index 4");
+  ASSERT_DOUBLE_EQ(val->data.macd.histogram, 0.0, "MACD histogram at index 4");
+
+  samrena_destroy(arena);
+  printf("  PASS\n");
+  return 0;
+}
+
+static int test_macd_constant_prices(void) {
+  printf("Testing MACD with constant prices...\n");
+
+  Samrena *arena = samrena_create_default();
+  ASSERT(arena != NULL, "Failed to create arena");
+
+  /* Constant prices: both EMAs converge to same value, MACD = 0 */
+  double closes[] = {50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0};
+  SamrenaVector *ohlcv = create_test_ohlcv(arena, closes, 10);
+
+  SamtraderIndicatorSeries *macd = samtrader_calculate_macd(arena, ohlcv, 3, 5, 3);
+  ASSERT(macd != NULL, "Failed to calculate MACD");
+
+  /* All valid MACD values should be (0, 0, 0) */
+  for (size_t i = 0; i < 10; i++) {
+    const SamtraderIndicatorValue *val = samtrader_indicator_series_at(macd, i);
+    ASSERT(val != NULL, "Value should exist");
+    if (val->valid) {
+      ASSERT_DOUBLE_EQ(val->data.macd.line, 0.0, "MACD line should be 0 for constant prices");
+      ASSERT_DOUBLE_EQ(val->data.macd.signal, 0.0, "MACD signal should be 0 for constant prices");
+      ASSERT_DOUBLE_EQ(val->data.macd.histogram, 0.0,
+                       "MACD histogram should be 0 for constant prices");
+    }
+  }
+
+  samrena_destroy(arena);
+  printf("  PASS\n");
+  return 0;
+}
+
+static int test_macd_histogram_identity(void) {
+  printf("Testing MACD histogram = line - signal identity...\n");
+
+  Samrena *arena = samrena_create_default();
+  ASSERT(arena != NULL, "Failed to create arena");
+
+  double closes[] = {10.0, 12.0, 11.0, 14.0, 13.0, 16.0, 15.0, 18.0,
+                     17.0, 20.0, 19.0, 22.0, 21.0, 24.0, 23.0};
+  SamrenaVector *ohlcv = create_test_ohlcv(arena, closes, 15);
+
+  SamtraderIndicatorSeries *macd = samtrader_calculate_macd(arena, ohlcv, 3, 5, 3);
+  ASSERT(macd != NULL, "Failed to calculate MACD");
+
+  for (size_t i = 0; i < 15; i++) {
+    const SamtraderIndicatorValue *val = samtrader_indicator_series_at(macd, i);
+    ASSERT(val != NULL, "Value should exist");
+    if (val->valid) {
+      ASSERT_DOUBLE_EQ(val->data.macd.histogram, val->data.macd.line - val->data.macd.signal,
+                       "Histogram should be line - signal");
+    }
+  }
+
+  samrena_destroy(arena);
+  printf("  PASS\n");
+  return 0;
+}
+
+static int test_macd_invalid_params(void) {
+  printf("Testing MACD with invalid parameters...\n");
+
+  Samrena *arena = samrena_create_default();
+  ASSERT(arena != NULL, "Failed to create arena");
+
+  double closes[] = {1.0, 2.0, 3.0};
+  SamrenaVector *ohlcv = create_test_ohlcv(arena, closes, 3);
+
+  ASSERT(samtrader_calculate_macd(NULL, ohlcv, 12, 26, 9) == NULL, "NULL arena should fail");
+  ASSERT(samtrader_calculate_macd(arena, NULL, 12, 26, 9) == NULL, "NULL ohlcv should fail");
+  ASSERT(samtrader_calculate_macd(arena, ohlcv, 0, 26, 9) == NULL, "Fast period 0 should fail");
+  ASSERT(samtrader_calculate_macd(arena, ohlcv, 12, 0, 9) == NULL, "Slow period 0 should fail");
+  ASSERT(samtrader_calculate_macd(arena, ohlcv, 12, 26, 0) == NULL, "Signal period 0 should fail");
+  ASSERT(samtrader_calculate_macd(arena, ohlcv, -1, 26, 9) == NULL,
+         "Negative fast period should fail");
+
+  SamrenaVector *empty = samtrader_ohlcv_vector_create(arena, 10);
+  ASSERT(samtrader_calculate_macd(arena, empty, 12, 26, 9) == NULL, "Empty vector should fail");
+
+  samrena_destroy(arena);
+  printf("  PASS\n");
+  return 0;
+}
+
+static int test_macd_latest_value(void) {
+  printf("Testing MACD latest value retrieval...\n");
+
+  Samrena *arena = samrena_create_default();
+  ASSERT(arena != NULL, "Failed to create arena");
+
+  double closes[] = {50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0};
+  SamrenaVector *ohlcv = create_test_ohlcv(arena, closes, 10);
+
+  SamtraderIndicatorSeries *macd = samtrader_calculate_macd(arena, ohlcv, 3, 5, 3);
+  ASSERT(macd != NULL, "Failed to calculate MACD");
+
+  SamtraderMacdValue latest;
+  ASSERT(samtrader_indicator_latest_macd(macd, &latest) == true, "Should find latest valid value");
+  ASSERT_DOUBLE_EQ(latest.line, 0.0, "Latest MACD line should be 0");
+  ASSERT_DOUBLE_EQ(latest.signal, 0.0, "Latest MACD signal should be 0");
+  ASSERT_DOUBLE_EQ(latest.histogram, 0.0, "Latest MACD histogram should be 0");
+
+  samrena_destroy(arena);
+  printf("  PASS\n");
+  return 0;
+}
+
+/*============================================================================
+ * Stochastic Oscillator Tests
+ *============================================================================*/
+
+static int test_stochastic_basic(void) {
+  printf("Testing Stochastic basic calculation...\n");
+
+  Samrena *arena = samrena_create_default();
+  ASSERT(arena != NULL, "Failed to create arena");
+
+  /* k_period=3, d_period=2
+   * create_test_ohlcv: H=close+1, L=close-1 */
+  double closes[] = {10.0, 12.0, 11.0, 14.0, 13.0, 16.0};
+  SamrenaVector *ohlcv = create_test_ohlcv(arena, closes, 6);
+  ASSERT(ohlcv != NULL, "Failed to create OHLCV data");
+
+  SamtraderIndicatorSeries *stoch = samtrader_calculate_stochastic(arena, ohlcv, 3, 2);
+  ASSERT(stoch != NULL, "Failed to calculate Stochastic");
+  ASSERT(stoch->type == SAMTRADER_IND_STOCHASTIC, "Type should be STOCHASTIC");
+  ASSERT(stoch->params.period == 3, "K period should be 3");
+  ASSERT(stoch->params.param2 == 2, "D period should be 2");
+  ASSERT(samtrader_indicator_series_size(stoch) == 6, "Should have 6 values");
+
+  /* First 2 values should be invalid (%K warmup: k_period-1 = 2) */
+  const SamtraderIndicatorValue *val = samtrader_indicator_series_at(stoch, 0);
+  ASSERT(val != NULL && val->valid == false, "Index 0 should be invalid");
+  val = samtrader_indicator_series_at(stoch, 1);
+  ASSERT(val != NULL && val->valid == false, "Index 1 should be invalid");
+
+  /* i=2: window [0,1,2], HH=max(11,13,12)=13, LL=min(9,11,10)=9
+   * %K = 100*(11-9)/(13-9) = 50.0
+   * k_count=1, d_valid=false */
+  val = samtrader_indicator_series_at(stoch, 2);
+  ASSERT(val != NULL && val->valid == false, "Index 2 should be invalid (%D warmup)");
+  ASSERT_DOUBLE_EQ(val->data.stochastic.k, 50.0, "%%K at index 2");
+
+  /* i=3: window [1,2,3], HH=max(13,12,15)=15, LL=min(11,10,13)=10
+   * %K = 100*(14-10)/(15-10) = 80.0
+   * k_count=2, d_valid=true, %D = (50+80)/2 = 65.0 */
+  val = samtrader_indicator_series_at(stoch, 3);
+  ASSERT(val != NULL && val->valid == true, "Index 3 should be first valid");
+  ASSERT_DOUBLE_EQ(val->data.stochastic.k, 80.0, "%%K at index 3");
+  ASSERT_DOUBLE_EQ(val->data.stochastic.d, 65.0, "%%D at index 3");
+
+  /* i=4: window [2,3,4], HH=max(12,15,14)=15, LL=min(10,13,12)=10
+   * %K = 100*(13-10)/(15-10) = 60.0
+   * %D = (80+60)/2 = 70.0 */
+  val = samtrader_indicator_series_at(stoch, 4);
+  ASSERT(val != NULL && val->valid == true, "Index 4 should be valid");
+  ASSERT_DOUBLE_EQ(val->data.stochastic.k, 60.0, "%%K at index 4");
+  ASSERT_DOUBLE_EQ(val->data.stochastic.d, 70.0, "%%D at index 4");
+
+  samrena_destroy(arena);
+  printf("  PASS\n");
+  return 0;
+}
+
+static int test_stochastic_warmup_period(void) {
+  printf("Testing Stochastic warmup period...\n");
+
+  Samrena *arena = samrena_create_default();
+  ASSERT(arena != NULL, "Failed to create arena");
+
+  double closes[] = {10.0, 12.0, 11.0, 14.0, 13.0, 16.0, 15.0, 18.0, 17.0, 20.0};
+  SamrenaVector *ohlcv = create_test_ohlcv(arena, closes, 10);
+
+  /* k_period=5, d_period=3: %K valid from i=4, %D valid from i=6 */
+  SamtraderIndicatorSeries *stoch = samtrader_calculate_stochastic(arena, ohlcv, 5, 3);
+  ASSERT(stoch != NULL, "Failed to calculate Stochastic");
+
+  /* Indices 0-3: completely invalid (%K warmup) */
+  for (size_t i = 0; i < 4; i++) {
+    const SamtraderIndicatorValue *val = samtrader_indicator_series_at(stoch, i);
+    ASSERT(val != NULL && val->valid == false, "Should be invalid during %K warmup");
+  }
+
+  /* Indices 4-5: %K valid but %D still warming up */
+  for (size_t i = 4; i < 6; i++) {
+    const SamtraderIndicatorValue *val = samtrader_indicator_series_at(stoch, i);
+    ASSERT(val != NULL && val->valid == false, "Should be invalid during %D warmup");
+  }
+
+  /* Index 6 onwards: fully valid */
+  for (size_t i = 6; i < 10; i++) {
+    const SamtraderIndicatorValue *val = samtrader_indicator_series_at(stoch, i);
+    ASSERT(val != NULL && val->valid == true, "Should be valid after full warmup");
+  }
+
+  samrena_destroy(arena);
+  printf("  PASS\n");
+  return 0;
+}
+
+static int test_stochastic_range(void) {
+  printf("Testing Stochastic %%K and %%D are in [0, 100]...\n");
+
+  Samrena *arena = samrena_create_default();
+  ASSERT(arena != NULL, "Failed to create arena");
+
+  double closes[] = {100.0, 95.0, 98.0, 90.0, 93.0, 88.0, 92.0, 85.0,
+                     89.0,  87.0, 91.0, 86.0, 94.0, 83.0, 96.0};
+  SamrenaVector *ohlcv = create_test_ohlcv(arena, closes, 15);
+
+  SamtraderIndicatorSeries *stoch = samtrader_calculate_stochastic(arena, ohlcv, 5, 3);
+  ASSERT(stoch != NULL, "Failed to calculate Stochastic");
+
+  for (size_t i = 0; i < 15; i++) {
+    const SamtraderIndicatorValue *val = samtrader_indicator_series_at(stoch, i);
+    ASSERT(val != NULL, "Value should exist");
+    if (val->valid) {
+      ASSERT(val->data.stochastic.k >= 0.0 && val->data.stochastic.k <= 100.0,
+             "%%K should be in [0, 100]");
+      ASSERT(val->data.stochastic.d >= 0.0 && val->data.stochastic.d <= 100.0,
+             "%%D should be in [0, 100]");
+    }
+  }
+
+  samrena_destroy(arena);
+  printf("  PASS\n");
+  return 0;
+}
+
+static int test_stochastic_constant_prices(void) {
+  printf("Testing Stochastic with constant prices...\n");
+
+  Samrena *arena = samrena_create_default();
+  ASSERT(arena != NULL, "Failed to create arena");
+
+  /* Constant prices: H-L range is always 2.0 but highest_high - lowest_low
+   * with same close values means the close is always at midpoint.
+   * Actually, with constant close=50: H=51, L=49 for every bar.
+   * So highest_high=51, lowest_low=49, range=2.
+   * %K = 100*(50-49)/(51-49) = 100*1/2 = 50.0 */
+  double closes[] = {50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0};
+  SamrenaVector *ohlcv = create_test_ohlcv(arena, closes, 8);
+
+  SamtraderIndicatorSeries *stoch = samtrader_calculate_stochastic(arena, ohlcv, 3, 2);
+  ASSERT(stoch != NULL, "Failed to calculate Stochastic");
+
+  for (size_t i = 0; i < 8; i++) {
+    const SamtraderIndicatorValue *val = samtrader_indicator_series_at(stoch, i);
+    ASSERT(val != NULL, "Value should exist");
+    if (val->valid) {
+      ASSERT_DOUBLE_EQ(val->data.stochastic.k, 50.0, "%%K should be 50 for constant prices");
+      ASSERT_DOUBLE_EQ(val->data.stochastic.d, 50.0, "%%D should be 50 for constant prices");
+    }
+  }
+
+  samrena_destroy(arena);
+  printf("  PASS\n");
+  return 0;
+}
+
+static int test_stochastic_extremes(void) {
+  printf("Testing Stochastic at extreme values...\n");
+
+  Samrena *arena = samrena_create_default();
+  ASSERT(arena != NULL, "Failed to create arena");
+
+  /* Monotonically rising: close is always at or near the high of the window
+   * With H=close+1, L=close-1:
+   * i=2: window [0,1,2], HH=13, LL=9, close=12
+   *       %K = 100*(12-9)/(13-9) = 75.0
+   * As prices keep rising, %K trends toward high values */
+  double rising[] = {10.0, 11.0, 12.0, 13.0, 14.0, 15.0};
+  SamrenaVector *ohlcv = create_test_ohlcv(arena, rising, 6);
+
+  SamtraderIndicatorSeries *stoch = samtrader_calculate_stochastic(arena, ohlcv, 3, 2);
+  ASSERT(stoch != NULL, "Failed to calculate Stochastic");
+
+  /* At index 2: HH=13, LL=9, C=12, %K = 100*3/4 = 75 */
+  const SamtraderIndicatorValue *val = samtrader_indicator_series_at(stoch, 2);
+  ASSERT(val != NULL, "Value should exist");
+  ASSERT_DOUBLE_EQ(val->data.stochastic.k, 75.0, "%%K at index 2 for rising prices");
+
+  /* All valid %K values should be >= 50 for rising prices */
+  for (size_t i = 2; i < 6; i++) {
+    val = samtrader_indicator_series_at(stoch, i);
+    ASSERT(val != NULL, "Value should exist");
+    ASSERT(val->data.stochastic.k >= 50.0, "%%K should be >= 50 for rising prices");
+  }
+
+  samrena_destroy(arena);
+  printf("  PASS\n");
+  return 0;
+}
+
+static int test_stochastic_invalid_params(void) {
+  printf("Testing Stochastic with invalid parameters...\n");
+
+  Samrena *arena = samrena_create_default();
+  ASSERT(arena != NULL, "Failed to create arena");
+
+  double closes[] = {1.0, 2.0, 3.0};
+  SamrenaVector *ohlcv = create_test_ohlcv(arena, closes, 3);
+
+  ASSERT(samtrader_calculate_stochastic(NULL, ohlcv, 14, 3) == NULL, "NULL arena should fail");
+  ASSERT(samtrader_calculate_stochastic(arena, NULL, 14, 3) == NULL, "NULL ohlcv should fail");
+  ASSERT(samtrader_calculate_stochastic(arena, ohlcv, 0, 3) == NULL, "K period 0 should fail");
+  ASSERT(samtrader_calculate_stochastic(arena, ohlcv, 14, 0) == NULL, "D period 0 should fail");
+  ASSERT(samtrader_calculate_stochastic(arena, ohlcv, -1, 3) == NULL,
+         "Negative K period should fail");
+  ASSERT(samtrader_calculate_stochastic(arena, ohlcv, 14, -1) == NULL,
+         "Negative D period should fail");
+
+  SamrenaVector *empty = samtrader_ohlcv_vector_create(arena, 10);
+  ASSERT(samtrader_calculate_stochastic(arena, empty, 14, 3) == NULL, "Empty vector should fail");
+
+  samrena_destroy(arena);
+  printf("  PASS\n");
+  return 0;
+}
+
+static int test_stochastic_latest_value(void) {
+  printf("Testing Stochastic latest value retrieval...\n");
+
+  Samrena *arena = samrena_create_default();
+  ASSERT(arena != NULL, "Failed to create arena");
+
+  double closes[] = {50.0, 50.0, 50.0, 50.0, 50.0};
+  SamrenaVector *ohlcv = create_test_ohlcv(arena, closes, 5);
+
+  SamtraderIndicatorSeries *stoch = samtrader_calculate_stochastic(arena, ohlcv, 3, 2);
+  ASSERT(stoch != NULL, "Failed to calculate Stochastic");
+
+  SamtraderStochasticValue latest;
+  ASSERT(samtrader_indicator_latest_stochastic(stoch, &latest) == true,
+         "Should find latest valid value");
+  ASSERT_DOUBLE_EQ(latest.k, 50.0, "Latest %K should be 50");
+  ASSERT_DOUBLE_EQ(latest.d, 50.0, "Latest %D should be 50");
 
   samrena_destroy(arena);
   printf("  PASS\n");
@@ -1260,16 +1887,23 @@ int main(void) {
   failures += test_sma_basic();
   failures += test_sma_period_1();
   failures += test_sma_invalid_params();
+  failures += test_sma_constant_prices();
+  failures += test_sma_latest_value();
 
   /* EMA tests */
   failures += test_ema_basic();
   failures += test_ema_convergence();
   failures += test_ema_invalid_params();
+  failures += test_ema_period_1();
+  failures += test_ema_latest_value();
 
   /* WMA tests */
   failures += test_wma_basic();
   failures += test_wma_weighting();
   failures += test_wma_invalid_params();
+  failures += test_wma_period_1();
+  failures += test_wma_constant_prices();
+  failures += test_wma_latest_value();
 
   /* RSI tests */
   failures += test_rsi_basic();
@@ -1279,6 +1913,24 @@ int main(void) {
   failures += test_rsi_period_1();
   failures += test_rsi_invalid_params();
   failures += test_rsi_known_values();
+  failures += test_rsi_latest_value();
+
+  /* MACD tests */
+  failures += test_macd_basic();
+  failures += test_macd_known_values();
+  failures += test_macd_constant_prices();
+  failures += test_macd_histogram_identity();
+  failures += test_macd_invalid_params();
+  failures += test_macd_latest_value();
+
+  /* Stochastic tests */
+  failures += test_stochastic_basic();
+  failures += test_stochastic_warmup_period();
+  failures += test_stochastic_range();
+  failures += test_stochastic_constant_prices();
+  failures += test_stochastic_extremes();
+  failures += test_stochastic_invalid_params();
+  failures += test_stochastic_latest_value();
 
   /* Bollinger Bands tests */
   failures += test_bollinger_basic();
