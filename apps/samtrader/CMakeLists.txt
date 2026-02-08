@@ -27,6 +27,7 @@ ptah_add_executable(samtrader
         src/domain/indicator_atr.c
         src/domain/indicator_pivot.c
         src/domain/rule.c
+        src/domain/rule_eval.c
         src/domain/rule_parser.c
         src/adapters/file_config_adapter.c
         src/adapters/postgres_adapter.c
@@ -129,6 +130,29 @@ if(BUILD_TESTING)
     )
     target_link_libraries(samtrader_rule_test PRIVATE samrena samdata m)
     add_test(NAME samtrader_rule_test COMMAND samtrader_rule_test)
+
+    # Rule evaluation tests
+    add_executable(samtrader_rule_eval_test
+        test/test_rule_eval.c
+        src/domain/rule.c
+        src/domain/rule_eval.c
+        src/domain/ohlcv.c
+        src/domain/indicator.c
+        src/domain/indicator_sma.c
+        src/domain/indicator_ema.c
+        src/domain/indicator_wma.c
+        src/domain/indicator_rsi.c
+        src/domain/indicator_bollinger.c
+        src/domain/indicator_macd.c
+        src/domain/indicator_stochastic.c
+        src/domain/indicator_atr.c
+        src/domain/indicator_pivot.c
+    )
+    target_include_directories(samtrader_rule_eval_test PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/include
+    )
+    target_link_libraries(samtrader_rule_eval_test PRIVATE samrena samdata m)
+    add_test(NAME samtrader_rule_eval_test COMMAND samtrader_rule_eval_test)
 
     # Rule parser tests
     add_executable(samtrader_rule_parser_test
