@@ -35,6 +35,7 @@ ptah_add_executable(samtrader
         src/domain/metrics.c
         src/adapters/file_config_adapter.c
         src/adapters/postgres_adapter.c
+        src/adapters/typst_report_adapter.c
     DEPENDENCIES
         samrena
         samdata
