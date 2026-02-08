@@ -205,9 +205,10 @@ static inline const void *samrena_vector_at_unchecked_const(const SamrenaVector 
                                                                                                    \
   static inline void samrena_vector_##type##_destroy(SamrenaVector_##type *vec) {                  \
     if (vec) {                                                                                     \
+      bool _owns = vec->_vec && vec->_vec->owns_arena;                                             \
       if (vec->_vec)                                                                               \
         samrena_vector_destroy(vec->_vec);                                                         \
-      if (vec->_vec && vec->_vec->owns_arena)                                                      \
+      if (_owns)                                                                                   \
         free(vec);                                                                                 \
     }                                                                                              \
   }
