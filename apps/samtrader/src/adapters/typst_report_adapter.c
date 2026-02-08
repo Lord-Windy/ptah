@@ -33,6 +33,9 @@
 /* Maximum formatted value length */
 #define MAX_VALUE_LENGTH 256
 
+/* Maximum number of distinct years in monthly returns table */
+#define MAX_YEARS 50
+
 /* Chart SVG dimensions */
 #define CHART_SVG_WIDTH 600
 #define CHART_SVG_HEIGHT 250
@@ -53,6 +56,7 @@ typedef struct {
 static bool typst_report_write(SamtraderReportPort *port, SamtraderBacktestResult *result,
                                SamtraderStrategy *strategy, const char *output_path);
 static void typst_report_close(SamtraderReportPort *port);
+static void write_monthly_returns_table(FILE *out, SamrenaVector *equity_curve);
 static void write_equity_curve_chart(FILE *out, SamrenaVector *equity_curve);
 static void write_drawdown_chart(FILE *out, SamrenaVector *equity_curve);
 static void write_trade_log(FILE *out, SamrenaVector *trades);
@@ -256,6 +260,11 @@ static bool write_template_report(const char *template_path, SamtraderBacktestRe
     key[key_len] = '\0';
 
     /* Handle chart placeholders (multi-KB output, bypass value buffer) */
+    if (strcmp(key, "MONTHLY_RETURNS") == 0) {
+      write_monthly_returns_table(out, result->equity_curve);
+      pos = close_marker + 2;
+      continue;
+    }
     if (strcmp(key, "EQUITY_CURVE_CHART") == 0) {
       write_equity_curve_chart(out, result->equity_curve);
       pos = close_marker + 2;
@@ -287,6 +296,129 @@ static bool write_template_report(const char *template_path, SamtraderBacktestRe
   free(template_buf);
   fclose(out);
   return true;
+}
+
+/* ============================================================================
+ * Monthly Returns Table
+ * ============================================================================ */
+
+/**
+ * @brief Write a monthly/yearly returns breakdown table.
+ *
+ * Computes monthly returns from the equity curve and renders them as a Typst
+ * table with color-coded cells (green for positive, red for negative).
+ * Rows are years, columns are Jan–Dec plus a YTD column.
+ *
+ * @param out Output file stream
+ * @param equity_curve Vector of SamtraderEquityPoint
+ */
+static void write_monthly_returns_table(FILE *out, SamrenaVector *equity_curve) {
+  if (equity_curve == NULL || samrena_vector_size(equity_curve) < 2) {
+    return;
+  }
+
+  size_t n = samrena_vector_size(equity_curve);
+
+  /* Find year range */
+  const SamtraderEquityPoint *first_pt =
+      (const SamtraderEquityPoint *)samrena_vector_at_unchecked_const(equity_curve, 0);
+  const SamtraderEquityPoint *last_pt =
+      (const SamtraderEquityPoint *)samrena_vector_at_unchecked_const(equity_curve, n - 1);
+
+  struct tm *tm_info = localtime(&first_pt->date);
+  int min_year = tm_info->tm_year + 1900;
+  tm_info = localtime(&last_pt->date);
+  int max_year = tm_info->tm_year + 1900;
+
+  int num_years = max_year - min_year + 1;
+  if (num_years <= 0 || num_years > MAX_YEARS) {
+    return;
+  }
+
+  /* Track first and last equity value per month */
+  double first_equity[MAX_YEARS][12];
+  double last_equity[MAX_YEARS][12];
+  bool has_data[MAX_YEARS][12];
+  memset(has_data, 0, sizeof(has_data));
+
+  /* Track first and last equity value per year (for YTD) */
+  double year_first_equity[MAX_YEARS];
+  double year_last_equity[MAX_YEARS];
+  bool year_has_data[MAX_YEARS];
+  memset(year_has_data, 0, sizeof(year_has_data));
+
+  for (size_t i = 0; i < n; i++) {
+    const SamtraderEquityPoint *pt =
+        (const SamtraderEquityPoint *)samrena_vector_at_unchecked_const(equity_curve, i);
+
+    tm_info = localtime(&pt->date);
+    int yr = tm_info->tm_year + 1900;
+    int mo = tm_info->tm_mon; /* 0-11 */
+    int yr_idx = yr - min_year;
+
+    if (yr_idx < 0 || yr_idx >= MAX_YEARS) {
+      continue;
+    }
+
+    if (!has_data[yr_idx][mo]) {
+      first_equity[yr_idx][mo] = pt->equity;
+      has_data[yr_idx][mo] = true;
+    }
+    last_equity[yr_idx][mo] = pt->equity;
+
+    if (!year_has_data[yr_idx]) {
+      year_first_equity[yr_idx] = pt->equity;
+      year_has_data[yr_idx] = true;
+    }
+    year_last_equity[yr_idx] = pt->equity;
+  }
+
+  /* Write the table */
+  fprintf(out, "== Monthly Returns (%%)\n");
+  fprintf(out, "\n");
+  fprintf(out, "#table(\n");
+  fprintf(out, "  columns: (auto, auto, auto, auto, auto, auto, auto, "
+               "auto, auto, auto, auto, auto, auto, auto),\n");
+  fprintf(out, "  inset: 6pt,\n");
+  fprintf(out, "  fill: (x, y) => if y == 0 { luma(230) },\n");
+  fprintf(out, "  [*Year*], [*Jan*], [*Feb*], [*Mar*], [*Apr*], [*May*], [*Jun*], "
+               "[*Jul*], [*Aug*], [*Sep*], [*Oct*], [*Nov*], [*Dec*], [*YTD*],\n");
+
+  for (int yr_idx = 0; yr_idx < num_years; yr_idx++) {
+    int year = min_year + yr_idx;
+    fprintf(out, "  [%d],", year);
+
+    /* Monthly cells */
+    for (int mo = 0; mo < 12; mo++) {
+      if (!has_data[yr_idx][mo] || first_equity[yr_idx][mo] == 0.0) {
+        fprintf(out, " [\\u{2014}],");
+      } else {
+        double ret =
+            (last_equity[yr_idx][mo] - first_equity[yr_idx][mo]) / first_equity[yr_idx][mo] * 100.0;
+        if (ret >= 0.0) {
+          fprintf(out, " [#text(fill: rgb(\"#16a34a\"))[%.2f]],", ret);
+        } else {
+          fprintf(out, " [#text(fill: rgb(\"#dc2626\"))[%.2f]],", ret);
+        }
+      }
+    }
+
+    /* YTD cell */
+    if (!year_has_data[yr_idx] || year_first_equity[yr_idx] == 0.0) {
+      fprintf(out, " [\\u{2014}],\n");
+    } else {
+      double ytd = (year_last_equity[yr_idx] - year_first_equity[yr_idx]) /
+                   year_first_equity[yr_idx] * 100.0;
+      if (ytd >= 0.0) {
+        fprintf(out, " [#text(fill: rgb(\"#16a34a\"))[%.2f]],\n", ytd);
+      } else {
+        fprintf(out, " [#text(fill: rgb(\"#dc2626\"))[%.2f]],\n", ytd);
+      }
+    }
+  }
+
+  fprintf(out, ")\n");
+  fprintf(out, "\n");
 }
 
 /* ============================================================================
@@ -794,6 +926,7 @@ static bool write_default_report(SamtraderBacktestResult *result, SamtraderStrat
   write_strategy_summary(out, strategy);
   write_strategy_parameters(out, strategy);
   write_performance_metrics(out, result);
+  write_monthly_returns_table(out, result->equity_curve);
   write_equity_curve_chart(out, result->equity_curve);
   write_drawdown_chart(out, result->equity_curve);
   write_trade_log(out, result->trades);
