@@ -47,6 +47,15 @@ if(BUILD_TESTING)
         test/test_ohlcv.c
         src/domain/ohlcv.c
         src/domain/indicator.c
+        src/domain/indicator_sma.c
+        src/domain/indicator_ema.c
+        src/domain/indicator_wma.c
+        src/domain/indicator_rsi.c
+        src/domain/indicator_bollinger.c
+        src/domain/indicator_macd.c
+        src/domain/indicator_stochastic.c
+        src/domain/indicator_atr.c
+        src/domain/indicator_pivot.c
         src/adapters/postgres_adapter.c
     )
     target_include_directories(samtrader_ohlcv_test PRIVATE
@@ -69,6 +78,7 @@ if(BUILD_TESTING)
     # Indicator data structure tests
     add_executable(samtrader_indicator_test
         test/test_indicator.c
+        src/domain/ohlcv.c
         src/domain/indicator.c
         src/domain/indicator_sma.c
         src/domain/indicator_ema.c
