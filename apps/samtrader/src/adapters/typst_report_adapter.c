@@ -16,10 +16,13 @@
 
 #include <samtrader/adapters/typst_report_adapter.h>
 
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+
+#include <samtrader/domain/portfolio.h>
 
 /* Maximum template file size (1MB) */
 #define MAX_TEMPLATE_SIZE (1024 * 1024)
@@ -29,6 +32,15 @@
 
 /* Maximum formatted value length */
 #define MAX_VALUE_LENGTH 256
+
+/* Chart SVG dimensions */
+#define CHART_SVG_WIDTH 600
+#define CHART_SVG_HEIGHT 250
+#define CHART_MARGIN_LEFT 70
+#define CHART_MARGIN_RIGHT 20
+#define CHART_MARGIN_TOP 15
+#define CHART_MARGIN_BOTTOM 40
+#define MAX_CHART_POINTS 200
 
 /**
  * @brief Internal implementation data for Typst report adapter.
@@ -41,6 +53,8 @@ typedef struct {
 static bool typst_report_write(SamtraderReportPort *port, SamtraderBacktestResult *result,
                                SamtraderStrategy *strategy, const char *output_path);
 static void typst_report_close(SamtraderReportPort *port);
+static void write_equity_curve_chart(FILE *out, SamrenaVector *equity_curve);
+static void write_drawdown_chart(FILE *out, SamrenaVector *equity_curve);
 
 /* ============================================================================
  * Template Placeholder Resolution
@@ -240,6 +254,18 @@ static bool write_template_report(const char *template_path, SamtraderBacktestRe
     memcpy(key, key_start, key_len);
     key[key_len] = '\0';
 
+    /* Handle chart placeholders (multi-KB output, bypass value buffer) */
+    if (strcmp(key, "EQUITY_CURVE_CHART") == 0) {
+      write_equity_curve_chart(out, result->equity_curve);
+      pos = close_marker + 2;
+      continue;
+    }
+    if (strcmp(key, "DRAWDOWN_CHART") == 0) {
+      write_drawdown_chart(out, result->equity_curve);
+      pos = close_marker + 2;
+      continue;
+    }
+
     /* Resolve placeholder */
     char value[MAX_VALUE_LENGTH];
     if (resolve_placeholder(key, result, strategy, value, sizeof(value))) {
@@ -255,6 +281,301 @@ static bool write_template_report(const char *template_path, SamtraderBacktestRe
   free(template_buf);
   fclose(out);
   return true;
+}
+
+/* ============================================================================
+ * Chart Generation
+ * ============================================================================ */
+
+/**
+ * @brief Format a dollar value for Y-axis labels.
+ *
+ * Values >= 1000 are shown as "$XK", values >= 1000000 as "$XM".
+ */
+static void format_dollar_label(double value, char *buf, size_t buf_size) {
+  double abs_val = fabs(value);
+  if (abs_val >= 1000000.0) {
+    snprintf(buf, buf_size, "$%.1fM", value / 1000000.0);
+  } else if (abs_val >= 1000.0) {
+    snprintf(buf, buf_size, "$%.0fK", value / 1000.0);
+  } else {
+    snprintf(buf, buf_size, "$%.0f", value);
+  }
+}
+
+/**
+ * @brief Write an equity curve chart as inline SVG in Typst.
+ */
+static void write_equity_curve_chart(FILE *out, SamrenaVector *equity_curve) {
+  if (equity_curve == NULL || samrena_vector_size(equity_curve) < 2) {
+    return;
+  }
+
+  size_t n = samrena_vector_size(equity_curve);
+
+  /* Find min/max equity and date range */
+  const SamtraderEquityPoint *first =
+      (const SamtraderEquityPoint *)samrena_vector_at_unchecked_const(equity_curve, 0);
+  const SamtraderEquityPoint *last =
+      (const SamtraderEquityPoint *)samrena_vector_at_unchecked_const(equity_curve, n - 1);
+
+  double min_equity = first->equity;
+  double max_equity = first->equity;
+  for (size_t i = 1; i < n; i++) {
+    const SamtraderEquityPoint *pt =
+        (const SamtraderEquityPoint *)samrena_vector_at_unchecked_const(equity_curve, i);
+    if (pt->equity < min_equity)
+      min_equity = pt->equity;
+    if (pt->equity > max_equity)
+      max_equity = pt->equity;
+  }
+
+  /* Pad if flat */
+  if (max_equity - min_equity < 1.0) {
+    max_equity = min_equity + 100.0;
+  }
+
+  double date_min = (double)first->date;
+  double date_max = (double)last->date;
+  if (date_max - date_min < 1.0) {
+    date_max = date_min + 86400.0;
+  }
+
+  /* Plot area dimensions */
+  int plot_w = CHART_SVG_WIDTH - CHART_MARGIN_LEFT - CHART_MARGIN_RIGHT;
+  int plot_h = CHART_SVG_HEIGHT - CHART_MARGIN_TOP - CHART_MARGIN_BOTTOM;
+
+  /* Determine sample indices for downsampling */
+  size_t num_points = n;
+  if (num_points > MAX_CHART_POINTS) {
+    num_points = MAX_CHART_POINTS;
+  }
+
+  fprintf(out, "== Equity Curve\n\n");
+  fprintf(out, "#image.decode(\n");
+  fprintf(out, "  width: 100%%,\n");
+  fprintf(out, "  \"<svg xmlns='http://www.w3.org/2000/svg' ");
+  fprintf(out, "viewBox='0 0 %d %d'>\n", CHART_SVG_WIDTH, CHART_SVG_HEIGHT);
+
+  /* Background */
+  fprintf(out, "<rect width='%d' height='%d' fill='white'/>\n", CHART_SVG_WIDTH, CHART_SVG_HEIGHT);
+
+  /* Horizontal grid lines and Y-axis labels (5 lines) */
+  int num_grid = 5;
+  for (int i = 0; i <= num_grid; i++) {
+    double frac = (double)i / (double)num_grid;
+    int y = CHART_MARGIN_TOP + (int)(frac * plot_h);
+    double val = max_equity - frac * (max_equity - min_equity);
+    char label[32];
+    format_dollar_label(val, label, sizeof(label));
+
+    fprintf(out, "<line x1='%d' y1='%d' x2='%d' y2='%d' stroke='#e5e7eb' stroke-width='1'/>\n",
+            CHART_MARGIN_LEFT, y, CHART_MARGIN_LEFT + plot_w, y);
+    fprintf(out,
+            "<text x='%d' y='%d' text-anchor='end' font-size='10' "
+            "fill='#6b7280' font-family='sans-serif'>%s</text>\n",
+            CHART_MARGIN_LEFT - 8, y + 4, label);
+  }
+
+  /* Build polyline points and polygon points */
+  fprintf(out, "<polygon points='%d,%d ", CHART_MARGIN_LEFT, CHART_MARGIN_TOP + plot_h);
+
+  for (size_t i = 0; i < num_points; i++) {
+    size_t idx = (n > MAX_CHART_POINTS) ? (i * (n - 1)) / (num_points - 1) : i;
+    const SamtraderEquityPoint *pt =
+        (const SamtraderEquityPoint *)samrena_vector_at_unchecked_const(equity_curve, idx);
+
+    double x_frac = ((double)pt->date - date_min) / (date_max - date_min);
+    double y_frac = (pt->equity - min_equity) / (max_equity - min_equity);
+    int px = CHART_MARGIN_LEFT + (int)(x_frac * plot_w);
+    int py = CHART_MARGIN_TOP + plot_h - (int)(y_frac * plot_h);
+    fprintf(out, "%d,%d ", px, py);
+  }
+
+  fprintf(out, "%d,%d' fill='rgba(37,99,235,0.15)' stroke='none'/>\n", CHART_MARGIN_LEFT + plot_w,
+          CHART_MARGIN_TOP + plot_h);
+
+  /* Polyline for the curve */
+  fprintf(out, "<polyline points='");
+  for (size_t i = 0; i < num_points; i++) {
+    size_t idx = (n > MAX_CHART_POINTS) ? (i * (n - 1)) / (num_points - 1) : i;
+    const SamtraderEquityPoint *pt =
+        (const SamtraderEquityPoint *)samrena_vector_at_unchecked_const(equity_curve, idx);
+
+    double x_frac = ((double)pt->date - date_min) / (date_max - date_min);
+    double y_frac = (pt->equity - min_equity) / (max_equity - min_equity);
+    int px = CHART_MARGIN_LEFT + (int)(x_frac * plot_w);
+    int py = CHART_MARGIN_TOP + plot_h - (int)(y_frac * plot_h);
+    fprintf(out, "%d,%d ", px, py);
+  }
+  fprintf(out, "' fill='none' stroke='#2563eb' stroke-width='1.5'/>\n");
+
+  /* X-axis date labels */
+  int num_x_labels = 5;
+  for (int i = 0; i <= num_x_labels; i++) {
+    double frac = (double)i / (double)num_x_labels;
+    int x = CHART_MARGIN_LEFT + (int)(frac * plot_w);
+    time_t t = (time_t)(date_min + frac * (date_max - date_min));
+    struct tm *tm_info = localtime(&t);
+    char date_label[16];
+    strftime(date_label, sizeof(date_label), "%Y-%m", tm_info);
+
+    fprintf(out,
+            "<text x='%d' y='%d' text-anchor='middle' font-size='10' "
+            "fill='#6b7280' font-family='sans-serif'>%s</text>\n",
+            x, CHART_MARGIN_TOP + plot_h + 20, date_label);
+  }
+
+  /* Axis border lines */
+  fprintf(out, "<line x1='%d' y1='%d' x2='%d' y2='%d' stroke='#d1d5db' stroke-width='1'/>\n",
+          CHART_MARGIN_LEFT, CHART_MARGIN_TOP, CHART_MARGIN_LEFT, CHART_MARGIN_TOP + plot_h);
+  fprintf(out, "<line x1='%d' y1='%d' x2='%d' y2='%d' stroke='#d1d5db' stroke-width='1'/>\n",
+          CHART_MARGIN_LEFT, CHART_MARGIN_TOP + plot_h, CHART_MARGIN_LEFT + plot_w,
+          CHART_MARGIN_TOP + plot_h);
+
+  fprintf(out, "</svg>\",\n)\n\n");
+}
+
+/**
+ * @brief Write a drawdown chart as inline SVG in Typst.
+ */
+static void write_drawdown_chart(FILE *out, SamrenaVector *equity_curve) {
+  if (equity_curve == NULL || samrena_vector_size(equity_curve) < 2) {
+    return;
+  }
+
+  size_t n = samrena_vector_size(equity_curve);
+
+  /* Compute drawdown at each point */
+  double peak = 0.0;
+  double max_dd = 0.0;
+
+  /* First pass: find max drawdown for scaling */
+  for (size_t i = 0; i < n; i++) {
+    const SamtraderEquityPoint *pt =
+        (const SamtraderEquityPoint *)samrena_vector_at_unchecked_const(equity_curve, i);
+    if (pt->equity > peak)
+      peak = pt->equity;
+    double dd = (peak > 0.0) ? (peak - pt->equity) / peak : 0.0;
+    if (dd > max_dd)
+      max_dd = dd;
+  }
+
+  /* If no drawdown, show minimal scale */
+  if (max_dd < 0.001) {
+    max_dd = 0.01;
+  }
+
+  const SamtraderEquityPoint *first =
+      (const SamtraderEquityPoint *)samrena_vector_at_unchecked_const(equity_curve, 0);
+  const SamtraderEquityPoint *last =
+      (const SamtraderEquityPoint *)samrena_vector_at_unchecked_const(equity_curve, n - 1);
+
+  double date_min = (double)first->date;
+  double date_max = (double)last->date;
+  if (date_max - date_min < 1.0) {
+    date_max = date_min + 86400.0;
+  }
+
+  int plot_w = CHART_SVG_WIDTH - CHART_MARGIN_LEFT - CHART_MARGIN_RIGHT;
+  int plot_h = CHART_SVG_HEIGHT - CHART_MARGIN_TOP - CHART_MARGIN_BOTTOM;
+
+  size_t num_points = n;
+  if (num_points > MAX_CHART_POINTS) {
+    num_points = MAX_CHART_POINTS;
+  }
+
+  fprintf(out, "=== Drawdown\n\n");
+  fprintf(out, "#image.decode(\n");
+  fprintf(out, "  width: 100%%,\n");
+  fprintf(out, "  \"<svg xmlns='http://www.w3.org/2000/svg' ");
+  fprintf(out, "viewBox='0 0 %d %d'>\n", CHART_SVG_WIDTH, CHART_SVG_HEIGHT);
+
+  /* Background */
+  fprintf(out, "<rect width='%d' height='%d' fill='white'/>\n", CHART_SVG_WIDTH, CHART_SVG_HEIGHT);
+
+  /* Horizontal grid lines and Y-axis labels */
+  int num_grid = 4;
+  for (int i = 0; i <= num_grid; i++) {
+    double frac = (double)i / (double)num_grid;
+    int y = CHART_MARGIN_TOP + (int)(frac * plot_h);
+    double dd_val = frac * max_dd * 100.0;
+
+    fprintf(out, "<line x1='%d' y1='%d' x2='%d' y2='%d' stroke='#e5e7eb' stroke-width='1'/>\n",
+            CHART_MARGIN_LEFT, y, CHART_MARGIN_LEFT + plot_w, y);
+    fprintf(out,
+            "<text x='%d' y='%d' text-anchor='end' font-size='10' "
+            "fill='#6b7280' font-family='sans-serif'>-%.1f%%</text>\n",
+            CHART_MARGIN_LEFT - 8, y + 4, dd_val);
+  }
+
+  /* Build polygon for drawdown area (top edge = 0% line) */
+  fprintf(out, "<polygon points='%d,%d ", CHART_MARGIN_LEFT, CHART_MARGIN_TOP);
+
+  peak = 0.0;
+  for (size_t i = 0; i < num_points; i++) {
+    size_t idx = (n > MAX_CHART_POINTS) ? (i * (n - 1)) / (num_points - 1) : i;
+    const SamtraderEquityPoint *pt =
+        (const SamtraderEquityPoint *)samrena_vector_at_unchecked_const(equity_curve, idx);
+
+    if (pt->equity > peak)
+      peak = pt->equity;
+    double dd = (peak > 0.0) ? (peak - pt->equity) / peak : 0.0;
+
+    double x_frac = ((double)pt->date - date_min) / (date_max - date_min);
+    double y_frac = dd / max_dd;
+    int px = CHART_MARGIN_LEFT + (int)(x_frac * plot_w);
+    int py = CHART_MARGIN_TOP + (int)(y_frac * plot_h);
+    fprintf(out, "%d,%d ", px, py);
+  }
+
+  fprintf(out, "%d,%d' fill='rgba(220,38,38,0.2)' stroke='none'/>\n", CHART_MARGIN_LEFT + plot_w,
+          CHART_MARGIN_TOP);
+
+  /* Polyline for drawdown curve */
+  fprintf(out, "<polyline points='");
+  peak = 0.0;
+  for (size_t i = 0; i < num_points; i++) {
+    size_t idx = (n > MAX_CHART_POINTS) ? (i * (n - 1)) / (num_points - 1) : i;
+    const SamtraderEquityPoint *pt =
+        (const SamtraderEquityPoint *)samrena_vector_at_unchecked_const(equity_curve, idx);
+
+    if (pt->equity > peak)
+      peak = pt->equity;
+    double dd = (peak > 0.0) ? (peak - pt->equity) / peak : 0.0;
+
+    double x_frac = ((double)pt->date - date_min) / (date_max - date_min);
+    double y_frac = dd / max_dd;
+    int px = CHART_MARGIN_LEFT + (int)(x_frac * plot_w);
+    int py = CHART_MARGIN_TOP + (int)(y_frac * plot_h);
+    fprintf(out, "%d,%d ", px, py);
+  }
+  fprintf(out, "' fill='none' stroke='#dc2626' stroke-width='1.5'/>\n");
+
+  /* X-axis date labels */
+  int num_x_labels = 5;
+  for (int i = 0; i <= num_x_labels; i++) {
+    double frac = (double)i / (double)num_x_labels;
+    int x = CHART_MARGIN_LEFT + (int)(frac * plot_w);
+    time_t t = (time_t)(date_min + frac * (date_max - date_min));
+    struct tm *tm_info = localtime(&t);
+    char date_label[16];
+    strftime(date_label, sizeof(date_label), "%Y-%m", tm_info);
+
+    fprintf(out,
+            "<text x='%d' y='%d' text-anchor='middle' font-size='10' "
+            "fill='#6b7280' font-family='sans-serif'>%s</text>\n",
+            x, CHART_MARGIN_TOP + plot_h + 20, date_label);
+  }
+
+  /* Axis border lines */
+  fprintf(out, "<line x1='%d' y1='%d' x2='%d' y2='%d' stroke='#d1d5db' stroke-width='1'/>\n",
+          CHART_MARGIN_LEFT, CHART_MARGIN_TOP, CHART_MARGIN_LEFT, CHART_MARGIN_TOP + plot_h);
+  fprintf(out, "<line x1='%d' y1='%d' x2='%d' y2='%d' stroke='#d1d5db' stroke-width='1'/>\n",
+          CHART_MARGIN_LEFT, CHART_MARGIN_TOP + plot_h, CHART_MARGIN_LEFT + plot_w,
+          CHART_MARGIN_TOP + plot_h);
+
+  fprintf(out, "</svg>\",\n)\n\n");
 }
 
 /* ============================================================================
@@ -409,6 +730,8 @@ static bool write_default_report(SamtraderBacktestResult *result, SamtraderStrat
   write_strategy_summary(out, strategy);
   write_strategy_parameters(out, strategy);
   write_performance_metrics(out, result);
+  write_equity_curve_chart(out, result->equity_curve);
+  write_drawdown_chart(out, result->equity_curve);
 
   fclose(out);
   return true;

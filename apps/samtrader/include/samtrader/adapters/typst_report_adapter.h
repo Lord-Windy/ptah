@@ -36,6 +36,8 @@
  *   - {{TOTAL_TRADES}}, {{WINNING_TRADES}}, {{LOSING_TRADES}}
  *   - {{AVERAGE_WIN}}, {{AVERAGE_LOSS}}, {{LARGEST_WIN}}, {{LARGEST_LOSS}}
  *   - {{AVG_TRADE_DURATION}}, {{GENERATED_DATE}}
+ *   - {{EQUITY_CURVE_CHART}}: Inline SVG equity curve (multi-KB, writes directly)
+ *   - {{DRAWDOWN_CHART}}: Inline SVG drawdown visualization (multi-KB, writes directly)
  *
  * If template_path is NULL, a default report layout is generated.
  *
