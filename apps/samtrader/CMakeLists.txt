@@ -32,6 +32,7 @@ ptah_add_executable(samtrader
         src/domain/position.c
         src/domain/portfolio.c
         src/domain/execution.c
+        src/domain/metrics.c
         src/adapters/file_config_adapter.c
         src/adapters/postgres_adapter.c
     DEPENDENCIES
@@ -192,6 +193,18 @@ if(BUILD_TESTING)
     )
     target_link_libraries(samtrader_execution_test PRIVATE samrena samdata m)
     add_test(NAME samtrader_execution_test COMMAND samtrader_execution_test)
+
+    # Metrics tests
+    add_executable(samtrader_metrics_test
+        test/test_metrics.c
+        src/domain/metrics.c
+        src/domain/portfolio.c
+    )
+    target_include_directories(samtrader_metrics_test PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/include
+    )
+    target_link_libraries(samtrader_metrics_test PRIVATE samrena samdata m)
+    add_test(NAME samtrader_metrics_test COMMAND samtrader_metrics_test)
 
     # Rule parser tests
     add_executable(samtrader_rule_parser_test
