@@ -136,6 +136,39 @@ typedef struct SamtraderRule {
 } SamtraderRule;
 
 /*============================================================================
+ * Indicator Operand Encoding Constants
+ *============================================================================*/
+
+/**
+ * @brief Bollinger band selector (stored in operand param3).
+ *
+ * When an operand references SAMTRADER_IND_BOLLINGER, param3 identifies
+ * which band is being referenced. The stddev multiplier is encoded as
+ * (int)(stddev * 100) in param2 (e.g., 2.0 -> 200).
+ */
+typedef enum {
+  SAMTRADER_BOLLINGER_UPPER = 0,
+  SAMTRADER_BOLLINGER_MIDDLE = 1,
+  SAMTRADER_BOLLINGER_LOWER = 2
+} SamtraderBollingerBand;
+
+/**
+ * @brief Pivot field selector (stored in operand param2).
+ *
+ * When an operand references SAMTRADER_IND_PIVOT, param2 identifies
+ * which pivot level is being referenced.
+ */
+typedef enum {
+  SAMTRADER_PIVOT_PIVOT = 0,
+  SAMTRADER_PIVOT_R1 = 1,
+  SAMTRADER_PIVOT_R2 = 2,
+  SAMTRADER_PIVOT_R3 = 3,
+  SAMTRADER_PIVOT_S1 = 4,
+  SAMTRADER_PIVOT_S2 = 5,
+  SAMTRADER_PIVOT_S3 = 6
+} SamtraderPivotField;
+
+/*============================================================================
  * Rule Construction API
  *============================================================================*/
 
@@ -276,5 +309,31 @@ const char *samtrader_operand_type_name(SamtraderOperandType type);
  * @return Number of children, or 0 if not a composite rule or NULL
  */
 size_t samtrader_rule_child_count(const SamtraderRule *rule);
+
+/*============================================================================
+ * Rule Parsing API
+ *============================================================================*/
+
+/**
+ * @brief Parse a rule from text into an AST.
+ *
+ * Parses rule text following the BNF grammar defined in TRD Section 4.3.
+ * All memory is allocated from the provided arena.
+ *
+ * Supported rule forms:
+ *   - Comparison: CROSS_ABOVE, CROSS_BELOW, ABOVE, BELOW, BETWEEN, EQUALS
+ *   - Composite: AND, OR, NOT
+ *   - Temporal: CONSECUTIVE, ANY_OF
+ *
+ * Supported operands:
+ *   - Price fields: open, high, low, close, volume
+ *   - Indicators: SMA, EMA, RSI, ATR, MACD, BOLLINGER_UPPER/MIDDLE/LOWER, PIVOT variants
+ *   - Numeric constants (integer or floating-point)
+ *
+ * @param arena Memory arena for allocation
+ * @param text The rule text to parse
+ * @return Pointer to the parsed rule AST, or NULL on parse error
+ */
+SamtraderRule *samtrader_rule_parse(Samrena *arena, const char *text);
 
 #endif /* SAMTRADER_DOMAIN_RULE_H */
