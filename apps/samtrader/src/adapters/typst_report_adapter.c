@@ -842,10 +842,10 @@ static void write_performance_metrics(FILE *out, SamtraderBacktestResult *result
   fprintf(out, "  [Winning Trades], [%d],\n", result->winning_trades);
   fprintf(out, "  [Losing Trades], [%d],\n", result->losing_trades);
   fprintf(out, "  [Win Rate], [%.1f%%],\n", result->win_rate * 100.0);
-  fprintf(out, "  [Average Win], [$%.2f],\n", result->average_win);
-  fprintf(out, "  [Average Loss], [$%.2f],\n", result->average_loss);
-  fprintf(out, "  [Largest Win], [$%.2f],\n", result->largest_win);
-  fprintf(out, "  [Largest Loss], [$%.2f],\n", result->largest_loss);
+  fprintf(out, "  [Average Win], [\\$%.2f],\n", result->average_win);
+  fprintf(out, "  [Average Loss], [\\$%.2f],\n", result->average_loss);
+  fprintf(out, "  [Largest Win], [\\$%.2f],\n", result->largest_win);
+  fprintf(out, "  [Largest Loss], [\\$%.2f],\n", result->largest_loss);
   fprintf(out, "  [Avg Trade Duration], [%.1f days],\n", result->average_trade_duration);
   fprintf(out, ")\n");
   fprintf(out, "\n");
@@ -892,14 +892,14 @@ static void write_trade_log(FILE *out, SamrenaVector *trades) {
 
     if (trade->pnl >= 0.0) {
       fprintf(out,
-              "  [%s], [%s], [%lld], [$%.2f], [$%.2f], [%s], [%s], [%.1f days], "
-              "[#text(fill: rgb(\"#16a34a\"))[$%.2f]],\n",
+              "  [%s], [%s], [%lld], [\\$%.2f], [\\$%.2f], [%s], [%s], [%.1f days], "
+              "[#text(fill: rgb(\"#16a34a\"))[\\$%.2f]],\n",
               symbol, side, (long long)qty, trade->entry_price, trade->exit_price, entry_date,
               exit_date, duration_days, trade->pnl);
     } else {
       fprintf(out,
-              "  [%s], [%s], [%lld], [$%.2f], [$%.2f], [%s], [%s], [%.1f days], "
-              "[#text(fill: rgb(\"#dc2626\"))[$%.2f]],\n",
+              "  [%s], [%s], [%lld], [\\$%.2f], [\\$%.2f], [%s], [%s], [%.1f days], "
+              "[#text(fill: rgb(\"#dc2626\"))[\\$%.2f]],\n",
               symbol, side, (long long)qty, trade->entry_price, trade->exit_price, entry_date,
               exit_date, duration_days, trade->pnl);
     }
