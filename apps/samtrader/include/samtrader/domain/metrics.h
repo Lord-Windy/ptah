@@ -20,6 +20,8 @@
 #include <samrena.h>
 #include <samvector.h>
 
+#include "samtrader/domain/backtest.h"
+
 /**
  * @brief Performance metrics computed from backtest results.
  *
@@ -67,5 +69,24 @@ SamtraderMetrics *samtrader_metrics_calculate(Samrena *arena, const SamrenaVecto
  * @param metrics Metrics to display
  */
 void samtrader_metrics_print(const SamtraderMetrics *metrics);
+
+/**
+ * @brief Compute per-code trade statistics from closed trades.
+ *
+ * Iterates all closed trades once and accumulates statistics for each
+ * code in the universe. Returns an arena-allocated array of code_count
+ * SamtraderCodeResult structs (zero-initialized, then populated).
+ *
+ * @param arena Memory arena for allocation
+ * @param closed_trades Vector of SamtraderClosedTrade
+ * @param codes Array of code strings (from universe)
+ * @param exchange Exchange identifier
+ * @param code_count Number of codes
+ * @return Pointer to array of SamtraderCodeResult, or NULL on failure
+ */
+SamtraderCodeResult *samtrader_metrics_compute_per_code(Samrena *arena,
+                                                        const SamrenaVector *closed_trades,
+                                                        const char **codes, const char *exchange,
+                                                        size_t code_count);
 
 #endif /* SAMTRADER_DOMAIN_METRICS_H */

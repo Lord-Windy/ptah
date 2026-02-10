@@ -18,6 +18,7 @@
 
 #include <math.h>
 #include <stdio.h>
+#include <string.h>
 
 #include "samtrader/domain/portfolio.h"
 
@@ -198,6 +199,69 @@ SamtraderMetrics *samtrader_metrics_calculate(Samrena *arena, const SamrenaVecto
   }
 
   return metrics;
+}
+
+SamtraderCodeResult *samtrader_metrics_compute_per_code(Samrena *arena,
+                                                        const SamrenaVector *closed_trades,
+                                                        const char **codes, const char *exchange,
+                                                        size_t code_count) {
+  if (!arena || !codes || code_count == 0) {
+    return NULL;
+  }
+
+  SamtraderCodeResult *results = SAMRENA_PUSH_ARRAY_ZERO(arena, SamtraderCodeResult, code_count);
+  if (!results) {
+    return NULL;
+  }
+
+  for (size_t i = 0; i < code_count; i++) {
+    results[i].code = codes[i];
+    results[i].exchange = exchange;
+  }
+
+  size_t num_trades = closed_trades ? samrena_vector_size(closed_trades) : 0;
+
+  for (size_t t = 0; t < num_trades; t++) {
+    const SamtraderClosedTrade *trade =
+        (const SamtraderClosedTrade *)samrena_vector_at_const(closed_trades, t);
+
+    /* Find matching code index */
+    size_t ci = code_count; /* sentinel = not found */
+    for (size_t i = 0; i < code_count; i++) {
+      if (strcmp(trade->code, codes[i]) == 0) {
+        ci = i;
+        break;
+      }
+    }
+    if (ci == code_count) {
+      continue; /* trade for unknown code, skip */
+    }
+
+    SamtraderCodeResult *r = &results[ci];
+    r->total_trades++;
+    r->total_pnl += trade->pnl;
+
+    if (trade->pnl > 0.0) {
+      r->winning_trades++;
+      if (trade->pnl > r->largest_win) {
+        r->largest_win = trade->pnl;
+      }
+    } else {
+      r->losing_trades++;
+      if (trade->pnl < r->largest_loss) {
+        r->largest_loss = trade->pnl;
+      }
+    }
+  }
+
+  /* Compute win rates */
+  for (size_t i = 0; i < code_count; i++) {
+    if (results[i].total_trades > 0) {
+      results[i].win_rate = (double)results[i].winning_trades / (double)results[i].total_trades;
+    }
+  }
+
+  return results;
 }
 
 void samtrader_metrics_print(const SamtraderMetrics *metrics) {

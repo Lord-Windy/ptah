@@ -64,4 +64,34 @@ typedef struct {
   SamrenaVector *trades;         /**< Vector of SamtraderClosedTrade */
 } SamtraderBacktestResult;
 
+/**
+ * @brief Per-code trade statistics from a multi-code backtest.
+ *
+ * Aggregates trade metrics for a single stock code, providing a breakdown
+ * of performance alongside the portfolio-level aggregate result.
+ */
+typedef struct {
+  const char *code;     /**< Stock symbol */
+  const char *exchange; /**< Exchange identifier */
+  int total_trades;     /**< Total closed trades for this code */
+  int winning_trades;   /**< Trades with positive PnL */
+  int losing_trades;    /**< Trades with non-positive PnL */
+  double total_pnl;     /**< Sum of all trade PnL */
+  double win_rate;      /**< winning_trades / total_trades */
+  double largest_win;   /**< Largest single trade PnL */
+  double largest_loss;  /**< Most negative single trade PnL */
+} SamtraderCodeResult;
+
+/**
+ * @brief Multi-code backtest result with per-code breakdown.
+ *
+ * Wraps the portfolio-level aggregate result and adds an array of
+ * per-code trade statistics.
+ */
+typedef struct {
+  SamtraderBacktestResult aggregate; /**< Portfolio-level metrics */
+  SamtraderCodeResult *code_results; /**< Arena-allocated per-code results */
+  size_t code_count;                 /**< Number of entries in code_results */
+} SamtraderMultiCodeResult;
+
 #endif /* SAMTRADER_DOMAIN_BACKTEST_H */

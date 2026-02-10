@@ -977,6 +977,157 @@ static int test_multicode_disjoint_dates(void) {
 }
 
 /*============================================================================
+ * Test 9: Per-Code Metrics Computation
+ *============================================================================*/
+
+static int test_multicode_per_code_metrics(void) {
+  printf("Testing multi-code: per-code metrics computation...\n");
+  Samrena *arena = samrena_create_default();
+  ASSERT(arena != NULL, "Failed to create arena");
+
+  /* CODEA: rises from 90 to 130, then drops. Two entries/exits expected.
+   * CODEB: rises from 85, one entry/exit expected. */
+  double closes_a[] = {90, 100, 110, 120, 130, 115, 100, 110, 120, 130};
+  double closes_b[] = {85, 95, 105, 115, 130, 120, 110, 100, 90, 80};
+  size_t count = 10;
+
+  SamtraderCodeData *cd_a = make_code_data(arena, "CODEA", "US", closes_a, count, 0);
+  SamtraderCodeData *cd_b = make_code_data(arena, "CODEB", "US", closes_b, count, 0);
+  ASSERT(cd_a != NULL && cd_b != NULL, "Failed to create code data");
+
+  SamtraderCodeData *code_data_arr[] = {cd_a, cd_b};
+  SamHashMap *date_indices[2];
+  date_indices[0] = samtrader_build_date_index(arena, cd_a->ohlcv);
+  date_indices[1] = samtrader_build_date_index(arena, cd_b->ohlcv);
+  ASSERT(date_indices[0] && date_indices[1], "Failed to build date indices");
+
+  SamrenaVector *timeline = samtrader_build_date_timeline(arena, code_data_arr, 2);
+  ASSERT(timeline != NULL, "Failed to build timeline");
+  ASSERT(samrena_vector_size(timeline) == 10, "Timeline should have 10 dates");
+
+  /* Entry: close > 95, Exit: close > 125, max_positions=2 */
+  SamtraderOperand close_op = samtrader_operand_price(SAMTRADER_OPERAND_PRICE_CLOSE);
+  SamtraderOperand const_95 = samtrader_operand_constant(95.0);
+  SamtraderOperand const_125 = samtrader_operand_constant(125.0);
+
+  SamtraderRule *entry_rule =
+      samtrader_rule_create_comparison(arena, SAMTRADER_RULE_ABOVE, close_op, const_95);
+  SamtraderRule *exit_rule =
+      samtrader_rule_create_comparison(arena, SAMTRADER_RULE_ABOVE, close_op, const_125);
+
+  SamtraderStrategy strategy = {.name = "test_per_code",
+                                .entry_long = entry_rule,
+                                .exit_long = exit_rule,
+                                .entry_short = NULL,
+                                .exit_short = NULL,
+                                .position_size = 0.25,
+                                .stop_loss_pct = 0.0,
+                                .take_profit_pct = 0.0,
+                                .max_positions = 2};
+
+  SamtraderPortfolio *portfolio = samtrader_portfolio_create(arena, 100000.0);
+  ASSERT(portfolio != NULL, "Failed to create portfolio");
+
+  int loop_result = run_multicode_backtest_loop(arena, code_data_arr, 2, date_indices, timeline,
+                                                &strategy, portfolio, "US", 0.0, 0.0, 0.0, false);
+  ASSERT(loop_result == 0, "Multi-code backtest loop failed");
+
+  /* Trace:
+   * Bar 0: A=90>95? no. B=85>95? no.
+   * Bar 1: A=100>95? yes → enter CODEA. qty=floor(25000/100)=250, cash=75000
+   *         B=95>95? no.
+   * Bar 2: A=110, hold. B=105>95? yes → enter CODEB. qty=floor(18750/105)=178, cash=56310
+   * Bar 3: A=120, hold. B=115, hold.
+   * Bar 4: A=130>125? yes → exit CODEA. cash=56310+250*130=88810, PnL=250*(130-100)=7500
+   *         A re-enter: 130>95? yes → enter CODEA. qty=floor(22202.5/130)=170,
+   * cash=88810-170*130=66710 B=130>125? yes → exit CODEB. cash=66710+178*130=89850,
+   * PnL=178*(130-105)=4450 B re-enter: 130>95? yes → enter CODEB. qty=floor(22462.5/130)=172,
+   * cash=89850-172*130=67490 (wait: max_positions=2, we have CODEA open)
+   *
+   * Let me re-trace more carefully:
+   * Bar 4: date = day_time(4)
+   *   price_map: CODEA=130, CODEB=130
+   *   check_triggers: no SL/TP
+   *   Code CODEA (c=0): has position? yes. exit_long: 130>125? yes → exit.
+   *     cash = 56310 + 250*130 = 88810. PnL = 250*(130-100) = 7500. Closed trade 1.
+   *     no position now. enter_long: 130>95? yes → enter.
+   *     available = 88810 * 0.25 = 22202.5, qty = floor(22202.5/130) = 170
+   *     cash = 88810 - 170*130 = 88810 - 22100 = 66710. positions=1(CODEA).
+   *   Code CODEB (c=1): has position? yes. exit_long: 130>125? yes → exit.
+   *     cash = 66710 + 178*130 = 66710 + 23140 = 89850. PnL = 178*(130-105) = 4450. Closed trade 2.
+   *     no position now. enter_long: 130>95? yes → enter.
+   *     positions currently = 1 (CODEA). max_positions=2. ok.
+   *     available = 89850 * 0.25 = 22462.5, qty = floor(22462.5/130) = 172
+   *     cash = 89850 - 172*130 = 89850 - 22360 = 67490. positions=2(CODEA,CODEB).
+   *
+   * Bar 5: A=115, B=120. Both hold (neither >125).
+   * Bar 6: A=100, B=110. Both hold.
+   * Bar 7: A=110, B=100. Both hold.
+   * Bar 8: A=120, B=90. Both hold.
+   * Bar 9: A=130>125? yes → exit CODEA. cash=67490+170*130=67490+22100=89590. PnL=170*(130-130)=0.
+   * Closed trade 3. A re-enter: 130>95? yes. positions=1(CODEB). max=2. ok. available = 89590*0.25
+   * = 22397.5, qty=floor(22397.5/130)=172 cash = 89590 - 172*130 = 89590 - 22360 = 67230. B=80>125?
+   * no. hold.
+   *
+   * Closed trades:
+   * Trade 1: CODEA, entry=100, exit=130, PnL=7500
+   * Trade 2: CODEB, entry=105, exit=130, PnL=4450
+   * Trade 3: CODEA, entry=130, exit=130, PnL=0
+   *
+   * Per-code expected:
+   * CODEA: total_trades=2, winning=1, losing=1, total_pnl=7500, win_rate=0.5,
+   *        largest_win=7500, largest_loss=0
+   * CODEB: total_trades=1, winning=1, losing=0, total_pnl=4450, win_rate=1.0,
+   *        largest_win=4450, largest_loss=0
+   */
+
+  ASSERT(samrena_vector_size(portfolio->closed_trades) == 3, "Should have 3 closed trades");
+
+  /* Verify aggregate metrics still work */
+  SamtraderMetrics *metrics =
+      samtrader_metrics_calculate(arena, portfolio->closed_trades, portfolio->equity_curve, 0.0);
+  ASSERT(metrics != NULL, "Metrics should not be NULL");
+  ASSERT(metrics->total_trades == 3, "3 total trades aggregate");
+
+  /* Compute per-code metrics */
+  const char *codes[] = {"CODEA", "CODEB"};
+  SamtraderCodeResult *code_results =
+      samtrader_metrics_compute_per_code(arena, portfolio->closed_trades, codes, "US", 2);
+  ASSERT(code_results != NULL, "Per-code results should not be NULL");
+
+  /* CODEA */
+  ASSERT(strcmp(code_results[0].code, "CODEA") == 0, "First result is CODEA");
+  ASSERT(strcmp(code_results[0].exchange, "US") == 0, "CODEA exchange is US");
+  ASSERT(code_results[0].total_trades == 2, "CODEA: 2 trades");
+  ASSERT(code_results[0].winning_trades == 1, "CODEA: 1 winning trade");
+  ASSERT(code_results[0].losing_trades == 1, "CODEA: 1 losing trade (PnL=0)");
+  ASSERT_DOUBLE_EQ(code_results[0].total_pnl, 7500.0, "CODEA total PnL");
+  ASSERT_DOUBLE_EQ(code_results[0].win_rate, 0.5, "CODEA win rate");
+  ASSERT_DOUBLE_EQ(code_results[0].largest_win, 7500.0, "CODEA largest win");
+  ASSERT_DOUBLE_EQ(code_results[0].largest_loss, 0.0, "CODEA largest loss");
+
+  /* CODEB */
+  ASSERT(strcmp(code_results[1].code, "CODEB") == 0, "Second result is CODEB");
+  ASSERT(code_results[1].total_trades == 1, "CODEB: 1 trade");
+  ASSERT(code_results[1].winning_trades == 1, "CODEB: 1 winning trade");
+  ASSERT(code_results[1].losing_trades == 0, "CODEB: 0 losing trades");
+  ASSERT_DOUBLE_EQ(code_results[1].total_pnl, 4450.0, "CODEB total PnL");
+  ASSERT_DOUBLE_EQ(code_results[1].win_rate, 1.0, "CODEB win rate");
+  ASSERT_DOUBLE_EQ(code_results[1].largest_win, 4450.0, "CODEB largest win");
+  ASSERT_DOUBLE_EQ(code_results[1].largest_loss, 0.0, "CODEB largest loss");
+
+  /* Verify aggregate total_pnl matches sum of per-code */
+  double total_code_pnl = code_results[0].total_pnl + code_results[1].total_pnl;
+  ASSERT_DOUBLE_EQ(total_code_pnl, 11950.0, "Sum of per-code PnL");
+  ASSERT(code_results[0].total_trades + code_results[1].total_trades == metrics->total_trades,
+         "Sum of per-code trades == aggregate trades");
+
+  samrena_destroy(arena);
+  printf("  PASS\n");
+  return 0;
+}
+
+/*============================================================================
  * Main
  *============================================================================*/
 
@@ -993,6 +1144,7 @@ int main(void) {
   failures += test_multicode_both_enter();
   failures += test_multicode_max_positions();
   failures += test_multicode_disjoint_dates();
+  failures += test_multicode_per_code_metrics();
 
   printf("\n=== Results: %d failures ===\n", failures);
 

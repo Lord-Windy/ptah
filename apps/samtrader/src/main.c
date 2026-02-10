@@ -640,6 +640,26 @@ static int cmd_backtest(const CliArgs *args) {
   /* Print metrics summary */
   samtrader_metrics_print(metrics);
 
+  /* Compute and print per-code metrics */
+  if (universe->count > 1) {
+    SamtraderCodeResult *code_results =
+        samtrader_metrics_compute_per_code(arena, portfolio->closed_trades, universe->codes,
+                                           exchange, universe->count);
+    if (code_results) {
+      printf("\n=== Per-Code Breakdown ===\n");
+      printf("%-10s %6s %6s %6s %10s %8s %10s %10s\n", "Code", "Trades", "Wins", "Losses",
+             "Total PnL", "Win %", "Best", "Worst");
+      printf("%-10s %6s %6s %6s %10s %8s %10s %10s\n", "----------", "------", "------", "------",
+             "----------", "--------", "----------", "----------");
+      for (size_t i = 0; i < universe->count; i++) {
+        SamtraderCodeResult *cr = &code_results[i];
+        printf("%-10s %6d %6d %6d %10.2f %7.2f%% %10.2f %10.2f\n", cr->code, cr->total_trades,
+               cr->winning_trades, cr->losing_trades, cr->total_pnl, cr->win_rate * 100.0,
+               cr->largest_win, cr->largest_loss);
+      }
+    }
+  }
+
 cleanup:
   if (report)
     report->close(report);
