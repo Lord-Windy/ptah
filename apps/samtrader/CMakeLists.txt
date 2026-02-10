@@ -320,6 +320,7 @@ if(BUILD_TESTING)
         src/domain/indicator_stochastic.c src/domain/indicator_atr.c src/domain/indicator_pivot.c
         src/domain/rule.c src/domain/rule_eval.c src/domain/rule_parser.c
         src/domain/position.c src/domain/portfolio.c src/domain/execution.c src/domain/metrics.c
+        src/domain/universe.c src/domain/code_data.c
         src/adapters/file_config_adapter.c src/adapters/postgres_adapter.c
         src/adapters/typst_report_adapter.c
     )

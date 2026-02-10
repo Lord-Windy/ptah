@@ -102,7 +102,8 @@ Configuration files use INI format.
 | `risk_free_rate` | double | 0.05 | Risk-free rate for Sharpe/Sortino ratios |
 | `start_date` | string | *(required)* | Backtest start date (YYYY-MM-DD) |
 | `end_date` | string | *(required)* | Backtest end date (YYYY-MM-DD) |
-| `code` | string | *(required)* | Symbol code (e.g., `CBA`) |
+| `code` | string | *(required if codes not set)* | Symbol code (e.g., `CBA`) |
+| `codes` | string | *(optional)* | Comma-separated codes for multi-code backtest |
 | `exchange` | string | *(required)* | Exchange name (e.g., `ASX`) |
 
 Boolean values accept: `true`/`false`, `yes`/`no`, `1`/`0` (case-insensitive).
@@ -129,6 +130,54 @@ The strategy section can live in the main config file or in a separate file load
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
 | `template_path` | string | *(optional)* | Custom Typst template path |
+
+## Multi-Code Backtesting
+
+Run the same strategy across multiple instruments in a single portfolio.
+
+### Configuration
+
+Use the `codes` field instead of `code` in the `[backtest]` section:
+
+```ini
+[backtest]
+codes = CBA, BHP, WBC, NAB
+exchange = ASX
+```
+
+### Code Resolution Priority
+
+1. `--code` CLI flag (overrides everything, single code only)
+2. `codes` config field (comma-separated, multi-code)
+3. `code` config field (single code, legacy)
+
+If both `codes` and `code` are present in the config, `codes` takes precedence (with a warning).
+
+### Behavior
+
+- Each code in the universe is validated against the database for sufficient data (minimum 30 bars).
+- The same strategy rules are evaluated independently per code using each code's own OHLCV and indicator data.
+- `max_positions` is enforced globally across all codes — set it to the number of codes for one position per instrument.
+- Position sizing uses the portfolio-level `position_size` fraction.
+
+### Report Output
+
+Multi-code backtests generate an extended report containing:
+
+- **Universe Summary** — table with per-code trade counts, win rates, and PnL
+- **Per-code detail** sections — individual trade statistics for each instrument
+- **Full trade log** — all trades across all codes
+
+### Console Output
+
+A per-code breakdown table is printed to stdout:
+
+```
+=== Per-Code Breakdown ===
+Code       Trades   Wins Losses    TotalPnL WinRate%  LargestWin LargestLoss
+CBA            12      7      5     4523.50   58.33%     2150.00    -1200.00
+BHP             8      5      3     3210.00   62.50%     1800.00     -950.00
+```
 
 ## Rule Grammar
 
@@ -249,6 +298,7 @@ No parameters — calculated from previous bar's high, low, close.
 See the `examples/` directory for complete strategy files:
 
 - **`config.ini`** — Full configuration file with all options
+- **`multi_code.ini`** — Multi-code portfolio backtest (4 ASX stocks)
 - **`sma_crossover.ini`** — Simple SMA crossover (beginner)
 - **`rsi_mean_reversion.ini`** — RSI mean reversion
 - **`golden_cross_filtered.ini`** — Golden cross with RSI filter (composite rules)
