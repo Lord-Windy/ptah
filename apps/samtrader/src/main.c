@@ -30,6 +30,7 @@
 #include <samtrader/adapters/postgres_adapter.h>
 #include <samtrader/adapters/typst_report_adapter.h>
 #include <samtrader/domain/backtest.h>
+#include <samtrader/domain/code_data.h>
 #include <samtrader/domain/execution.h>
 #include <samtrader/domain/indicator.h>
 #include <samtrader/domain/metrics.h>
@@ -38,6 +39,7 @@
 #include <samtrader/domain/position.h>
 #include <samtrader/domain/rule.h>
 #include <samtrader/domain/strategy.h>
+#include <samtrader/domain/universe.h>
 #include <samtrader/ports/config_port.h>
 #include <samtrader/ports/data_port.h>
 #include <samtrader/ports/report_port.h>
@@ -51,6 +53,7 @@
 #define EXIT_INSUFFICIENT_DATA 5
 
 #define INDICATOR_KEY_BUF_SIZE 64
+#define DATE_KEY_BUF_SIZE 32
 #define MIN_OHLCV_BARS 30
 
 typedef struct {
@@ -386,11 +389,36 @@ static int cmd_backtest(const CliArgs *args) {
     goto cleanup;
   }
 
-  const char *code = args->code ? args->code : config->get_string(config, "backtest", "code");
+  /* Resolve code(s) - CLI --code overrides config; 'codes' wins over 'code' */
+  const char *codes_str = config->get_string(config, "backtest", "codes");
+  const char *code_single =
+      args->code ? args->code : config->get_string(config, "backtest", "code");
   const char *exchange =
       args->exchange ? args->exchange : config->get_string(config, "backtest", "exchange");
-  if (!code || !exchange) {
-    fprintf(stderr, "Error: backtest requires code and exchange\n");
+  if (!exchange) {
+    fprintf(stderr, "Error: backtest requires exchange\n");
+    rc = EXIT_CONFIG_ERROR;
+    goto cleanup;
+  }
+
+  const char *effective_codes;
+  if (args->code) {
+    effective_codes = args->code; /* CLI flag overrides everything */
+  } else if (codes_str) {
+    if (code_single)
+      fprintf(stderr, "Warning: both 'codes' and 'code' in config; using 'codes'\n");
+    effective_codes = codes_str;
+  } else if (code_single) {
+    effective_codes = code_single; /* Legacy single code */
+  } else {
+    fprintf(stderr, "Error: backtest requires code or codes\n");
+    rc = EXIT_CONFIG_ERROR;
+    goto cleanup;
+  }
+
+  SamtraderUniverse *universe = samtrader_universe_parse(arena, effective_codes, exchange);
+  if (!universe) {
+    fprintf(stderr, "Error: failed to parse codes\n");
     rc = EXIT_CONFIG_ERROR;
     goto cleanup;
   }
@@ -430,45 +458,46 @@ static int cmd_backtest(const CliArgs *args) {
     goto cleanup;
   }
 
-  /* Fetch OHLCV data */
-  SamrenaVector *ohlcv = data->fetch_ohlcv(data, code, exchange, start_date, end_date);
-  if (!ohlcv) {
-    fprintf(stderr, "Error: failed to fetch OHLCV data for %s.%s\n", code, exchange);
-    rc = EXIT_DB_ERROR;
-    goto cleanup;
-  }
-
-  size_t bar_count = samrena_vector_size(ohlcv);
-  if (bar_count < MIN_OHLCV_BARS) {
-    fprintf(stderr, "Error: insufficient data (%zu bars, minimum %d required)\n", bar_count,
-            MIN_OHLCV_BARS);
+  /* Validate universe against data source */
+  int valid_count = samtrader_universe_validate(universe, data, start_date, end_date);
+  if (valid_count < 0) {
+    fprintf(stderr, "Error: no valid codes in universe\n");
     rc = EXIT_INSUFFICIENT_DATA;
     goto cleanup;
   }
 
-  /* Collect indicator operands from all rules */
-  SamHashMap *seen_keys = samhashmap_create(32, arena);
-  SamrenaVector *operands = samrena_vector_init(arena, sizeof(SamtraderOperand), 16);
-  collect_indicator_operands(strategy.entry_long, seen_keys, operands, arena);
-  collect_indicator_operands(strategy.exit_long, seen_keys, operands, arena);
-  if (strategy.entry_short)
-    collect_indicator_operands(strategy.entry_short, seen_keys, operands, arena);
-  if (strategy.exit_short)
-    collect_indicator_operands(strategy.exit_short, seen_keys, operands, arena);
+  /* Load per-code data, compute indicators, build date indices */
+  SamtraderCodeData **code_data_arr =
+      SAMRENA_PUSH_ARRAY_ZERO(arena, SamtraderCodeData *, universe->count);
+  SamHashMap **date_indices = SAMRENA_PUSH_ARRAY_ZERO(arena, SamHashMap *, universe->count);
 
-  /* Calculate indicators */
-  SamHashMap *indicators = samhashmap_create(32, arena);
-  for (size_t i = 0; i < samrena_vector_size(operands); i++) {
-    const SamtraderOperand *op = (const SamtraderOperand *)samrena_vector_at_const(operands, i);
-    SamtraderIndicatorSeries *series = calculate_indicator_for_operand(arena, op, ohlcv);
-    if (!series) {
-      fprintf(stderr, "Error: failed to calculate indicator\n");
+  for (size_t c = 0; c < universe->count; c++) {
+    code_data_arr[c] =
+        samtrader_load_code_data(arena, data, universe->codes[c], exchange, start_date, end_date);
+    if (!code_data_arr[c]) {
+      fprintf(stderr, "Error: failed to load data for %s\n", universe->codes[c]);
+      rc = EXIT_DB_ERROR;
+      goto cleanup;
+    }
+    if (samtrader_code_data_compute_indicators(arena, code_data_arr[c], &strategy) < 0) {
+      fprintf(stderr, "Error: failed to compute indicators for %s\n", universe->codes[c]);
       rc = EXIT_GENERAL_ERROR;
       goto cleanup;
     }
-    char key_buf[INDICATOR_KEY_BUF_SIZE];
-    samtrader_operand_indicator_key(key_buf, sizeof(key_buf), op);
-    samhashmap_put(indicators, key_buf, series);
+    date_indices[c] = samtrader_build_date_index(arena, code_data_arr[c]->ohlcv);
+    if (!date_indices[c]) {
+      fprintf(stderr, "Error: failed to build date index for %s\n", universe->codes[c]);
+      rc = EXIT_GENERAL_ERROR;
+      goto cleanup;
+    }
+  }
+
+  /* Build unified date timeline */
+  SamrenaVector *timeline = samtrader_build_date_timeline(arena, code_data_arr, universe->count);
+  if (!timeline || samrena_vector_size(timeline) == 0) {
+    fprintf(stderr, "Error: empty date timeline\n");
+    rc = EXIT_INSUFFICIENT_DATA;
+    goto cleanup;
   }
 
   /* Create portfolio */
@@ -479,56 +508,89 @@ static int cmd_backtest(const CliArgs *args) {
     goto cleanup;
   }
 
-  /* Main backtest loop */
-  for (size_t i = 0; i < bar_count; i++) {
-    const SamtraderOhlcv *bar = (const SamtraderOhlcv *)samrena_vector_at_const(ohlcv, i);
+  /* Main backtest loop - iterate unified timeline */
+  for (size_t t = 0; t < samrena_vector_size(timeline); t++) {
+    time_t date = *(const time_t *)samrena_vector_at_const(timeline, t);
 
-    SamHashMap *price_map = build_price_map(arena, bar);
+    /* Build composite price_map from all codes with bars on this date */
+    SamHashMap *price_map = samhashmap_create(universe->count * 2, arena);
     if (!price_map)
       continue;
 
-    /* Check stop loss / take profit triggers */
-    samtrader_execution_check_triggers(portfolio, arena, price_map, bar->date, commission_flat,
+    char date_key[DATE_KEY_BUF_SIZE];
+    snprintf(date_key, sizeof(date_key), "%ld", (long)date);
+
+    for (size_t c = 0; c < universe->count; c++) {
+      size_t *bar_idx = (size_t *)samhashmap_get(date_indices[c], date_key);
+      if (!bar_idx)
+        continue;
+      const SamtraderOhlcv *bar =
+          (const SamtraderOhlcv *)samrena_vector_at_const(code_data_arr[c]->ohlcv, *bar_idx);
+      double *price = SAMRENA_PUSH_TYPE(arena, double);
+      if (!price)
+        continue;
+      *price = bar->close;
+      samhashmap_put(price_map, code_data_arr[c]->code, price);
+    }
+
+    /* Check stop loss / take profit triggers across all positions */
+    samtrader_execution_check_triggers(portfolio, arena, price_map, date, commission_flat,
                                        commission_pct, slippage_pct);
 
-    /* Evaluate exit rules for existing positions */
-    if (samtrader_portfolio_has_position(portfolio, code)) {
-      SamtraderPosition *pos = samtrader_portfolio_get_position(portfolio, code);
-      bool should_exit = false;
-      if (pos && samtrader_position_is_long(pos)) {
-        should_exit = samtrader_rule_evaluate(strategy.exit_long, ohlcv, indicators, i);
-      } else if (pos && samtrader_position_is_short(pos) && strategy.exit_short) {
-        should_exit = samtrader_rule_evaluate(strategy.exit_short, ohlcv, indicators, i);
+    /* For each code with data on this date */
+    for (size_t c = 0; c < universe->count; c++) {
+      size_t *bar_idx = (size_t *)samhashmap_get(date_indices[c], date_key);
+      if (!bar_idx)
+        continue;
+
+      const SamtraderOhlcv *bar =
+          (const SamtraderOhlcv *)samrena_vector_at_const(code_data_arr[c]->ohlcv, *bar_idx);
+      const char *code = code_data_arr[c]->code;
+
+      /* Evaluate exit rules for existing positions */
+      if (samtrader_portfolio_has_position(portfolio, code)) {
+        SamtraderPosition *pos = samtrader_portfolio_get_position(portfolio, code);
+        bool should_exit = false;
+        if (pos && samtrader_position_is_long(pos)) {
+          should_exit = samtrader_rule_evaluate(strategy.exit_long, code_data_arr[c]->ohlcv,
+                                                code_data_arr[c]->indicators, *bar_idx);
+        } else if (pos && samtrader_position_is_short(pos) && strategy.exit_short) {
+          should_exit = samtrader_rule_evaluate(strategy.exit_short, code_data_arr[c]->ohlcv,
+                                                code_data_arr[c]->indicators, *bar_idx);
+        }
+        if (should_exit) {
+          samtrader_execution_exit_position(portfolio, arena, code, bar->close, date,
+                                            commission_flat, commission_pct, slippage_pct);
+        }
       }
-      if (should_exit) {
-        samtrader_execution_exit_position(portfolio, arena, code, bar->close, bar->date,
+
+      /* Evaluate entry rules (max_positions enforced globally) */
+      if (!samtrader_portfolio_has_position(portfolio, code)) {
+        bool enter_long = samtrader_rule_evaluate(strategy.entry_long, code_data_arr[c]->ohlcv,
+                                                  code_data_arr[c]->indicators, *bar_idx);
+        bool enter_short =
+            allow_shorting && strategy.entry_short
+                ? samtrader_rule_evaluate(strategy.entry_short, code_data_arr[c]->ohlcv,
+                                          code_data_arr[c]->indicators, *bar_idx)
+                : false;
+
+        if (enter_long) {
+          samtrader_execution_enter_long(portfolio, arena, code, exchange, bar->close, date,
+                                         strategy.position_size, strategy.stop_loss_pct,
+                                         strategy.take_profit_pct, strategy.max_positions,
+                                         commission_flat, commission_pct, slippage_pct);
+        } else if (enter_short) {
+          samtrader_execution_enter_short(portfolio, arena, code, exchange, bar->close, date,
+                                          strategy.position_size, strategy.stop_loss_pct,
+                                          strategy.take_profit_pct, strategy.max_positions,
                                           commission_flat, commission_pct, slippage_pct);
+        }
       }
     }
 
-    /* Evaluate entry rules */
-    if (!samtrader_portfolio_has_position(portfolio, code)) {
-      bool enter_long = samtrader_rule_evaluate(strategy.entry_long, ohlcv, indicators, i);
-      bool enter_short = allow_shorting && strategy.entry_short
-                             ? samtrader_rule_evaluate(strategy.entry_short, ohlcv, indicators, i)
-                             : false;
-
-      if (enter_long) {
-        samtrader_execution_enter_long(portfolio, arena, code, exchange, bar->close, bar->date,
-                                       strategy.position_size, strategy.stop_loss_pct,
-                                       strategy.take_profit_pct, strategy.max_positions,
-                                       commission_flat, commission_pct, slippage_pct);
-      } else if (enter_short) {
-        samtrader_execution_enter_short(portfolio, arena, code, exchange, bar->close, bar->date,
-                                        strategy.position_size, strategy.stop_loss_pct,
-                                        strategy.take_profit_pct, strategy.max_positions,
-                                        commission_flat, commission_pct, slippage_pct);
-      }
-    }
-
-    /* Record equity */
+    /* Record equity (cash + all position market values) */
     double equity = samtrader_portfolio_total_equity(portfolio, price_map);
-    samtrader_portfolio_record_equity(portfolio, arena, bar->date, equity);
+    samtrader_portfolio_record_equity(portfolio, arena, date, equity);
   }
 
   /* Calculate metrics */

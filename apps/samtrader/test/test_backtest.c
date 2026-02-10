@@ -19,6 +19,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "samtrader/domain/code_data.h"
 #include "samtrader/domain/execution.h"
 #include "samtrader/domain/indicator.h"
 #include "samtrader/domain/metrics.h"
@@ -26,6 +27,7 @@
 #include "samtrader/domain/portfolio.h"
 #include "samtrader/domain/rule.h"
 #include "samtrader/domain/strategy.h"
+#include "samtrader/domain/universe.h"
 
 #define ASSERT(cond, msg)                                                                          \
   do {                                                                                             \
@@ -584,6 +586,397 @@ static int test_portfolio_invariant_stress(void) {
 }
 
 /*============================================================================
+ * Multi-Code Helpers
+ *============================================================================*/
+
+#define DATE_KEY_BUF_SIZE 32
+
+static SamrenaVector *make_ohlcv_for_code(Samrena *arena, const char *code, const char *exchange,
+                                          const double *closes, size_t count, int day_offset) {
+  SamrenaVector *vec = samrena_vector_init(arena, sizeof(SamtraderOhlcv), count);
+  for (size_t i = 0; i < count; i++) {
+    SamtraderOhlcv bar = {
+        .code = code,
+        .exchange = exchange,
+        .date = day_time(day_offset + (int)i),
+        .open = closes[i] - 1.0,
+        .high = closes[i] + 1.0,
+        .low = closes[i] - 2.0,
+        .close = closes[i],
+        .volume = (int64_t)(1000 * (i + 1)),
+    };
+    samrena_vector_push(vec, &bar);
+  }
+  return vec;
+}
+
+static SamtraderCodeData *make_code_data(Samrena *arena, const char *code, const char *exchange,
+                                         const double *closes, size_t count, int day_offset) {
+  SamtraderCodeData *cd = SAMRENA_PUSH_TYPE_ZERO(arena, SamtraderCodeData);
+  if (!cd)
+    return NULL;
+  cd->code = code;
+  cd->exchange = exchange;
+  cd->ohlcv = make_ohlcv_for_code(arena, code, exchange, closes, count, day_offset);
+  cd->bar_count = count;
+  cd->indicators = samhashmap_create(4, arena);
+  return cd;
+}
+
+/**
+ * Run the multi-code backtest loop (replicating the new main.c logic).
+ */
+static int run_multicode_backtest_loop(Samrena *arena, SamtraderCodeData **code_data_arr,
+                                       size_t code_count, SamHashMap **date_indices,
+                                       SamrenaVector *timeline, SamtraderStrategy *strategy,
+                                       SamtraderPortfolio *portfolio, const char *exchange,
+                                       double commission_flat, double commission_pct,
+                                       double slippage_pct, bool allow_shorting) {
+  for (size_t t = 0; t < samrena_vector_size(timeline); t++) {
+    time_t date = *(const time_t *)samrena_vector_at_const(timeline, t);
+
+    SamHashMap *price_map = samhashmap_create(code_count * 2, arena);
+    if (!price_map)
+      continue;
+
+    char date_key[DATE_KEY_BUF_SIZE];
+    snprintf(date_key, sizeof(date_key), "%ld", (long)date);
+
+    for (size_t c = 0; c < code_count; c++) {
+      size_t *bar_idx = (size_t *)samhashmap_get(date_indices[c], date_key);
+      if (!bar_idx)
+        continue;
+      const SamtraderOhlcv *bar =
+          (const SamtraderOhlcv *)samrena_vector_at_const(code_data_arr[c]->ohlcv, *bar_idx);
+      double *price = SAMRENA_PUSH_TYPE(arena, double);
+      if (!price)
+        continue;
+      *price = bar->close;
+      samhashmap_put(price_map, code_data_arr[c]->code, price);
+    }
+
+    samtrader_execution_check_triggers(portfolio, arena, price_map, date, commission_flat,
+                                       commission_pct, slippage_pct);
+
+    for (size_t c = 0; c < code_count; c++) {
+      size_t *bar_idx = (size_t *)samhashmap_get(date_indices[c], date_key);
+      if (!bar_idx)
+        continue;
+
+      const SamtraderOhlcv *bar =
+          (const SamtraderOhlcv *)samrena_vector_at_const(code_data_arr[c]->ohlcv, *bar_idx);
+      const char *code = code_data_arr[c]->code;
+
+      if (samtrader_portfolio_has_position(portfolio, code)) {
+        SamtraderPosition *pos = samtrader_portfolio_get_position(portfolio, code);
+        bool should_exit = false;
+        if (pos && samtrader_position_is_long(pos)) {
+          should_exit = samtrader_rule_evaluate(strategy->exit_long, code_data_arr[c]->ohlcv,
+                                                code_data_arr[c]->indicators, *bar_idx);
+        } else if (pos && samtrader_position_is_short(pos) && strategy->exit_short) {
+          should_exit = samtrader_rule_evaluate(strategy->exit_short, code_data_arr[c]->ohlcv,
+                                                code_data_arr[c]->indicators, *bar_idx);
+        }
+        if (should_exit) {
+          samtrader_execution_exit_position(portfolio, arena, code, bar->close, date,
+                                            commission_flat, commission_pct, slippage_pct);
+        }
+      }
+
+      if (!samtrader_portfolio_has_position(portfolio, code)) {
+        bool enter_long = samtrader_rule_evaluate(strategy->entry_long, code_data_arr[c]->ohlcv,
+                                                  code_data_arr[c]->indicators, *bar_idx);
+        bool enter_short =
+            allow_shorting && strategy->entry_short
+                ? samtrader_rule_evaluate(strategy->entry_short, code_data_arr[c]->ohlcv,
+                                          code_data_arr[c]->indicators, *bar_idx)
+                : false;
+
+        if (enter_long) {
+          samtrader_execution_enter_long(portfolio, arena, code, exchange, bar->close, date,
+                                         strategy->position_size, strategy->stop_loss_pct,
+                                         strategy->take_profit_pct, strategy->max_positions,
+                                         commission_flat, commission_pct, slippage_pct);
+        } else if (enter_short) {
+          samtrader_execution_enter_short(portfolio, arena, code, exchange, bar->close, date,
+                                          strategy->position_size, strategy->stop_loss_pct,
+                                          strategy->take_profit_pct, strategy->max_positions,
+                                          commission_flat, commission_pct, slippage_pct);
+        }
+      }
+    }
+
+    double equity = samtrader_portfolio_total_equity(portfolio, price_map);
+    samtrader_portfolio_record_equity(portfolio, arena, date, equity);
+  }
+
+  return 0;
+}
+
+/*============================================================================
+ * Test 6: Two Codes Both Trigger Entry
+ *============================================================================*/
+
+static int test_multicode_both_enter(void) {
+  printf("Testing multi-code: two codes both trigger entry...\n");
+  Samrena *arena = samrena_create_default();
+  ASSERT(arena != NULL, "Failed to create arena");
+
+  /* Code A: prices rising from 90 to 130 */
+  double closes_a[] = {90, 100, 110, 120, 130};
+  /* Code B: prices rising from 85 to 125 */
+  double closes_b[] = {85, 95, 105, 115, 125};
+  size_t count = 5;
+
+  SamtraderCodeData *cd_a = make_code_data(arena, "CODEA", "US", closes_a, count, 0);
+  SamtraderCodeData *cd_b = make_code_data(arena, "CODEB", "US", closes_b, count, 0);
+  ASSERT(cd_a != NULL && cd_b != NULL, "Failed to create code data");
+
+  SamtraderCodeData *code_data_arr[] = {cd_a, cd_b};
+  SamHashMap *date_indices[2];
+  date_indices[0] = samtrader_build_date_index(arena, cd_a->ohlcv);
+  date_indices[1] = samtrader_build_date_index(arena, cd_b->ohlcv);
+  ASSERT(date_indices[0] && date_indices[1], "Failed to build date indices");
+
+  SamrenaVector *timeline = samtrader_build_date_timeline(arena, code_data_arr, 2);
+  ASSERT(timeline != NULL, "Failed to build timeline");
+  ASSERT(samrena_vector_size(timeline) == 5, "Timeline should have 5 dates");
+
+  /* Entry: close > 95, Exit: close > 999 (never fires), max_positions=2 */
+  SamtraderOperand close_op = samtrader_operand_price(SAMTRADER_OPERAND_PRICE_CLOSE);
+  SamtraderOperand const_95 = samtrader_operand_constant(95.0);
+  SamtraderOperand const_999 = samtrader_operand_constant(999.0);
+
+  SamtraderRule *entry_rule =
+      samtrader_rule_create_comparison(arena, SAMTRADER_RULE_ABOVE, close_op, const_95);
+  SamtraderRule *exit_rule =
+      samtrader_rule_create_comparison(arena, SAMTRADER_RULE_ABOVE, close_op, const_999);
+
+  SamtraderStrategy strategy = {.name = "test_multicode",
+                                .entry_long = entry_rule,
+                                .exit_long = exit_rule,
+                                .entry_short = NULL,
+                                .exit_short = NULL,
+                                .position_size = 0.25,
+                                .stop_loss_pct = 0.0,
+                                .take_profit_pct = 0.0,
+                                .max_positions = 2};
+
+  SamtraderPortfolio *portfolio = samtrader_portfolio_create(arena, 100000.0);
+  ASSERT(portfolio != NULL, "Failed to create portfolio");
+
+  int loop_result = run_multicode_backtest_loop(arena, code_data_arr, 2, date_indices, timeline,
+                                                &strategy, portfolio, "US", 0.0, 0.0, 0.0, false);
+  ASSERT(loop_result == 0, "Multi-code backtest loop failed");
+
+  /* Trace:
+   * Bar 0 (day 0): CODEA close=90 > 95? no. CODEB close=85 > 95? no.
+   * Bar 1 (day 1): CODEA close=100 > 95? yes → enter CODEA
+   *   available = 100000 * 0.25 = 25000, qty = floor(25000/100) = 250
+   *   cash = 100000 - 25000 = 75000
+   *   CODEB close=95 > 95? no (strict above)
+   * Bar 2 (day 2): CODEA close=110, hold. CODEB close=105 > 95? yes → enter CODEB
+   *   available = 75000 * 0.25 = 18750, qty = floor(18750/105) = 178
+   *   cash = 75000 - 178*105 = 75000 - 18690 = 56310
+   * Bar 3 (day 3): Both hold.
+   * Bar 4 (day 4): Both hold.
+   */
+
+  ASSERT(samtrader_portfolio_has_position(portfolio, "CODEA"), "Should have CODEA position");
+  ASSERT(samtrader_portfolio_has_position(portfolio, "CODEB"), "Should have CODEB position");
+  ASSERT(samtrader_portfolio_position_count(portfolio) == 2, "Should have 2 open positions");
+
+  SamtraderPosition *pos_a = samtrader_portfolio_get_position(portfolio, "CODEA");
+  ASSERT(pos_a != NULL, "CODEA position should exist");
+  ASSERT(pos_a->quantity == 250, "CODEA: 250 shares");
+  ASSERT_DOUBLE_EQ(pos_a->entry_price, 100.0, "CODEA entry at 100");
+
+  SamtraderPosition *pos_b = samtrader_portfolio_get_position(portfolio, "CODEB");
+  ASSERT(pos_b != NULL, "CODEB position should exist");
+  ASSERT(pos_b->quantity == 178, "CODEB: 178 shares");
+  ASSERT_DOUBLE_EQ(pos_b->entry_price, 105.0, "CODEB entry at 105");
+
+  ASSERT(samrena_vector_size(portfolio->equity_curve) == 5, "Equity curve: 5 points");
+
+  /* Final equity: cash + CODEA(250*130) + CODEB(178*125) = 56310 + 32500 + 22250 = 111060 */
+  const SamtraderEquityPoint *last_eq = (const SamtraderEquityPoint *)samrena_vector_at_const(
+      portfolio->equity_curve, samrena_vector_size(portfolio->equity_curve) - 1);
+  ASSERT_DOUBLE_EQ(last_eq->equity, 111060.0, "Final equity");
+
+  samrena_destroy(arena);
+  printf("  PASS\n");
+  return 0;
+}
+
+/*============================================================================
+ * Test 7: Max Positions Respected Globally
+ *============================================================================*/
+
+static int test_multicode_max_positions(void) {
+  printf("Testing multi-code: max positions respected globally...\n");
+  Samrena *arena = samrena_create_default();
+  ASSERT(arena != NULL, "Failed to create arena");
+
+  /* Both codes have same prices, both trigger at bar 1 */
+  double closes[] = {90, 100, 110, 120, 130};
+  size_t count = 5;
+
+  SamtraderCodeData *cd_a = make_code_data(arena, "CODEA", "US", closes, count, 0);
+  SamtraderCodeData *cd_b = make_code_data(arena, "CODEB", "US", closes, count, 0);
+  ASSERT(cd_a != NULL && cd_b != NULL, "Failed to create code data");
+
+  SamtraderCodeData *code_data_arr[] = {cd_a, cd_b};
+  SamHashMap *date_indices[2];
+  date_indices[0] = samtrader_build_date_index(arena, cd_a->ohlcv);
+  date_indices[1] = samtrader_build_date_index(arena, cd_b->ohlcv);
+
+  SamrenaVector *timeline = samtrader_build_date_timeline(arena, code_data_arr, 2);
+  ASSERT(timeline != NULL, "Failed to build timeline");
+
+  /* Entry: close > 95, Exit: never, max_positions=1 */
+  SamtraderOperand close_op = samtrader_operand_price(SAMTRADER_OPERAND_PRICE_CLOSE);
+  SamtraderOperand const_95 = samtrader_operand_constant(95.0);
+  SamtraderOperand const_999 = samtrader_operand_constant(999.0);
+
+  SamtraderRule *entry_rule =
+      samtrader_rule_create_comparison(arena, SAMTRADER_RULE_ABOVE, close_op, const_95);
+  SamtraderRule *exit_rule =
+      samtrader_rule_create_comparison(arena, SAMTRADER_RULE_ABOVE, close_op, const_999);
+
+  SamtraderStrategy strategy = {.name = "test_max_pos",
+                                .entry_long = entry_rule,
+                                .exit_long = exit_rule,
+                                .entry_short = NULL,
+                                .exit_short = NULL,
+                                .position_size = 0.25,
+                                .stop_loss_pct = 0.0,
+                                .take_profit_pct = 0.0,
+                                .max_positions = 1};
+
+  SamtraderPortfolio *portfolio = samtrader_portfolio_create(arena, 100000.0);
+  ASSERT(portfolio != NULL, "Failed to create portfolio");
+
+  int loop_result = run_multicode_backtest_loop(arena, code_data_arr, 2, date_indices, timeline,
+                                                &strategy, portfolio, "US", 0.0, 0.0, 0.0, false);
+  ASSERT(loop_result == 0, "Multi-code backtest loop failed");
+
+  /* Only one position should be opened (max_positions=1) */
+  ASSERT(samtrader_portfolio_position_count(portfolio) == 1,
+         "Should have exactly 1 open position (max_positions=1)");
+
+  /* CODEA is processed first in the inner loop, so it gets the position */
+  ASSERT(samtrader_portfolio_has_position(portfolio, "CODEA"), "CODEA should have position");
+  ASSERT(!samtrader_portfolio_has_position(portfolio, "CODEB"), "CODEB should NOT have position");
+
+  samrena_destroy(arena);
+  printf("  PASS\n");
+  return 0;
+}
+
+/*============================================================================
+ * Test 8: Disjoint Date Ranges
+ *============================================================================*/
+
+static int test_multicode_disjoint_dates(void) {
+  printf("Testing multi-code: disjoint date ranges...\n");
+  Samrena *arena = samrena_create_default();
+  ASSERT(arena != NULL, "Failed to create arena");
+
+  /* CODEA: days 0-4, prices rising */
+  double closes_a[] = {90, 100, 110, 120, 130};
+  /* CODEB: days 3-7, prices also rising */
+  double closes_b[] = {85, 95, 105, 115, 125};
+
+  SamtraderCodeData *cd_a = make_code_data(arena, "CODEA", "US", closes_a, 5, 0);
+  SamtraderCodeData *cd_b = make_code_data(arena, "CODEB", "US", closes_b, 5, 3);
+  ASSERT(cd_a != NULL && cd_b != NULL, "Failed to create code data");
+
+  SamtraderCodeData *code_data_arr[] = {cd_a, cd_b};
+  SamHashMap *date_indices[2];
+  date_indices[0] = samtrader_build_date_index(arena, cd_a->ohlcv);
+  date_indices[1] = samtrader_build_date_index(arena, cd_b->ohlcv);
+
+  SamrenaVector *timeline = samtrader_build_date_timeline(arena, code_data_arr, 2);
+  ASSERT(timeline != NULL, "Failed to build timeline");
+  /* Days 0,1,2,3,4,5,6,7 = 8 unique dates (days 3,4 overlap) */
+  ASSERT(samrena_vector_size(timeline) == 8, "Timeline should have 8 dates");
+
+  /* Entry: close > 95, Exit: close > 125, max_positions=2 */
+  SamtraderOperand close_op = samtrader_operand_price(SAMTRADER_OPERAND_PRICE_CLOSE);
+  SamtraderOperand const_95 = samtrader_operand_constant(95.0);
+  SamtraderOperand const_125 = samtrader_operand_constant(125.0);
+
+  SamtraderRule *entry_rule =
+      samtrader_rule_create_comparison(arena, SAMTRADER_RULE_ABOVE, close_op, const_95);
+  SamtraderRule *exit_rule =
+      samtrader_rule_create_comparison(arena, SAMTRADER_RULE_ABOVE, close_op, const_125);
+
+  SamtraderStrategy strategy = {.name = "test_disjoint",
+                                .entry_long = entry_rule,
+                                .exit_long = exit_rule,
+                                .entry_short = NULL,
+                                .exit_short = NULL,
+                                .position_size = 0.25,
+                                .stop_loss_pct = 0.0,
+                                .take_profit_pct = 0.0,
+                                .max_positions = 2};
+
+  SamtraderPortfolio *portfolio = samtrader_portfolio_create(arena, 100000.0);
+  ASSERT(portfolio != NULL, "Failed to create portfolio");
+
+  int loop_result = run_multicode_backtest_loop(arena, code_data_arr, 2, date_indices, timeline,
+                                                &strategy, portfolio, "US", 0.0, 0.0, 0.0, false);
+  ASSERT(loop_result == 0, "Multi-code backtest loop failed");
+
+  /* Trace:
+   * Day 0: CODEA close=90 > 95? no. CODEB: no data.
+   * Day 1: CODEA close=100 > 95? yes → enter CODEA
+   *   qty = floor(25000/100) = 250, cash = 75000
+   *   CODEB: no data.
+   * Day 2: CODEA close=110, hold. CODEB: no data.
+   * Day 3: CODEA close=120, hold. CODEB close=85 > 95? no.
+   * Day 4: CODEA close=130 > 125? yes → exit CODEA
+   *   cash = 75000 + 250*130 = 107500, PnL = 250*(130-100) = 7500
+   *   CODEA re-enter: 130 > 95? yes → re-enter
+   *   qty = floor(26875/130) = 206, cash = 107500 - 206*130 = 107500 - 26780 = 80720
+   *   CODEB close=95 > 95? no.
+   * Day 5: CODEA: no data. CODEB close=105 > 95? yes → enter CODEB
+   *   qty = floor(20180/105) = 192, cash = 80720 - 192*105 = 80720 - 20160 = 60560
+   * Day 6: CODEA: no data. CODEB close=115, hold.
+   * Day 7: CODEA: no data. CODEB close=125 > 125? no. hold.
+   */
+
+  /* 1 closed trade (CODEA first exit) */
+  ASSERT(samrena_vector_size(portfolio->closed_trades) == 1, "Should have 1 closed trade");
+  const SamtraderClosedTrade *trade =
+      (const SamtraderClosedTrade *)samrena_vector_at_const(portfolio->closed_trades, 0);
+  ASSERT_DOUBLE_EQ(trade->entry_price, 100.0, "CODEA trade entry at 100");
+  ASSERT_DOUBLE_EQ(trade->exit_price, 130.0, "CODEA trade exit at 130");
+  ASSERT_DOUBLE_EQ(trade->pnl, 7500.0, "CODEA trade PnL = 7500");
+
+  /* Two open positions: re-entered CODEA and CODEB */
+  ASSERT(samtrader_portfolio_has_position(portfolio, "CODEA"), "CODEA should have re-entered");
+  ASSERT(samtrader_portfolio_has_position(portfolio, "CODEB"), "CODEB should have entered");
+
+  SamtraderPosition *pos_a = samtrader_portfolio_get_position(portfolio, "CODEA");
+  ASSERT(pos_a != NULL, "CODEA position should exist");
+  ASSERT(pos_a->quantity == 206, "CODEA re-entry: 206 shares");
+  ASSERT_DOUBLE_EQ(pos_a->entry_price, 130.0, "CODEA re-entry at 130");
+
+  SamtraderPosition *pos_b = samtrader_portfolio_get_position(portfolio, "CODEB");
+  ASSERT(pos_b != NULL, "CODEB position should exist");
+  ASSERT(pos_b->quantity == 192, "CODEB: 192 shares");
+  ASSERT_DOUBLE_EQ(pos_b->entry_price, 105.0, "CODEB entry at 105");
+
+  /* Equity curve should have 8 points (one per timeline date) */
+  ASSERT(samrena_vector_size(portfolio->equity_curve) == 8, "Equity curve: 8 points");
+
+  samrena_destroy(arena);
+  printf("  PASS\n");
+  return 0;
+}
+
+/*============================================================================
  * Main
  *============================================================================*/
 
@@ -597,6 +990,9 @@ int main(void) {
   failures += test_multiple_trades();
   failures += test_sma_strategy();
   failures += test_portfolio_invariant_stress();
+  failures += test_multicode_both_enter();
+  failures += test_multicode_max_positions();
+  failures += test_multicode_disjoint_dates();
 
   printf("\n=== Results: %d failures ===\n", failures);
 

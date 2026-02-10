@@ -253,6 +253,8 @@ if(BUILD_TESTING)
         src/domain/portfolio.c
         src/domain/execution.c
         src/domain/metrics.c
+        src/domain/code_data.c
+        src/domain/universe.c
     )
     target_include_directories(samtrader_backtest_test PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/include
