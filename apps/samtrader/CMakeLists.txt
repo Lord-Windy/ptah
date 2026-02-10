@@ -34,6 +34,7 @@ ptah_add_executable(samtrader
         src/domain/execution.c
         src/domain/metrics.c
         src/domain/universe.c
+        src/domain/code_data.c
         src/adapters/file_config_adapter.c
         src/adapters/postgres_adapter.c
         src/adapters/typst_report_adapter.c
@@ -281,6 +282,31 @@ if(BUILD_TESTING)
     )
     target_link_libraries(samtrader_universe_test PRIVATE samrena samdata m)
     add_test(NAME samtrader_universe_test COMMAND samtrader_universe_test)
+
+    # Code data loading, date timeline, and indicator pre-computation tests
+    add_executable(samtrader_code_data_test
+        test/test_code_data.c
+        src/domain/code_data.c
+        src/domain/ohlcv.c
+        src/domain/indicator.c
+        src/domain/indicator_sma.c
+        src/domain/indicator_ema.c
+        src/domain/indicator_wma.c
+        src/domain/indicator_rsi.c
+        src/domain/indicator_bollinger.c
+        src/domain/indicator_macd.c
+        src/domain/indicator_stochastic.c
+        src/domain/indicator_atr.c
+        src/domain/indicator_pivot.c
+        src/domain/rule.c
+        src/domain/rule_eval.c
+        src/domain/rule_parser.c
+    )
+    target_include_directories(samtrader_code_data_test PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/include
+    )
+    target_link_libraries(samtrader_code_data_test PRIVATE samrena samdata m)
+    add_test(NAME samtrader_code_data_test COMMAND samtrader_code_data_test)
 
     # End-to-end pipeline tests
     add_executable(samtrader_e2e_test
