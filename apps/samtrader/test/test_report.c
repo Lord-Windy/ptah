@@ -895,6 +895,184 @@ static int test_template_unterminated_placeholder(void) {
   return 0;
 }
 
+/* ========== Multi-Code Report Tests ========== */
+
+/* Helper: build a multi-code result with 3 codes */
+static SamtraderMultiCodeResult make_multi_result(Samrena *arena) {
+  SamtraderMultiCodeResult multi;
+  memset(&multi, 0, sizeof(multi));
+
+  /* Aggregate result reuses the single-code helper */
+  multi.aggregate = make_result(arena);
+  multi.code_count = 3;
+  multi.code_results = (SamtraderCodeResult *)samrena_push(arena, 3 * sizeof(SamtraderCodeResult));
+  memset(multi.code_results, 0, 3 * sizeof(SamtraderCodeResult));
+
+  multi.code_results[0].code = "AAPL";
+  multi.code_results[0].exchange = "NASDAQ";
+  multi.code_results[0].total_trades = 1;
+  multi.code_results[0].winning_trades = 1;
+  multi.code_results[0].losing_trades = 0;
+  multi.code_results[0].total_pnl = 1000.0;
+  multi.code_results[0].win_rate = 1.0;
+  multi.code_results[0].largest_win = 1000.0;
+  multi.code_results[0].largest_loss = 0.0;
+
+  multi.code_results[1].code = "MSFT";
+  multi.code_results[1].exchange = "NASDAQ";
+  multi.code_results[1].total_trades = 1;
+  multi.code_results[1].winning_trades = 0;
+  multi.code_results[1].losing_trades = 1;
+  multi.code_results[1].total_pnl = -500.0;
+  multi.code_results[1].win_rate = 0.0;
+  multi.code_results[1].largest_win = 0.0;
+  multi.code_results[1].largest_loss = -500.0;
+
+  multi.code_results[2].code = "GOOG";
+  multi.code_results[2].exchange = "NASDAQ";
+  multi.code_results[2].total_trades = 1;
+  multi.code_results[2].winning_trades = 1;
+  multi.code_results[2].losing_trades = 0;
+  multi.code_results[2].total_pnl = 300.0;
+  multi.code_results[2].win_rate = 1.0;
+  multi.code_results[2].largest_win = 300.0;
+  multi.code_results[2].largest_loss = 0.0;
+
+  return multi;
+}
+
+static int test_multi_report_universe_summary(void) {
+  printf("Testing multi-code report universe summary...\n");
+  Samrena *arena = samrena_create_default();
+  SamtraderReportPort *port = samtrader_typst_adapter_create(arena, NULL);
+  SamtraderMultiCodeResult multi = make_multi_result(arena);
+  SamtraderStrategy strategy = make_strategy();
+  const char *path = temp_path("multi_univ");
+
+  ASSERT(port->write_multi != NULL, "write_multi should be set");
+  bool ok = port->write_multi(port, &multi, &strategy, path);
+  ASSERT(ok, "write_multi should succeed");
+
+  char *content = read_file(path);
+  ASSERT(content != NULL, "Output should be readable");
+
+  ASSERT(strstr(content, "== Universe Summary") != NULL, "Should have Universe Summary heading");
+  ASSERT(strstr(content, "AAPL") != NULL, "Should contain AAPL");
+  ASSERT(strstr(content, "MSFT") != NULL, "Should contain MSFT");
+  ASSERT(strstr(content, "GOOG") != NULL, "Should contain GOOG");
+  ASSERT(strstr(content, "[*Code*]") != NULL, "Should have Code column header");
+  ASSERT(strstr(content, "[*Win Rate*]") != NULL, "Should have Win Rate column header");
+
+  free(content);
+  unlink(path);
+  port->close(port);
+  samrena_destroy(arena);
+  printf("  PASS\n");
+  return 0;
+}
+
+static int test_multi_report_per_code_details(void) {
+  printf("Testing multi-code report per-code details...\n");
+  Samrena *arena = samrena_create_default();
+  SamtraderReportPort *port = samtrader_typst_adapter_create(arena, NULL);
+  SamtraderMultiCodeResult multi = make_multi_result(arena);
+  SamtraderStrategy strategy = make_strategy();
+  const char *path = temp_path("multi_detail");
+
+  port->write_multi(port, &multi, &strategy, path);
+  char *content = read_file(path);
+  ASSERT(content != NULL, "Output should be readable");
+
+  /* Per-code detail sections */
+  ASSERT(strstr(content, "== AAPL Detail") != NULL, "Should have AAPL Detail section");
+  ASSERT(strstr(content, "== MSFT Detail") != NULL, "Should have MSFT Detail section");
+  ASSERT(strstr(content, "== GOOG Detail") != NULL, "Should have GOOG Detail section");
+
+  /* Each detail section should contain per-code metrics */
+  ASSERT(strstr(content, "=== Trades") != NULL, "Should have filtered trade sub-section");
+
+  free(content);
+  unlink(path);
+  port->close(port);
+  samrena_destroy(arena);
+  printf("  PASS\n");
+  return 0;
+}
+
+static int test_multi_report_full_trade_log(void) {
+  printf("Testing multi-code report full trade log...\n");
+  Samrena *arena = samrena_create_default();
+  SamtraderReportPort *port = samtrader_typst_adapter_create(arena, NULL);
+  SamtraderMultiCodeResult multi = make_multi_result(arena);
+  SamtraderStrategy strategy = make_strategy();
+  const char *path = temp_path("multi_ftlog");
+
+  port->write_multi(port, &multi, &strategy, path);
+  char *content = read_file(path);
+  ASSERT(content != NULL, "Output should be readable");
+
+  ASSERT(strstr(content, "== Full Trade Log") != NULL, "Should have Full Trade Log heading");
+  /* All 3 trades from make_result should appear */
+  ASSERT(strstr(content, "AAPL") != NULL, "Full trade log should contain AAPL");
+  ASSERT(strstr(content, "MSFT") != NULL, "Full trade log should contain MSFT");
+  ASSERT(strstr(content, "GOOG") != NULL, "Full trade log should contain GOOG");
+
+  free(content);
+  unlink(path);
+  port->close(port);
+  samrena_destroy(arena);
+  printf("  PASS\n");
+  return 0;
+}
+
+static int test_multi_report_single_code_fallback(void) {
+  printf("Testing single-code uses write not write_multi...\n");
+  Samrena *arena = samrena_create_default();
+  SamtraderReportPort *port = samtrader_typst_adapter_create(arena, NULL);
+  SamtraderBacktestResult result = make_result(arena);
+  SamtraderStrategy strategy = make_strategy();
+  const char *path = temp_path("single_fb");
+
+  /* Single-code path uses write(), not write_multi() */
+  bool ok = port->write(port, &result, &strategy, path);
+  ASSERT(ok, "write should succeed for single code");
+
+  char *content = read_file(path);
+  ASSERT(content != NULL, "Output should be readable");
+
+  /* Single-code report should NOT have multi-code sections */
+  ASSERT(strstr(content, "== Universe Summary") == NULL, "Single code should not have universe");
+  ASSERT(strstr(content, "== Full Trade Log") == NULL, "Single code should not have full log");
+  /* But should still have the regular trade log */
+  ASSERT(strstr(content, "== Trade Log") != NULL, "Single code should have Trade Log");
+
+  free(content);
+  unlink(path);
+  port->close(port);
+  samrena_destroy(arena);
+  printf("  PASS\n");
+  return 0;
+}
+
+static int test_write_multi_null_params(void) {
+  printf("Testing write_multi with NULL params...\n");
+  Samrena *arena = samrena_create_default();
+  SamtraderReportPort *port = samtrader_typst_adapter_create(arena, NULL);
+  SamtraderMultiCodeResult multi = make_multi_result(arena);
+  SamtraderStrategy strategy = make_strategy();
+  const char *path = temp_path("multi_null");
+
+  ASSERT(!port->write_multi(NULL, &multi, &strategy, path), "NULL port should fail");
+  ASSERT(!port->write_multi(port, NULL, &strategy, path), "NULL multi_result should fail");
+  ASSERT(!port->write_multi(port, &multi, NULL, path), "NULL strategy should fail");
+  ASSERT(!port->write_multi(port, &multi, &strategy, NULL), "NULL path should fail");
+
+  port->close(port);
+  samrena_destroy(arena);
+  printf("  PASS\n");
+  return 0;
+}
+
 /* ========== Large Dataset Tests ========== */
 
 static int test_large_equity_curve_downsampling(void) {
@@ -971,6 +1149,13 @@ int main(void) {
   failures += test_template_unknown_placeholder();
   failures += test_template_missing_file();
   failures += test_template_unterminated_placeholder();
+
+  /* Multi-code reports */
+  failures += test_multi_report_universe_summary();
+  failures += test_multi_report_per_code_details();
+  failures += test_multi_report_full_trade_log();
+  failures += test_multi_report_single_code_fallback();
+  failures += test_write_multi_null_params();
 
   /* Large datasets */
   failures += test_large_equity_curve_downsampling();

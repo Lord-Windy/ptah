@@ -39,8 +39,13 @@
  *   - {{EQUITY_CURVE_CHART}}: Inline SVG equity curve (multi-KB, writes directly)
  *   - {{DRAWDOWN_CHART}}: Inline SVG drawdown visualization (multi-KB, writes directly)
  *   - {{TRADE_LOG}}: Typst table of all closed trades (multi-KB, writes directly)
+ *   - {{UNIVERSE_SUMMARY}}: Multi-code summary table (write_multi only)
+ *   - {{PER_CODE_DETAILS}}: Per-code detail sections (write_multi only)
+ *   - {{FULL_TRADE_LOG}}: Full trade log across all codes (write_multi only)
  *
  * If template_path is NULL, a default report layout is generated.
+ * For multi-code backtests, use write_multi which adds universe summary
+ * and per-code breakdown sections.
  *
  * @param arena Memory arena for all allocations
  * @param template_path Optional path to a custom Typst template (NULL for default)

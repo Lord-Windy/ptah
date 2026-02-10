@@ -49,6 +49,22 @@ typedef bool (*SamtraderReportWriteFn)(SamtraderReportPort *port, SamtraderBackt
                                        SamtraderStrategy *strategy, const char *output_path);
 
 /**
+ * @brief Function type for writing a multi-code backtest report.
+ *
+ * Generates a report from multi-code backtest results including per-code
+ * breakdowns, writing the output to the specified file path.
+ *
+ * @param port The report port instance
+ * @param multi_result Multi-code results with aggregate and per-code data
+ * @param strategy Strategy definition with rules and parameters
+ * @param output_path File path to write the report to
+ * @return true on success, false on failure
+ */
+typedef bool (*SamtraderReportWriteMultiFn)(SamtraderReportPort *port,
+                                            SamtraderMultiCodeResult *multi_result,
+                                            SamtraderStrategy *strategy, const char *output_path);
+
+/**
  * @brief Function type for closing the report port.
  *
  * Releases any resources held by the adapter.
@@ -78,10 +94,11 @@ typedef void (*SamtraderReportCloseFn)(SamtraderReportPort *port);
  * @endcode
  */
 struct SamtraderReportPort {
-  void *impl;                   /**< Adapter-specific implementation */
-  Samrena *arena;               /**< Memory arena for allocations */
-  SamtraderReportWriteFn write; /**< Write report function */
-  SamtraderReportCloseFn close; /**< Close/cleanup function */
+  void *impl;                              /**< Adapter-specific implementation */
+  Samrena *arena;                          /**< Memory arena for allocations */
+  SamtraderReportWriteFn write;            /**< Write report function */
+  SamtraderReportWriteMultiFn write_multi; /**< Write multi-code report (NULL = use write) */
+  SamtraderReportCloseFn close;            /**< Close/cleanup function */
 };
 
 #endif /* SAMTRADER_PORTS_REPORT_PORT_H */

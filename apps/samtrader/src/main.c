@@ -76,7 +76,7 @@ static void print_usage(const char *prog) {
           "  backtest       Run a backtest\n"
           "  list-symbols   List available symbols\n"
           "  validate       Validate a strategy file\n"
-          "  info           Show data range for a symbol\n"
+          "  info           Show data range for a symbol (or all codes in config)\n"
           "\n"
           "Options:\n"
           "  -c, --config <path>     Config file path (required for backtest)\n"
@@ -185,12 +185,12 @@ static int validate_args(Command cmd, const CliArgs *args) {
       }
       break;
     case CMD_INFO:
-      if (!args->code) {
-        fprintf(stderr, "Error: info requires --code\n");
+      if (!args->code && !args->config_path) {
+        fprintf(stderr, "Error: info requires --code or -c/--config\n");
         return EXIT_GENERAL_ERROR;
       }
-      if (!args->exchange) {
-        fprintf(stderr, "Error: info requires --exchange\n");
+      if (args->code && !args->exchange && !args->config_path) {
+        fprintf(stderr, "Error: info requires --exchange (or -c/--config)\n");
         return EXIT_GENERAL_ERROR;
       }
       break;
@@ -467,6 +467,8 @@ static int cmd_backtest(const CliArgs *args) {
   }
 
   /* Load per-code data, compute indicators, build date indices */
+  printf("Loading universe (%zu codes)...\n", universe->count);
+
   SamtraderCodeData **code_data_arr =
       SAMRENA_PUSH_ARRAY_ZERO(arena, SamtraderCodeData *, universe->count);
   SamHashMap **date_indices = SAMRENA_PUSH_ARRAY_ZERO(arena, SamHashMap *, universe->count);
@@ -479,6 +481,8 @@ static int cmd_backtest(const CliArgs *args) {
       rc = EXIT_DB_ERROR;
       goto cleanup;
     }
+    printf("  Validated %s: %zu bars\n", universe->codes[c],
+           samrena_vector_size(code_data_arr[c]->ohlcv));
     if (samtrader_code_data_compute_indicators(arena, code_data_arr[c], &strategy) < 0) {
       fprintf(stderr, "Error: failed to compute indicators for %s\n", universe->codes[c]);
       rc = EXIT_GENERAL_ERROR;
@@ -499,6 +503,7 @@ static int cmd_backtest(const CliArgs *args) {
     rc = EXIT_INSUFFICIENT_DATA;
     goto cleanup;
   }
+  printf("Timeline: %zu trading days\n", samrena_vector_size(timeline));
 
   /* Create portfolio */
   SamtraderPortfolio *portfolio = samtrader_portfolio_create(arena, initial_capital);
@@ -628,35 +633,44 @@ static int cmd_backtest(const CliArgs *args) {
   result->equity_curve = portfolio->equity_curve;
   result->trades = portfolio->closed_trades;
 
+  /* Compute per-code metrics (before report generation) */
+  SamtraderCodeResult *code_results = NULL;
+  if (universe->count > 1) {
+    code_results = samtrader_metrics_compute_per_code(arena, portfolio->closed_trades,
+                                                      universe->codes, exchange, universe->count);
+  }
+
   /* Generate report */
   const char *output_path = args->output_path ? args->output_path : "backtest_report.typ";
   const char *template_path = config->get_string(config, "report", "template_path");
   report = samtrader_typst_adapter_create(arena, template_path);
   if (report) {
-    report->write(report, result, &strategy, output_path);
+    if (report->write_multi && universe->count > 1 && code_results) {
+      SamtraderMultiCodeResult multi = {.aggregate = *result,
+                                        .code_results = code_results,
+                                        .code_count = universe->count};
+      report->write_multi(report, &multi, &strategy, output_path);
+    } else {
+      report->write(report, result, &strategy, output_path);
+    }
     printf("Report written to: %s\n", output_path);
   }
 
   /* Print metrics summary */
   samtrader_metrics_print(metrics);
 
-  /* Compute and print per-code metrics */
-  if (universe->count > 1) {
-    SamtraderCodeResult *code_results =
-        samtrader_metrics_compute_per_code(arena, portfolio->closed_trades, universe->codes,
-                                           exchange, universe->count);
-    if (code_results) {
-      printf("\n=== Per-Code Breakdown ===\n");
-      printf("%-10s %6s %6s %6s %10s %8s %10s %10s\n", "Code", "Trades", "Wins", "Losses",
-             "Total PnL", "Win %", "Best", "Worst");
-      printf("%-10s %6s %6s %6s %10s %8s %10s %10s\n", "----------", "------", "------", "------",
-             "----------", "--------", "----------", "----------");
-      for (size_t i = 0; i < universe->count; i++) {
-        SamtraderCodeResult *cr = &code_results[i];
-        printf("%-10s %6d %6d %6d %10.2f %7.2f%% %10.2f %10.2f\n", cr->code, cr->total_trades,
-               cr->winning_trades, cr->losing_trades, cr->total_pnl, cr->win_rate * 100.0,
-               cr->largest_win, cr->largest_loss);
-      }
+  /* Print per-code metrics to console */
+  if (code_results && universe->count > 1) {
+    printf("\n=== Per-Code Breakdown ===\n");
+    printf("%-10s %6s %6s %6s %10s %8s %10s %10s\n", "Code", "Trades", "Wins", "Losses",
+           "Total PnL", "Win %", "Best", "Worst");
+    printf("%-10s %6s %6s %6s %10s %8s %10s %10s\n", "----------", "------", "------", "------",
+           "----------", "--------", "----------", "----------");
+    for (size_t i = 0; i < universe->count; i++) {
+      SamtraderCodeResult *cr = &code_results[i];
+      printf("%-10s %6d %6d %6d %10.2f %7.2f%% %10.2f %10.2f\n", cr->code, cr->total_trades,
+             cr->winning_trades, cr->losing_trades, cr->total_pnl, cr->win_rate * 100.0,
+             cr->largest_win, cr->largest_loss);
     }
   }
 
@@ -757,6 +771,35 @@ static int cmd_validate(const CliArgs *args) {
   return rc;
 }
 
+static int print_code_info(SamtraderDataPort *data, const char *code, const char *exchange) {
+  time_t epoch_start = 0;
+  time_t epoch_end = (time_t)4102444800; /* 2100-01-01 */
+  SamrenaVector *ohlcv = data->fetch_ohlcv(data, code, exchange, epoch_start, epoch_end);
+  if (!ohlcv || samrena_vector_size(ohlcv) == 0) {
+    fprintf(stderr, "Error: no data found for %s.%s\n", code, exchange);
+    return EXIT_INSUFFICIENT_DATA;
+  }
+
+  size_t count = samrena_vector_size(ohlcv);
+  const SamtraderOhlcv *first = (const SamtraderOhlcv *)samrena_vector_at_const(ohlcv, 0);
+  const SamtraderOhlcv *last = (const SamtraderOhlcv *)samrena_vector_at_const(ohlcv, count - 1);
+
+  char first_date_str[32], last_date_str[32];
+  struct tm first_tm, last_tm;
+  localtime_r(&first->date, &first_tm);
+  localtime_r(&last->date, &last_tm);
+  strftime(first_date_str, sizeof(first_date_str), "%Y-%m-%d", &first_tm);
+  strftime(last_date_str, sizeof(last_date_str), "%Y-%m-%d", &last_tm);
+
+  printf("Symbol: %s.%s\n", code, exchange);
+  printf("Date Range: %s to %s\n", first_date_str, last_date_str);
+  printf("Total Bars: %zu\n", count);
+  printf("First Close: %.2f\n", first->close);
+  printf("Last Close: %.2f\n", last->close);
+
+  return EXIT_SUCCESS;
+}
+
 static int cmd_info(const CliArgs *args) {
   int rc = EXIT_SUCCESS;
   Samrena *arena = samrena_create_default();
@@ -766,13 +809,16 @@ static int cmd_info(const CliArgs *args) {
   }
 
   SamtraderDataPort *data = NULL;
+  SamtraderConfigPort *config = NULL;
   const char *conninfo = NULL;
+  const char *exchange = args->exchange;
 
   if (args->config_path) {
-    SamtraderConfigPort *config = samtrader_file_config_adapter_create(arena, args->config_path);
+    config = samtrader_file_config_adapter_create(arena, args->config_path);
     if (config) {
       conninfo = config->get_string(config, "database", "conninfo");
-      config->close(config);
+      if (!exchange)
+        exchange = config->get_string(config, "backtest", "exchange");
     }
   }
   if (!conninfo)
@@ -790,37 +836,49 @@ static int cmd_info(const CliArgs *args) {
     goto cleanup;
   }
 
-  /* Fetch all available data (epoch 0 to far future) */
-  time_t epoch_start = 0;
-  time_t epoch_end = (time_t)4102444800; /* 2100-01-01 */
-  SamrenaVector *ohlcv =
-      data->fetch_ohlcv(data, args->code, args->exchange, epoch_start, epoch_end);
-  if (!ohlcv || samrena_vector_size(ohlcv) == 0) {
-    fprintf(stderr, "Error: no data found for %s.%s\n", args->code, args->exchange);
-    rc = EXIT_INSUFFICIENT_DATA;
-    goto cleanup;
+  if (args->code) {
+    /* Single-code info */
+    if (!exchange) {
+      fprintf(stderr, "Error: info requires --exchange\n");
+      rc = EXIT_GENERAL_ERROR;
+      goto cleanup;
+    }
+    rc = print_code_info(data, args->code, exchange);
+  } else if (args->config_path && config) {
+    /* Multi-code info from config */
+    if (!exchange) {
+      fprintf(stderr, "Error: no exchange in config\n");
+      rc = EXIT_CONFIG_ERROR;
+      goto cleanup;
+    }
+    const char *codes_str = config->get_string(config, "backtest", "codes");
+    if (!codes_str)
+      codes_str = config->get_string(config, "backtest", "code");
+    if (!codes_str) {
+      fprintf(stderr, "Error: no codes in config\n");
+      rc = EXIT_CONFIG_ERROR;
+      goto cleanup;
+    }
+    SamtraderUniverse *universe = samtrader_universe_parse(arena, codes_str, exchange);
+    if (!universe) {
+      fprintf(stderr, "Error: failed to parse codes\n");
+      rc = EXIT_CONFIG_ERROR;
+      goto cleanup;
+    }
+    for (size_t i = 0; i < universe->count; i++) {
+      if (i > 0)
+        printf("\n");
+      int code_rc = print_code_info(data, universe->codes[i], exchange);
+      if (code_rc != EXIT_SUCCESS)
+        rc = code_rc;
+    }
   }
-
-  size_t count = samrena_vector_size(ohlcv);
-  const SamtraderOhlcv *first = (const SamtraderOhlcv *)samrena_vector_at_const(ohlcv, 0);
-  const SamtraderOhlcv *last = (const SamtraderOhlcv *)samrena_vector_at_const(ohlcv, count - 1);
-
-  char first_date_str[32], last_date_str[32];
-  struct tm first_tm, last_tm;
-  localtime_r(&first->date, &first_tm);
-  localtime_r(&last->date, &last_tm);
-  strftime(first_date_str, sizeof(first_date_str), "%Y-%m-%d", &first_tm);
-  strftime(last_date_str, sizeof(last_date_str), "%Y-%m-%d", &last_tm);
-
-  printf("Symbol: %s.%s\n", args->code, args->exchange);
-  printf("Date Range: %s to %s\n", first_date_str, last_date_str);
-  printf("Total Bars: %zu\n", count);
-  printf("First Close: %.2f\n", first->close);
-  printf("Last Close: %.2f\n", last->close);
 
 cleanup:
   if (data)
     data->close(data);
+  if (config)
+    config->close(config);
   samrena_destroy(arena);
   return rc;
 }

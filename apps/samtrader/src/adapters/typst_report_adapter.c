@@ -55,11 +55,18 @@ typedef struct {
 /* Forward declarations */
 static bool typst_report_write(SamtraderReportPort *port, SamtraderBacktestResult *result,
                                SamtraderStrategy *strategy, const char *output_path);
+static bool typst_report_write_multi(SamtraderReportPort *port,
+                                     SamtraderMultiCodeResult *multi_result,
+                                     SamtraderStrategy *strategy, const char *output_path);
 static void typst_report_close(SamtraderReportPort *port);
 static void write_monthly_returns_table(FILE *out, SamrenaVector *equity_curve);
 static void write_equity_curve_chart(FILE *out, SamrenaVector *equity_curve);
 static void write_drawdown_chart(FILE *out, SamrenaVector *equity_curve);
 static void write_trade_log(FILE *out, SamrenaVector *trades);
+static void write_universe_summary_table(FILE *out, SamtraderCodeResult *results, size_t count);
+static void write_per_code_detail_section(FILE *out, SamtraderCodeResult *cr,
+                                          SamrenaVector *all_trades);
+static void write_full_trade_log(FILE *out, SamrenaVector *trades);
 
 /* ============================================================================
  * Template Placeholder Resolution
@@ -909,6 +916,355 @@ static void write_trade_log(FILE *out, SamrenaVector *trades) {
   fprintf(out, "\n");
 }
 
+/* ============================================================================
+ * Multi-Code Report Sections
+ * ============================================================================ */
+
+/**
+ * @brief Write a universe summary table with per-code overview.
+ */
+static void write_universe_summary_table(FILE *out, SamtraderCodeResult *results, size_t count) {
+  if (results == NULL || count == 0) {
+    return;
+  }
+
+  fprintf(out, "== Universe Summary\n");
+  fprintf(out, "\n");
+  fprintf(out, "#table(\n");
+  fprintf(out, "  columns: (auto, auto, auto, auto, auto, auto),\n");
+  fprintf(out, "  inset: 8pt,\n");
+  fprintf(out, "  fill: (x, y) => if y == 0 { luma(230) },\n");
+  fprintf(out, "  [*Code*], [*Trades*], [*Win Rate*], [*Total PnL*], "
+               "[*Largest Win*], [*Largest Loss*],\n");
+
+  for (size_t i = 0; i < count; i++) {
+    SamtraderCodeResult *cr = &results[i];
+    const char *pnl_color = (cr->total_pnl >= 0.0) ? "#16a34a" : "#dc2626";
+    fprintf(out,
+            "  [%s], [%d], [%.1f%%], "
+            "[#text(fill: rgb(\"%s\"))[\\$%.2f]], "
+            "[\\$%.2f], [\\$%.2f],\n",
+            cr->code, cr->total_trades, cr->win_rate * 100.0, pnl_color, cr->total_pnl,
+            cr->largest_win, cr->largest_loss);
+  }
+
+  fprintf(out, ")\n");
+  fprintf(out, "\n");
+}
+
+/**
+ * @brief Write a detail section for a single code.
+ */
+static void write_per_code_detail_section(FILE *out, SamtraderCodeResult *cr,
+                                          SamrenaVector *all_trades) {
+  if (cr == NULL) {
+    return;
+  }
+
+  fprintf(out, "== %s Detail\n", cr->code);
+  fprintf(out, "\n");
+
+  /* Metrics table */
+  fprintf(out, "#table(\n");
+  fprintf(out, "  columns: (1fr, 1fr),\n");
+  fprintf(out, "  inset: 8pt,\n");
+  fprintf(out, "  fill: (x, y) => if y == 0 { luma(230) },\n");
+  fprintf(out, "  [*Metric*], [*Value*],\n");
+  fprintf(out, "  [Total Trades], [%d],\n", cr->total_trades);
+  fprintf(out, "  [Winning Trades], [%d],\n", cr->winning_trades);
+  fprintf(out, "  [Losing Trades], [%d],\n", cr->losing_trades);
+  fprintf(out, "  [Win Rate], [%.1f%%],\n", cr->win_rate * 100.0);
+  fprintf(out, "  [Total PnL], [\\$%.2f],\n", cr->total_pnl);
+  fprintf(out, "  [Largest Win], [\\$%.2f],\n", cr->largest_win);
+  fprintf(out, "  [Largest Loss], [\\$%.2f],\n", cr->largest_loss);
+  fprintf(out, ")\n");
+  fprintf(out, "\n");
+
+  /* Filtered trade log */
+  if (all_trades == NULL || samrena_vector_size(all_trades) == 0) {
+    return;
+  }
+
+  size_t n = samrena_vector_size(all_trades);
+  bool has_trades = false;
+
+  /* Check if there are any trades for this code */
+  for (size_t i = 0; i < n; i++) {
+    const SamtraderClosedTrade *trade =
+        (const SamtraderClosedTrade *)samrena_vector_at_unchecked_const(all_trades, i);
+    if (trade->code && strcmp(trade->code, cr->code) == 0) {
+      has_trades = true;
+      break;
+    }
+  }
+
+  if (!has_trades) {
+    return;
+  }
+
+  fprintf(out, "=== Trades\n");
+  fprintf(out, "\n");
+  fprintf(out, "#table(\n");
+  fprintf(out, "  columns: (auto, auto, auto, auto, auto, auto, auto, auto),\n");
+  fprintf(out, "  inset: 8pt,\n");
+  fprintf(out, "  fill: (x, y) => if y == 0 { luma(230) },\n");
+  fprintf(out, "  [*Side*], [*Qty*], [*Entry Price*], [*Exit Price*], "
+               "[*Entry Date*], [*Exit Date*], [*Duration*], [*P&L*],\n");
+
+  for (size_t i = 0; i < n; i++) {
+    const SamtraderClosedTrade *trade =
+        (const SamtraderClosedTrade *)samrena_vector_at_unchecked_const(all_trades, i);
+    if (!trade->code || strcmp(trade->code, cr->code) != 0) {
+      continue;
+    }
+
+    const char *side = (trade->quantity > 0) ? "Long" : "Short";
+    int64_t qty = (trade->quantity >= 0) ? trade->quantity : -trade->quantity;
+
+    char entry_date[16];
+    char exit_date[16];
+    struct tm *tm_info;
+
+    tm_info = localtime(&trade->entry_date);
+    strftime(entry_date, sizeof(entry_date), "%Y-%m-%d", tm_info);
+
+    tm_info = localtime(&trade->exit_date);
+    strftime(exit_date, sizeof(exit_date), "%Y-%m-%d", tm_info);
+
+    double duration_days = difftime(trade->exit_date, trade->entry_date) / 86400.0;
+
+    if (trade->pnl >= 0.0) {
+      fprintf(out,
+              "  [%s], [%lld], [\\$%.2f], [\\$%.2f], [%s], [%s], [%.1f days], "
+              "[#text(fill: rgb(\"#16a34a\"))[\\$%.2f]],\n",
+              side, (long long)qty, trade->entry_price, trade->exit_price, entry_date, exit_date,
+              duration_days, trade->pnl);
+    } else {
+      fprintf(out,
+              "  [%s], [%lld], [\\$%.2f], [\\$%.2f], [%s], [%s], [%.1f days], "
+              "[#text(fill: rgb(\"#dc2626\"))[\\$%.2f]],\n",
+              side, (long long)qty, trade->entry_price, trade->exit_price, entry_date, exit_date,
+              duration_days, trade->pnl);
+    }
+  }
+
+  fprintf(out, ")\n");
+  fprintf(out, "\n");
+}
+
+/**
+ * @brief Write the full trade log across all codes.
+ */
+static void write_full_trade_log(FILE *out, SamrenaVector *trades) {
+  if (trades == NULL || samrena_vector_size(trades) == 0) {
+    return;
+  }
+
+  size_t n = samrena_vector_size(trades);
+
+  fprintf(out, "== Full Trade Log\n");
+  fprintf(out, "\n");
+  fprintf(out, "#table(\n");
+  fprintf(out, "  columns: (auto, auto, auto, auto, auto, auto, auto, auto, auto),\n");
+  fprintf(out, "  inset: 8pt,\n");
+  fprintf(out, "  fill: (x, y) => if y == 0 { luma(230) },\n");
+  fprintf(out, "  [*Symbol*], [*Side*], [*Qty*], [*Entry Price*], [*Exit Price*], "
+               "[*Entry Date*], [*Exit Date*], [*Duration*], [*P&L*],\n");
+
+  for (size_t i = 0; i < n; i++) {
+    const SamtraderClosedTrade *trade =
+        (const SamtraderClosedTrade *)samrena_vector_at_unchecked_const(trades, i);
+
+    const char *symbol = trade->code ? trade->code : "N/A";
+    const char *side = (trade->quantity > 0) ? "Long" : "Short";
+    int64_t qty = (trade->quantity >= 0) ? trade->quantity : -trade->quantity;
+
+    char entry_date[16];
+    char exit_date[16];
+    struct tm *tm_info;
+
+    tm_info = localtime(&trade->entry_date);
+    strftime(entry_date, sizeof(entry_date), "%Y-%m-%d", tm_info);
+
+    tm_info = localtime(&trade->exit_date);
+    strftime(exit_date, sizeof(exit_date), "%Y-%m-%d", tm_info);
+
+    double duration_days = difftime(trade->exit_date, trade->entry_date) / 86400.0;
+
+    if (trade->pnl >= 0.0) {
+      fprintf(out,
+              "  [%s], [%s], [%lld], [\\$%.2f], [\\$%.2f], [%s], [%s], [%.1f days], "
+              "[#text(fill: rgb(\"#16a34a\"))[\\$%.2f]],\n",
+              symbol, side, (long long)qty, trade->entry_price, trade->exit_price, entry_date,
+              exit_date, duration_days, trade->pnl);
+    } else {
+      fprintf(out,
+              "  [%s], [%s], [%lld], [\\$%.2f], [\\$%.2f], [%s], [%s], [%.1f days], "
+              "[#text(fill: rgb(\"#dc2626\"))[\\$%.2f]],\n",
+              symbol, side, (long long)qty, trade->entry_price, trade->exit_price, entry_date,
+              exit_date, duration_days, trade->pnl);
+    }
+  }
+
+  fprintf(out, ")\n");
+  fprintf(out, "\n");
+}
+
+/**
+ * @brief Write the default multi-code report (no custom template).
+ */
+static bool write_default_multi_report(SamtraderMultiCodeResult *multi, SamtraderStrategy *strategy,
+                                       const char *output_path) {
+  FILE *out = fopen(output_path, "w");
+  if (out == NULL) {
+    return false;
+  }
+
+  const char *name = strategy->name ? strategy->name : "Unnamed Strategy";
+
+  write_preamble(out, name);
+  write_title(out, name);
+  write_strategy_summary(out, strategy);
+  write_strategy_parameters(out, strategy);
+  write_universe_summary_table(out, multi->code_results, multi->code_count);
+  write_performance_metrics(out, &multi->aggregate);
+  write_monthly_returns_table(out, multi->aggregate.equity_curve);
+  write_equity_curve_chart(out, multi->aggregate.equity_curve);
+  write_drawdown_chart(out, multi->aggregate.equity_curve);
+
+  for (size_t i = 0; i < multi->code_count; i++) {
+    write_per_code_detail_section(out, &multi->code_results[i], multi->aggregate.trades);
+  }
+
+  write_full_trade_log(out, multi->aggregate.trades);
+
+  fclose(out);
+  return true;
+}
+
+/**
+ * @brief Write a multi-code report using a custom Typst template.
+ */
+static bool write_template_multi_report(const char *template_path, SamtraderMultiCodeResult *multi,
+                                        SamtraderStrategy *strategy, const char *output_path) {
+  /* Read template file */
+  FILE *tmpl_file = fopen(template_path, "r");
+  if (tmpl_file == NULL) {
+    return false;
+  }
+
+  fseek(tmpl_file, 0, SEEK_END);
+  long file_size = ftell(tmpl_file);
+  fseek(tmpl_file, 0, SEEK_SET);
+
+  if (file_size <= 0 || (size_t)file_size > MAX_TEMPLATE_SIZE) {
+    fclose(tmpl_file);
+    return false;
+  }
+
+  char *template_buf = malloc((size_t)file_size + 1);
+  if (template_buf == NULL) {
+    fclose(tmpl_file);
+    return false;
+  }
+
+  size_t bytes_read = fread(template_buf, 1, (size_t)file_size, tmpl_file);
+  fclose(tmpl_file);
+  template_buf[bytes_read] = '\0';
+
+  /* Open output file */
+  FILE *out = fopen(output_path, "w");
+  if (out == NULL) {
+    free(template_buf);
+    return false;
+  }
+
+  SamtraderBacktestResult *result = &multi->aggregate;
+
+  /* Process template: scan for {{ }} placeholders */
+  const char *pos = template_buf;
+  while (*pos != '\0') {
+    const char *open = strstr(pos, "{{");
+    if (open == NULL) {
+      fputs(pos, out);
+      break;
+    }
+
+    fwrite(pos, 1, (size_t)(open - pos), out);
+
+    const char *key_start = open + 2;
+    const char *close_marker = strstr(key_start, "}}");
+    if (close_marker == NULL) {
+      fputs(open, out);
+      break;
+    }
+
+    size_t key_len = (size_t)(close_marker - key_start);
+    if (key_len >= MAX_KEY_LENGTH) {
+      fwrite(open, 1, (size_t)(close_marker + 2 - open), out);
+      pos = close_marker + 2;
+      continue;
+    }
+
+    char key[MAX_KEY_LENGTH];
+    memcpy(key, key_start, key_len);
+    key[key_len] = '\0';
+
+    /* Handle complex placeholders (multi-KB output) */
+    if (strcmp(key, "MONTHLY_RETURNS") == 0) {
+      write_monthly_returns_table(out, result->equity_curve);
+      pos = close_marker + 2;
+      continue;
+    }
+    if (strcmp(key, "EQUITY_CURVE_CHART") == 0) {
+      write_equity_curve_chart(out, result->equity_curve);
+      pos = close_marker + 2;
+      continue;
+    }
+    if (strcmp(key, "DRAWDOWN_CHART") == 0) {
+      write_drawdown_chart(out, result->equity_curve);
+      pos = close_marker + 2;
+      continue;
+    }
+    if (strcmp(key, "TRADE_LOG") == 0) {
+      write_trade_log(out, result->trades);
+      pos = close_marker + 2;
+      continue;
+    }
+    if (strcmp(key, "UNIVERSE_SUMMARY") == 0) {
+      write_universe_summary_table(out, multi->code_results, multi->code_count);
+      pos = close_marker + 2;
+      continue;
+    }
+    if (strcmp(key, "PER_CODE_DETAILS") == 0) {
+      for (size_t i = 0; i < multi->code_count; i++) {
+        write_per_code_detail_section(out, &multi->code_results[i], result->trades);
+      }
+      pos = close_marker + 2;
+      continue;
+    }
+    if (strcmp(key, "FULL_TRADE_LOG") == 0) {
+      write_full_trade_log(out, result->trades);
+      pos = close_marker + 2;
+      continue;
+    }
+
+    /* Resolve scalar placeholder */
+    char value[MAX_VALUE_LENGTH];
+    if (resolve_placeholder(key, result, strategy, value, sizeof(value))) {
+      fputs(value, out);
+    } else {
+      fwrite(open, 1, (size_t)(close_marker + 2 - open), out);
+    }
+
+    pos = close_marker + 2;
+  }
+
+  free(template_buf);
+  fclose(out);
+  return true;
+}
+
 /**
  * @brief Write the default report (no custom template).
  */
@@ -953,6 +1309,23 @@ static bool typst_report_write(SamtraderReportPort *port, SamtraderBacktestResul
   }
 
   return write_default_report(result, strategy, output_path);
+}
+
+static bool typst_report_write_multi(SamtraderReportPort *port,
+                                     SamtraderMultiCodeResult *multi_result,
+                                     SamtraderStrategy *strategy, const char *output_path) {
+  if (port == NULL || port->impl == NULL || multi_result == NULL || strategy == NULL ||
+      output_path == NULL) {
+    return false;
+  }
+
+  TypstReportImpl *impl = (TypstReportImpl *)port->impl;
+
+  if (impl->template_path != NULL) {
+    return write_template_multi_report(impl->template_path, multi_result, strategy, output_path);
+  }
+
+  return write_default_multi_report(multi_result, strategy, output_path);
 }
 
 static void typst_report_close(SamtraderReportPort *port) {
@@ -1002,6 +1375,7 @@ SamtraderReportPort *samtrader_typst_adapter_create(Samrena *arena, const char *
   port->impl = impl;
   port->arena = arena;
   port->write = typst_report_write;
+  port->write_multi = typst_report_write_multi;
   port->close = typst_report_close;
 
   return port;
