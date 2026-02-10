@@ -33,6 +33,7 @@ ptah_add_executable(samtrader
         src/domain/portfolio.c
         src/domain/execution.c
         src/domain/metrics.c
+        src/domain/universe.c
         src/adapters/file_config_adapter.c
         src/adapters/postgres_adapter.c
         src/adapters/typst_report_adapter.c
@@ -268,6 +269,18 @@ if(BUILD_TESTING)
     )
     target_link_libraries(samtrader_report_test PRIVATE samrena samdata m)
     add_test(NAME samtrader_report_test COMMAND samtrader_report_test)
+
+    # Universe parsing and validation tests
+    add_executable(samtrader_universe_test
+        test/test_universe.c
+        src/domain/universe.c
+        src/domain/ohlcv.c
+    )
+    target_include_directories(samtrader_universe_test PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/include
+    )
+    target_link_libraries(samtrader_universe_test PRIVATE samrena samdata m)
+    add_test(NAME samtrader_universe_test COMMAND samtrader_universe_test)
 
     # End-to-end pipeline tests
     add_executable(samtrader_e2e_test
