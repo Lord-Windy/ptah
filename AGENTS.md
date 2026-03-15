@@ -11,7 +11,7 @@ This git repository is the project. Use the repository name (typically UPPERCASE
 ### Via CLI flags
 
 ```bash
-st add --project SAMTRADER --summary "Implement auth middleware" \
+st add --project PTAH --summary "Implement auth middleware" \
   --description "Add JWT validation to all API routes" \
   --labels backend,security
 ```
@@ -19,7 +19,7 @@ st add --project SAMTRADER --summary "Implement auth middleware" \
 ### Via JSON (single)
 
 ```bash
-echo '{"project":"SAMTRADER","summary":"Implement auth middleware","description":"Add JWT validation to all API routes","labels":["backend","security"]}' | st add --json
+echo '{"project":"PTAH","summary":"Implement auth middleware","description":"Add JWT validation to all API routes","labels":["backend","security"]}' | st add --json
 ```
 
 ### Via JSON (batch)
@@ -27,9 +27,9 @@ echo '{"project":"SAMTRADER","summary":"Implement auth middleware","description"
 ```bash
 cat <<'EOF' | st add --json
 [
-  {"project":"SAMTRADER","summary":"Design database schema","labels":["backend"]},
-  {"project":"SAMTRADER","summary":"Build API endpoints","labels":["backend"]},
-  {"project":"SAMTRADER","summary":"Create frontend components","labels":["frontend"]}
+  {"project":"PTAH","summary":"Design database schema","labels":["backend"]},
+  {"project":"PTAH","summary":"Build API endpoints","labels":["backend"]},
+  {"project":"PTAH","summary":"Create frontend components","labels":["frontend"]}
 ]
 EOF
 # Output: ["a1b2c3d4", "b2c3d4e5", "c3d4e5f6"] (Array of created task IDs)
@@ -41,11 +41,11 @@ Dependencies ensure tickets are worked on in the correct order. A ticket with un
 
 ```bash
 # Create the first ticket
-st add --project SAMTRADER --summary "Design database schema"
+st add --project PTAH --summary "Design database schema"
 # Output: Created task: a1b2c3d4
 
 # Create a dependent ticket
-st add --project SAMTRADER --summary "Build API endpoints" --depends-on a1b2c3d4
+st add --project PTAH --summary "Build API endpoints" --depends-on a1b2c3d4
 ```
 
 Or via JSON:
@@ -53,8 +53,8 @@ Or via JSON:
 ```bash
 cat <<'EOF' | st add --json
 [
-  {"project":"SAMTRADER","summary":"Design database schema"},
-  {"project":"SAMTRADER","summary":"Build API endpoints","dependencies":["a1b2c3d4"]}
+  {"project":"PTAH","summary":"Design database schema"},
+  {"project":"PTAH","summary":"Build API endpoints","dependencies":["a1b2c3d4"]}
 ]
 EOF
 ```
@@ -87,23 +87,23 @@ Note: when editing via JSON, `labels` and `dependencies` replace all existing va
 ## Finding tickets ready to work on
 
 ```bash
-st list --ready --project SAMTRADER
+st list --ready --project PTAH
 ```
 
 *Note: For AI agents, it is highly recommended to append `--json` to `list` and `show` commands for reliable parsing.*
 ```bash
-st list --ready --project SAMTRADER --json
+st list --ready --project PTAH --json
 ```
 
 This shows only tickets that:
-- Belong to the SAMTRADER project
+- Belong to the PTAH project
 - Have status `ready`
 - Have all dependencies resolved (all dependencies are `done` or `cancelled`)
 
 You can combine filters:
 
 ```bash
-st list --ready --project SAMTRADER --label backend
+st list --ready --project PTAH --label backend
 ```
 
 To see full details of a specific ticket:
@@ -162,9 +162,9 @@ Any status → cancelled
 
 | Action | Command |
 |---|---|
-| Create a ticket | `st add --project SAMTRADER --summary "..."` |
-| Create with dependency | `st add --project SAMTRADER --summary "..." --depends-on KEY` |
-| List ready tickets | `st list --ready --project SAMTRADER [--json]` |
+| Create a ticket | `st add --project PTAH --summary "..."` |
+| Create with dependency | `st add --project PTAH --summary "..." --depends-on KEY` |
+| List ready tickets | `st list --ready --project PTAH [--json]` |
 | Show ticket details | `st show KEY [--json]` |
 | Start working | `st status KEY in-progress` |
 | Mark done | `st status KEY done` |
